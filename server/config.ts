@@ -25,6 +25,10 @@ export const config = {
   databaseUrl: required("DB_URL"),   // throws if missing
   /** Secret used to sign/verify JWTs. Required. */
   jwtSecret:   required("JWT_SECRET"),
+  /** Client ID of the GitHub App used for "Sign in with GitHub". Required. */
+  githubClientId: required("GITHUB_CLIENT_ID"),
+  /** Client secret of the GitHub App used for "Sign in with GitHub". Required. */
+  githubClientSecret: required("GITHUB_CLIENT_SECRET"),
   /** Minimum pino log level to emit. Defaults to "info". */
   logLevel: Bun.env.LOG_LEVEL || "info"
 };

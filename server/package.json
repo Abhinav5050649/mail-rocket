@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@hono/oauth-providers": "^0.8.5",
     "hono": "^4.12.23",
     "mongoose": "8",
     "pino": "^10.3.1"

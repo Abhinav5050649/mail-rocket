@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { userRoute } from "./UserRoute";
 import { projectRoute } from "./ProjectRoute";
+import { authRoute } from "./AuthRoute";
 
 /**
  * Root route table. Mounts every feature's sub-router under its resource
@@ -8,4 +9,5 @@ import { projectRoute } from "./ProjectRoute";
  */
 export const appRoute = new Hono()
     .route('/users', userRoute)
-    .route('/projects', projectRoute);
+    .route('/projects', projectRoute)
+    .route('/auth', authRoute);
