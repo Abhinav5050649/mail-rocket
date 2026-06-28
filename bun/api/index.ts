@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import { config } from "./config";
 import { appRoute, requestLogger, errorHandler, connectDB } from "./src";
 
-// Establish the MongoDB connection before accepting traffic so the first
+// Verify the Postgres connection before accepting traffic so the first
 // request doesn't race an unconnected client.
 await connectDB();
 

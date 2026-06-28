@@ -13,7 +13,7 @@ export class UserController {
 
     /**
      * GET /users/:id
-     * Fetches a single user by Mongo `_id`.
+     * Fetches a single user by id.
      *
      * @param c - Hono request context; expects an `id` route param.
      * @returns JSON response with the user document.
