@@ -1,30 +1,27 @@
-import { Schema, model, type InferSchemaType } from "mongoose";
+import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { organizationTable } from "./OrganizationModel";
 
 /**
- * Mongoose schema for a user, authenticated via GitHub OAuth.
- * Fields are snake_case by convention, matching the wire format used by the
- * rest of the API and by GitHub's own API.
+ * Drizzle schema for `user`: a member of an organization.
  */
-const userSchema = new Schema(
-    {
-        /** GitHub's numeric user id - the real identity anchor, unique per account. */
-        github_id: { type: Number, required: true, unique: true },
-        /** GitHub login/handle. */
-        username: { type: String, required: true },
-        /** Display name from the GitHub profile. */
-        name: { type: String },
-        /** Email from the GitHub profile; omitted if the user keeps it private. */
-        email: { type: String },
-        /** Profile picture URL from the GitHub profile. */
-        avatar_url: { type: String },
-        /** Timestamp of the user's most recent OAuth login. */
-        last_login_at: { type: Date },
-    },
-    // Renamed from Mongoose's default camelCase createdAt/updatedAt to keep
-    // every persisted attribute snake_case.
-    { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
-);
+export const userTable = pgTable("user", {
+    /** UUID to identify user. */
+    id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    /** Denotes domain the record belongs to. */
+    entity: varchar("entity").default("mail_rocket.user"),
+    /** First name of user. */
+    first_name: varchar("first_name"),
+    /** Last name of user. */
+    last_name: varchar("last_name"),
+    /** ID of the organization the user belongs to. */
+    organization_id: varchar("organization_id").references(() => organizationTable.id),
+    created_at: timestamp("created_at").$defaultFn(() => new Date()),
+    updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
+    /** Field to store additional metadata about record. */
+    description: varchar("description"),
+    /** Normalized name of user. */
+    normalized_name: varchar("normalized_name"),
+});
 
-/** TS type for a user document, inferred directly from the schema above. */
-export type IUser = InferSchemaType<typeof userSchema>;
-export const UserModel = model("User", userSchema);
+/** TS type for a user row, inferred directly from the table schema above. */
+export type IUser = typeof userTable.$inferSelect;
