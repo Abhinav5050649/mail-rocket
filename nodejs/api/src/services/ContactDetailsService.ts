@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { contactDetailsTable } from "../models";
 
 /** Fields accepted when creating a new contact_details row. */
@@ -79,45 +79,53 @@ export class ContactDetailsService {
     }
 
     /**
-     * Lists every contact_details row belonging to a given user.
+     * Lists every contact_details row belonging to a given user, ordered by `id` ascending.
      *
      * @param userId - id of the user.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching contact_details rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByUser(userId: string) {
+    async getByUser(userId: string, options?: PaginationOptions) {
         try {
-            logger.info({ userId }, `${this.constructor.name}.${this.getByUser.name}: Fetching contact details for user`);
+            logger.info({ userId, options }, `${this.constructor.name}.${this.getByUser.name}: Fetching contact details for user`);
 
-            const contactDetails = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.user_id, userId));
+            const conditions = [eq(contactDetailsTable.user_id, userId)];
+            if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
+
+            const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ userId, count: contactDetails.length }, `${this.constructor.name}.${this.getByUser.name}: Fetched contact details for user`);
 
             return contactDetails;
         } catch (error) {
-            logger.error({ err: error, userId }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get contact details for user`);
+            logger.error({ err: error, userId, options }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get contact details for user`);
             throw error;
         }
     }
 
     /**
-     * Lists every contact_details row belonging to a given organization.
+     * Lists every contact_details row belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param options.limit - max number of rows to return.
-     * @param options.offset - number of rows to skip, for pagination.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching contact_details rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, options?: { limit?: number; offset?: number }) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions) {
         try {
             logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching contact details for organization`);
 
-            let query = db.select().from(contactDetailsTable).where(eq(contactDetailsTable.organization_id, organizationId)).$dynamic();
-            if (options?.limit !== undefined) query = query.limit(options.limit);
-            if (options?.offset !== undefined) query = query.offset(options.offset);
+            const conditions = [eq(contactDetailsTable.organization_id, organizationId)];
+            if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
 
-            const contactDetails = await query;
+            const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ organizationId, count: contactDetails.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched contact details for organization`);
 

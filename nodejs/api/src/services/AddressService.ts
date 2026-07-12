@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { addressTable } from "../models";
 
 /** Fields accepted when creating a new address row. */
@@ -87,51 +87,61 @@ export class AddressService {
     }
 
     /**
-     * Lists every address belonging to a given user.
+     * Lists every address belonging to a given user, ordered by `id` ascending.
      *
      * @param userId - id of the user.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching address rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByUser(userId: string) {
+    async getByUser(userId: string, options?: PaginationOptions) {
         try {
-            logger.info({ userId }, `${this.constructor.name}.${this.getByUser.name}: Fetching addresses for user`);
+            logger.info({ userId, options }, `${this.constructor.name}.${this.getByUser.name}: Fetching addresses for user`);
 
-            const addresses = await db.select().from(addressTable).where(eq(addressTable.user_id, userId));
+            const conditions = [eq(addressTable.user_id, userId)];
+            if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
+
+            const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ userId, count: addresses.length }, `${this.constructor.name}.${this.getByUser.name}: Fetched addresses for user`);
 
             return addresses;
         } catch (error) {
-            logger.error({ err: error, userId }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get addresses for user`);
+            logger.error({ err: error, userId, options }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get addresses for user`);
             throw error;
         }
     }
 
     /**
-     * Lists every address belonging to a given organization.
+     * Lists every address belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param isPrimary - optional filter on the `is_primary` flag.
+     * @param options.isPrimary - optional filter on the `is_primary` flag.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching address rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, isPrimary?: boolean) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions & { isPrimary?: boolean }) {
         try {
-            logger.info({ organizationId, isPrimary }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching addresses for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching addresses for organization`);
 
             const conditions = [eq(addressTable.organization_id, organizationId)];
-            if (isPrimary !== undefined) {
-                conditions.push(eq(addressTable.is_primary, isPrimary));
-            }
+            if (options?.isPrimary !== undefined) conditions.push(eq(addressTable.is_primary, options.isPrimary));
+            if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
 
-            const addresses = await db.select().from(addressTable).where(and(...conditions));
+            const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, isPrimary, count: addresses.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched addresses for organization`);
+            logger.info({ organizationId, count: addresses.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched addresses for organization`);
 
             return addresses;
         } catch (error) {
-            logger.error({ err: error, organizationId, isPrimary }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get addresses for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get addresses for organization`);
             throw error;
         }
     }

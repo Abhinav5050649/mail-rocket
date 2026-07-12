@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
 import { OrganizationService } from "../services";
 
 /**
@@ -16,24 +16,26 @@ export class OrganizationController {
      * GET /organizations
      * Lists organizations.
      *
-     * @param c - Hono request context; accepts optional `count` (page size)
-     * and `page_token` (offset) query params.
-     * @returns JSON array of organizations.
+     * @param c - Hono request context; accepts optional `count` (max rows
+     * to return, defaults to {@link DEFAULT_PAGE_SIZE}) and `page_token`
+     * (the base64-encoded `next_page_token` from the previous response)
+     * query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      */
     getAll = async (c: Context) => {
-        const count = c.req.query('count');
-        const pageToken = c.req.query('page_token');
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
         logger.info({ count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching organizations`);
 
-        const organizations = await this.organizationService.getAll({
-            limit: count !== undefined ? Number(count) : undefined,
-            offset: pageToken !== undefined ? Number(pageToken) : undefined,
-        });
+        const organizations = await this.organizationService.getAll({ count, pageToken });
 
         logger.info({ count: organizations.length }, `${this.constructor.name}.${this.getAll.name}: Organizations fetched successfully`);
 
-        return c.json(organizations);
+        return c.json(buildPage(organizations, count));
     }
 
     /**

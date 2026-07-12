@@ -1,7 +1,8 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
 import { IdentityService } from "../services";
+import type { IdentityType, IdentityStatus } from "../models";
 
 /**
  * HTTP layer for identity-related endpoints. Translates Hono `Context`
@@ -17,8 +18,13 @@ export class IdentityController {
      * GET /organizations/:organization_id/identities
      * Lists identities belonging to an organization.
      *
-     * @param c - Hono request context; expects an `organization_id` route param.
-     * @returns JSON array of matching identities.
+     * @param c - Hono request context; expects an `organization_id` route
+     * param. Accepts optional `type` and `status` filters, and optional
+     * `count` (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE})
+     * and `page_token` (the base64-encoded `next_page_token` from the
+     * previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -28,13 +34,20 @@ export class IdentityController {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.getAll.name}: Fetching identities`);
+        const type = c.req.query('type') as IdentityType | undefined;
+        const status = c.req.query('status') as IdentityStatus | undefined;
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const identities = await this.identityService.getByOrganization(organizationId);
+        logger.info({ organizationId, type, status, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching identities`);
+
+        const identities = await this.identityService.getByOrganization(organizationId, { type, status, count, pageToken });
 
         logger.info({ organizationId, count: identities.length }, `${this.constructor.name}.${this.getAll.name}: Identities fetched successfully`);
 
-        return c.json(identities);
+        return c.json(buildPage(identities, count));
     }
 
     /**

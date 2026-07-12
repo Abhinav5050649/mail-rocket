@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { identityTable, type IdentityType, type IdentityStatus } from "../models";
 
 /** Fields accepted when creating a new identity row. */
@@ -79,23 +79,34 @@ export class IdentityService {
     }
 
     /**
-     * Lists every identity belonging to a given organization.
+     * Lists every identity belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
+     * @param options.type - optional filter on the `type` column.
+     * @param options.status - optional filter on the `status` column.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching identity rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions & { type?: IdentityType; status?: IdentityStatus }) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching identities for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching identities for organization`);
 
-            const identities = await db.select().from(identityTable).where(eq(identityTable.organization_id, organizationId));
+            const conditions = [eq(identityTable.organization_id, organizationId)];
+            if (options?.type !== undefined) conditions.push(eq(identityTable.type, options.type));
+            if (options?.status !== undefined) conditions.push(eq(identityTable.status, options.status));
+            if (options?.pageToken) conditions.push(gt(identityTable.id, options.pageToken));
+
+            const identities = await db.select().from(identityTable).where(and(...conditions)).orderBy(asc(identityTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ organizationId, count: identities.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched identities for organization`);
 
             return identities;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get identities for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get identities for organization`);
             throw error;
         }
     }

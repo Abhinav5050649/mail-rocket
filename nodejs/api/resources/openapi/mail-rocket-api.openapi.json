@@ -52,19 +52,20 @@
           {
             "name": "count",
             "in": "query",
-            "description": "Maximum number of rows to return.",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
             "schema": {
-              "type": "number"
+              "type": "number",
+              "default": 10
             }
           },
           {
             "name": "page_token",
             "in": "query",
-            "description": "Number of rows to skip, for pagination.",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
             "required": false,
             "schema": {
-              "type": "number"
+              "type": "string"
             }
           }
         ],
@@ -74,9 +75,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Organization"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Organization"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -363,6 +374,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -371,9 +401,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -618,6 +658,25 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -626,9 +685,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Address"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Address"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -930,19 +999,20 @@
           {
             "name": "count",
             "in": "query",
-            "description": "Maximum number of rows to return (ignored when user_id is set).",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
             "schema": {
-              "type": "number"
+              "type": "number",
+              "default": 10
             }
           },
           {
             "name": "page_token",
             "in": "query",
-            "description": "Number of rows to skip, for pagination (ignored when user_id is set).",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
             "required": false,
             "schema": {
-              "type": "number"
+              "type": "string"
             }
           }
         ],
@@ -952,9 +1022,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ContactDetails"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactDetails"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -1243,6 +1323,38 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "active"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1251,9 +1363,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Campaign"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Campaign"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -1541,6 +1663,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1549,9 +1690,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Group"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Group"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -1841,6 +1992,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1849,9 +2019,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -2149,6 +2329,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2157,9 +2356,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Group"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Group"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -2268,6 +2477,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2276,9 +2504,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -2396,6 +2634,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2404,9 +2661,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }
@@ -2515,6 +2782,51 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by type.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "domain",
+                "email"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "active"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2523,9 +2835,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Identity"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Identity"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
                   }
                 }
               }

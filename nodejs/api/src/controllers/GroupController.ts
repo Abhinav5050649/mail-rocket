@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
 import { GroupService } from "../services";
 
 /**
@@ -20,8 +20,12 @@ export class GroupController {
      * GET /organizations/:organization_id/groups
      * Lists every group belonging to an organization, across all campaigns.
      *
-     * @param c - Hono request context; expects an `organization_id` route param.
-     * @returns JSON array of matching groups.
+     * @param c - Hono request context; expects an `organization_id` route
+     * param. Accepts optional `count` (max rows to return, defaults to
+     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
+     * `next_page_token` from the previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -31,13 +35,18 @@ export class GroupController {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.getAll.name}: Fetching groups`);
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const groups = await this.groupService.getByOrganization(organizationId);
+        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching groups`);
+
+        const groups = await this.groupService.getByOrganization(organizationId, { count, pageToken });
 
         logger.info({ organizationId, count: groups.length }, `${this.constructor.name}.${this.getAll.name}: Groups fetched successfully`);
 
-        return c.json(groups);
+        return c.json(buildPage(groups, count));
     }
 
     /**
@@ -72,7 +81,11 @@ export class GroupController {
      * Lists groups belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
-     * @returns JSON array of matching groups.
+     * Accepts optional `count` (max rows to return, defaults to
+     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
+     * `next_page_token` from the previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     getAllByCampaign = async (c: Context) => {
@@ -82,13 +95,18 @@ export class GroupController {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching groups for campaign`);
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const groups = await this.groupService.getByCampaign(campaignId);
+        logger.info({ campaignId, count, pageToken }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching groups for campaign`);
+
+        const groups = await this.groupService.getByCampaign(campaignId, { count, pageToken });
 
         logger.info({ campaignId, count: groups.length }, `${this.constructor.name}.${this.getAllByCampaign.name}: Groups fetched successfully`);
 
-        return c.json(groups);
+        return c.json(buildPage(groups, count));
     }
 
     /**

@@ -1,7 +1,8 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
 import { CampaignService } from "../services";
+import type { CampaignStatus } from "../models";
 
 /**
  * HTTP layer for campaign-related endpoints. Translates Hono `Context`
@@ -17,8 +18,13 @@ export class CampaignController {
      * GET /organizations/:organization_id/campaigns
      * Lists campaigns belonging to an organization.
      *
-     * @param c - Hono request context; expects an `organization_id` route param.
-     * @returns JSON array of matching campaigns.
+     * @param c - Hono request context; expects an `organization_id` route
+     * param. Accepts an optional `status` filter, and optional `count`
+     * (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE}) and
+     * `page_token` (the base64-encoded `next_page_token` from the previous
+     * response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -28,13 +34,19 @@ export class CampaignController {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.getAll.name}: Fetching campaigns`);
+        const status = c.req.query('status') as CampaignStatus | undefined;
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const campaigns = await this.campaignService.getByOrganization(organizationId);
+        logger.info({ organizationId, status, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching campaigns`);
+
+        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, count, pageToken });
 
         logger.info({ organizationId, count: campaigns.length }, `${this.constructor.name}.${this.getAll.name}: Campaigns fetched successfully`);
 
-        return c.json(campaigns);
+        return c.json(buildPage(campaigns, count));
     }
 
     /**

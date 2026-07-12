@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { organizationTable } from "../models";
 
 /** Fields accepted when creating a new organization row. */
@@ -48,22 +48,23 @@ export class OrganizationService {
     }
 
     /**
-     * Lists organizations.
+     * Lists organizations, ordered by `id` ascending.
      *
-     * @param options.limit - max number of rows to return.
-     * @param options.offset - number of rows to skip, for pagination.
+     * @param options.count - max number of rows to return; defaults to
+     * {@link DEFAULT_PAGE_SIZE}.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of organization rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getAll(options?: { limit?: number; offset?: number }) {
+    async getAll(options?: PaginationOptions) {
         try {
             logger.info({ options }, `${this.constructor.name}.${this.getAll.name}: Fetching organizations`);
 
-            let query = db.select().from(organizationTable).$dynamic();
-            if (options?.limit !== undefined) query = query.limit(options.limit);
-            if (options?.offset !== undefined) query = query.offset(options.offset);
-
-            const organizations = await query;
+            const organizations = await db.select().from(organizationTable)
+                .where(options?.pageToken ? gt(organizationTable.id, options.pageToken) : undefined)
+                .orderBy(asc(organizationTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ count: organizations.length }, `${this.constructor.name}.${this.getAll.name}: Fetched organizations`);
 

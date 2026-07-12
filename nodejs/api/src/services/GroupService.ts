@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { groupTable } from "../models";
 
 /** Fields accepted when creating a new group row. */
@@ -78,45 +78,59 @@ export class GroupService {
     }
 
     /**
-     * Lists every group belonging to a given campaign.
+     * Lists every group belonging to a given campaign, ordered by `id` ascending.
      *
      * @param campaignId - id of the campaign.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByCampaign(campaignId: string) {
+    async getByCampaign(campaignId: string, options?: PaginationOptions) {
         try {
-            logger.info({ campaignId }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching groups for campaign`);
+            logger.info({ campaignId, options }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching groups for campaign`);
 
-            const groups = await db.select().from(groupTable).where(eq(groupTable.campaign_id, campaignId));
+            const conditions = [eq(groupTable.campaign_id, campaignId)];
+            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
+
+            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ campaignId, count: groups.length }, `${this.constructor.name}.${this.getByCampaign.name}: Fetched groups for campaign`);
 
             return groups;
         } catch (error) {
-            logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getByCampaign.name}: Failed to get groups for campaign`);
+            logger.error({ err: error, campaignId, options }, `Exception in ${this.constructor.name}.${this.getByCampaign.name}: Failed to get groups for campaign`);
             throw error;
         }
     }
 
     /**
-     * Lists every group belonging to a given organization.
+     * Lists every group belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching groups for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching groups for organization`);
 
-            const groups = await db.select().from(groupTable).where(eq(groupTable.organization_id, organizationId));
+            const conditions = [eq(groupTable.organization_id, organizationId)];
+            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
+
+            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ organizationId, count: groups.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched groups for organization`);
 
             return groups;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get groups for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get groups for organization`);
             throw error;
         }
     }

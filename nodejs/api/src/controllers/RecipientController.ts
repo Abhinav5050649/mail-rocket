@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
 import { RecipientService } from "../services";
 
 /**
@@ -23,8 +23,12 @@ export class RecipientController {
      * Lists every recipient belonging to an organization, across all
      * campaigns and groups.
      *
-     * @param c - Hono request context; expects an `organization_id` route param.
-     * @returns JSON array of matching recipients.
+     * @param c - Hono request context; expects an `organization_id` route
+     * param. Accepts optional `count` (max rows to return, defaults to
+     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
+     * `next_page_token` from the previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -34,13 +38,18 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.getAll.name}: Fetching recipients`);
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const recipients = await this.recipientService.getByOrganization(organizationId);
+        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching recipients`);
+
+        const recipients = await this.recipientService.getByOrganization(organizationId, { count, pageToken });
 
         logger.info({ organizationId, count: recipients.length }, `${this.constructor.name}.${this.getAll.name}: Recipients fetched successfully`);
 
-        return c.json(recipients);
+        return c.json(buildPage(recipients, count));
     }
 
     /**
@@ -75,7 +84,11 @@ export class RecipientController {
      * Lists recipients belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
-     * @returns JSON array of matching recipients.
+     * Accepts optional `count` (max rows to return, defaults to
+     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
+     * `next_page_token` from the previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     getAllByCampaign = async (c: Context) => {
@@ -85,13 +98,18 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching recipients for campaign`);
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const recipients = await this.recipientService.getByCampaign(campaignId);
+        logger.info({ campaignId, count, pageToken }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching recipients for campaign`);
+
+        const recipients = await this.recipientService.getByCampaign(campaignId, { count, pageToken });
 
         logger.info({ campaignId, count: recipients.length }, `${this.constructor.name}.${this.getAllByCampaign.name}: Recipients fetched successfully`);
 
-        return c.json(recipients);
+        return c.json(buildPage(recipients, count));
     }
 
     /**
@@ -127,7 +145,11 @@ export class RecipientController {
      * Lists recipients belonging to a single group.
      *
      * @param c - Hono request context; expects a `group_id` route param.
-     * @returns JSON array of matching recipients.
+     * Accepts optional `count` (max rows to return, defaults to
+     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
+     * `next_page_token` from the previous response) query params.
+     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
+     * `null` once the last page has been reached.
      * @throws {HTTPException} 400 if the `group_id` param is missing.
      */
     getAllByGroup = async (c: Context) => {
@@ -137,13 +159,18 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: groupId" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.getAllByGroup.name}: Fetching recipients for group`);
+        const countParam = c.req.query('count');
+        const pageTokenParam = c.req.query('page_token');
+        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
+        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        const recipients = await this.recipientService.getByGroup(groupId);
+        logger.info({ groupId, count, pageToken }, `${this.constructor.name}.${this.getAllByGroup.name}: Fetching recipients for group`);
+
+        const recipients = await this.recipientService.getByGroup(groupId, { count, pageToken });
 
         logger.info({ groupId, count: recipients.length }, `${this.constructor.name}.${this.getAllByGroup.name}: Recipients fetched successfully`);
 
-        return c.json(recipients);
+        return c.json(buildPage(recipients, count));
     }
 
     /**
