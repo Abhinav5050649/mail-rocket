@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { recipientsTable } from "../models";
 
 /** Fields accepted when creating a new recipient row. */
@@ -83,45 +83,88 @@ export class RecipientService {
     }
 
     /**
-     * Lists every recipient belonging to a given group.
+     * Lists every recipient belonging to a given group, ordered by `id` ascending.
      *
      * @param groupId - id of the group.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByGroup(groupId: string) {
+    async getByGroup(groupId: string, options?: PaginationOptions) {
         try {
-            logger.info({ groupId }, `${this.constructor.name}.${this.getByGroup.name}: Fetching recipients for group`);
+            logger.info({ groupId, options }, `${this.constructor.name}.${this.getByGroup.name}: Fetching recipients for group`);
 
-            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.group_id, groupId));
+            const conditions = [eq(recipientsTable.group_id, groupId)];
+            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
+
+            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ groupId, count: recipients.length }, `${this.constructor.name}.${this.getByGroup.name}: Fetched recipients for group`);
 
             return recipients;
         } catch (error) {
-            logger.error({ err: error, groupId }, `Exception in ${this.constructor.name}.${this.getByGroup.name}: Failed to get recipients for group`);
+            logger.error({ err: error, groupId, options }, `Exception in ${this.constructor.name}.${this.getByGroup.name}: Failed to get recipients for group`);
             throw error;
         }
     }
 
     /**
-     * Lists every recipient belonging to a given campaign.
+     * Lists every recipient belonging to a given organization, ordered by `id` ascending.
      *
-     * @param campaignId - id of the campaign.
+     * @param organizationId - id of the organization.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByCampaign(campaignId: string) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions) {
         try {
-            logger.info({ campaignId }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching recipients for campaign`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching recipients for organization`);
 
-            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.campaign_id, campaignId));
+            const conditions = [eq(recipientsTable.organization_id, organizationId)];
+            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
+
+            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+
+            logger.info({ organizationId, count: recipients.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched recipients for organization`);
+
+            return recipients;
+        } catch (error) {
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get recipients for organization`);
+            throw error;
+        }
+    }
+
+    /**
+     * Lists every recipient belonging to a given campaign, ordered by `id` ascending.
+     *
+     * @param campaignId - id of the campaign.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
+     * @returns Array of matching recipient rows (empty if none exist).
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getByCampaign(campaignId: string, options?: PaginationOptions) {
+        try {
+            logger.info({ campaignId, options }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching recipients for campaign`);
+
+            const conditions = [eq(recipientsTable.campaign_id, campaignId)];
+            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
+
+            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ campaignId, count: recipients.length }, `${this.constructor.name}.${this.getByCampaign.name}: Fetched recipients for campaign`);
 
             return recipients;
         } catch (error) {
-            logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getByCampaign.name}: Failed to get recipients for campaign`);
+            logger.error({ err: error, campaignId, options }, `Exception in ${this.constructor.name}.${this.getByCampaign.name}: Failed to get recipients for campaign`);
             throw error;
         }
     }

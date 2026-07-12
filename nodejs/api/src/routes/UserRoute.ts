@@ -14,3 +14,19 @@ const userController = new UserController(userService);
  */
 export const userRoute = new Hono()
     .get('/:id', userController.get)
+
+/**
+ * Routes for the `/organizations/:organization_id/users` resource.
+ *
+ * - GET    /     - list users in the organization.
+ * - POST   /     - create a user.
+ * - GET    /:id  - fetch a single user (shared with `userRoute` above).
+ * - PATCH  /:id  - partially update a user.
+ * - DELETE /:id  - delete a user.
+ */
+export const organizationUserRoute = new Hono()
+    .get('/', userController.getAll)
+    .post('/', userController.post)
+    .get('/:id', userController.get)
+    .patch('/:id', userController.update)
+    .delete('/:id', userController.delete)

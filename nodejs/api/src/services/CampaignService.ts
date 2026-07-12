@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
-import { campaignTable } from "../models";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
+import { campaignTable, type CampaignStatus } from "../models";
 
 /** Fields accepted when creating a new campaign row. */
 export interface CreateCampaignInput {
@@ -13,6 +13,7 @@ export interface CreateCampaignInput {
     organizer_id?: string;
     normalized_name?: string;
     description?: string;
+    status?: CampaignStatus;
 }
 
 /** Fields accepted when partially updating an existing campaign row. */
@@ -24,6 +25,7 @@ export interface UpdateCampaignInput {
     start_time?: Date;
     normalized_name?: string;
     description?: string;
+    status?: CampaignStatus;
 }
 
 /**
@@ -85,23 +87,32 @@ export class CampaignService {
     }
 
     /**
-     * Lists every campaign belonging to a given organization.
+     * Lists every campaign belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
+     * @param options.status - optional filter on the `status` column.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching campaign rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions & { status?: CampaignStatus }) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching campaigns for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching campaigns for organization`);
 
-            const campaigns = await db.select().from(campaignTable).where(eq(campaignTable.organization_id, organizationId));
+            const conditions = [eq(campaignTable.organization_id, organizationId)];
+            if (options?.status !== undefined) conditions.push(eq(campaignTable.status, options.status));
+            if (options?.pageToken) conditions.push(gt(campaignTable.id, options.pageToken));
+
+            const campaigns = await db.select().from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ organizationId, count: campaigns.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched campaigns for organization`);
 
             return campaigns;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get campaigns for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get campaigns for organization`);
             throw error;
         }
     }

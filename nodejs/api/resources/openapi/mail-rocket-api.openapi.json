@@ -1,0 +1,3904 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "mail-rocket-api",
+    "description": "API for Mail Rocket: organizations, users, addresses, contact details, campaigns, groups, and recipients.",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Organizations",
+      "description": "Tenants. Every other resource is scoped to one organization."
+    },
+    {
+      "name": "Users",
+      "description": "Members of an organization."
+    },
+    {
+      "name": "Addresses",
+      "description": "Postal addresses belonging to an organization and/or a user."
+    },
+    {
+      "name": "Contact Details",
+      "description": "Email/phone contact info belonging to an organization and/or a user."
+    },
+    {
+      "name": "Campaigns",
+      "description": "Email campaigns run by an organization."
+    },
+    {
+      "name": "Groups",
+      "description": "Recipient lists within a campaign."
+    },
+    {
+      "name": "Recipients",
+      "description": "People targeted by a campaign/group."
+    },
+    {
+      "name": "Identities",
+      "description": "Domains/email addresses an organization sends from."
+    }
+  ],
+  "paths": {
+    "/organizations": {
+      "get": {
+        "summary": "List Organizations",
+        "deprecated": false,
+        "description": "Lists organizations, optionally paginated.",
+        "tags": [
+          "Organizations"
+        ],
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Organization"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationsGetAll"
+      },
+      "post": {
+        "summary": "Create Organization",
+        "deprecated": false,
+        "description": "Creates a new organization.",
+        "tags": [
+          "Organizations"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationsPost"
+      }
+    },
+    "/organizations/{organization_id}": {
+      "get": {
+        "summary": "Get Organization",
+        "deprecated": false,
+        "description": "Fetches a single organization by id.",
+        "tags": [
+          "Organizations"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationsGet"
+      },
+      "patch": {
+        "summary": "Update Organization",
+        "deprecated": false,
+        "description": "Partially updates an organization.",
+        "tags": [
+          "Organizations"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationsUpdate"
+      },
+      "delete": {
+        "summary": "Delete Organization",
+        "deprecated": false,
+        "description": "Deletes an organization.",
+        "tags": [
+          "Organizations"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationsDelete"
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get User",
+        "deprecated": false,
+        "description": "Fetches a single user by id, without needing to know its organization.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "usersGet"
+      }
+    },
+    "/organizations/{organization_id}/users": {
+      "get": {
+        "summary": "List Users",
+        "deprecated": false,
+        "description": "Lists users belonging to an organization.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users in the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersGetAll"
+      },
+      "post": {
+        "summary": "Create User",
+        "deprecated": false,
+        "description": "Creates a new user within an organization.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersPost"
+      }
+    },
+    "/organizations/{organization_id}/users/{id}": {
+      "patch": {
+        "summary": "Update User",
+        "deprecated": false,
+        "description": "Partially updates a user.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersUpdate"
+      },
+      "delete": {
+        "summary": "Delete User",
+        "deprecated": false,
+        "description": "Deletes a user.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersDelete"
+      }
+    },
+    "/organizations/{organization_id}/addresses": {
+      "get": {
+        "summary": "List Addresses",
+        "deprecated": false,
+        "description": "Lists addresses belonging to an organization.",
+        "tags": [
+          "Addresses"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "Scope the list to addresses belonging to a single user.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_primary",
+            "in": "query",
+            "description": "Filter by the primary-address flag.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Addresses matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Address"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "addressesGetAll"
+      },
+      "post": {
+        "summary": "Create Address",
+        "deprecated": false,
+        "description": "Creates a new address within an organization.",
+        "tags": [
+          "Addresses"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Address"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "addressesPost"
+      }
+    },
+    "/organizations/{organization_id}/addresses/{address_id}": {
+      "get": {
+        "summary": "Get Address",
+        "deprecated": false,
+        "description": "Fetches a single address by id.",
+        "tags": [
+          "Addresses"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address_id",
+            "in": "path",
+            "description": "ID of the address.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Address"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Address not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "addressesGet"
+      },
+      "patch": {
+        "summary": "Update Address",
+        "deprecated": false,
+        "description": "Partially updates an address.",
+        "tags": [
+          "Addresses"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address_id",
+            "in": "path",
+            "description": "ID of the address.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Address"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Address not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "addressesUpdate"
+      },
+      "delete": {
+        "summary": "Delete Address",
+        "deprecated": false,
+        "description": "Deletes an address.",
+        "tags": [
+          "Addresses"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address_id",
+            "in": "path",
+            "description": "ID of the address.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Address"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Address not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "addressesDelete"
+      }
+    },
+    "/organizations/{organization_id}/contact-details": {
+      "get": {
+        "summary": "List Contact Details",
+        "deprecated": false,
+        "description": "Lists contact details belonging to an organization.",
+        "tags": [
+          "Contact Details"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "Scope the list to contact details belonging to a single user.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact details matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContactDetails"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "contactDetailsGetAll"
+      },
+      "post": {
+        "summary": "Create Contact Details",
+        "deprecated": false,
+        "description": "Creates a new contact-details row within an organization.",
+        "tags": [
+          "Contact Details"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactDetailsCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created contact details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "contactDetailsPost"
+      }
+    },
+    "/organizations/{organization_id}/contact-details/{contact_details_id}": {
+      "get": {
+        "summary": "Get Contact Details",
+        "deprecated": false,
+        "description": "Fetches a single contact-details row by id.",
+        "tags": [
+          "Contact Details"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contact_details_id",
+            "in": "path",
+            "description": "ID of the contact-details row.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested contact details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact details not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "contactDetailsGet"
+      },
+      "patch": {
+        "summary": "Update Contact Details",
+        "deprecated": false,
+        "description": "Partially updates a contact-details row.",
+        "tags": [
+          "Contact Details"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contact_details_id",
+            "in": "path",
+            "description": "ID of the contact-details row.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactDetailsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated contact details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact details not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "contactDetailsUpdate"
+      },
+      "delete": {
+        "summary": "Delete Contact Detail",
+        "deprecated": false,
+        "description": "Deletes a contact-details row.",
+        "tags": [
+          "Contact Details"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contact_details_id",
+            "in": "path",
+            "description": "ID of the contact-details row.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted contact details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact details not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "contactDetailsDelete"
+      }
+    },
+    "/organizations/{organization_id}/campaigns": {
+      "get": {
+        "summary": "List Campaigns",
+        "deprecated": false,
+        "description": "Lists campaigns belonging to an organization.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "active"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaigns in the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Campaign"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignsGetAll"
+      },
+      "post": {
+        "summary": "Create Campaign",
+        "deprecated": false,
+        "description": "Creates a new campaign within an organization.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignsPost"
+      }
+    },
+    "/organizations/{organization_id}/campaigns/{campaign_id}": {
+      "get": {
+        "summary": "Get Campaign",
+        "deprecated": false,
+        "description": "Fetches a single campaign by id.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignsGet"
+      },
+      "patch": {
+        "summary": "Update Campaign",
+        "deprecated": false,
+        "description": "Partially updates a campaign.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignsUpdate"
+      },
+      "delete": {
+        "summary": "Delete Campaign",
+        "deprecated": false,
+        "description": "Deletes a campaign.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignsDelete"
+      }
+    },
+    "/organizations/{organization_id}/groups": {
+      "get": {
+        "summary": "List Groups",
+        "deprecated": false,
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Group"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupsGetAll",
+        "description": "Lists every group belonging to an organization, across all campaigns. For campaign-scoped listing, use GET /organizations/{organization_id}/campaigns/{campaign_id}/groups instead."
+      },
+      "post": {
+        "summary": "Create Group",
+        "deprecated": false,
+        "description": "Creates a new group within an organization.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupsPost"
+      }
+    },
+    "/organizations/{organization_id}/groups/{group_id}": {
+      "get": {
+        "summary": "Get Group",
+        "deprecated": false,
+        "description": "Fetches a single group by id.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupsGet"
+      },
+      "patch": {
+        "summary": "Update Group",
+        "deprecated": false,
+        "description": "Partially updates a group.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupsUpdate"
+      },
+      "delete": {
+        "summary": "Delete Group",
+        "deprecated": false,
+        "description": "Deletes a group.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupsDelete"
+      }
+    },
+    "/organizations/{organization_id}/recipients": {
+      "get": {
+        "summary": "List Recipients",
+        "deprecated": false,
+        "description": "Lists every recipient belonging to an organization, across all campaigns and groups. For narrower listing, use the dedicated campaign/group-scoped endpoints instead.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipients matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "recipientsGetAll"
+      },
+      "post": {
+        "summary": "Create Recipient",
+        "deprecated": false,
+        "description": "Creates a new recipient within an organization.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "recipientsPost"
+      }
+    },
+    "/organizations/{organization_id}/recipients/{recipient_id}": {
+      "get": {
+        "summary": "Get Recipient",
+        "deprecated": false,
+        "description": "Fetches a single recipient by id.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient_id",
+            "in": "path",
+            "description": "ID of the recipient.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recipient not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "recipientsGet"
+      },
+      "patch": {
+        "summary": "Update Recipient",
+        "deprecated": false,
+        "description": "Partially updates a recipient.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient_id",
+            "in": "path",
+            "description": "ID of the recipient.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recipient not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "recipientsUpdate"
+      },
+      "delete": {
+        "summary": "Delete Recipient",
+        "deprecated": false,
+        "description": "Deletes a recipient.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient_id",
+            "in": "path",
+            "description": "ID of the recipient.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recipient not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "recipientsDelete"
+      }
+    },
+    "/organizations/{organization_id}/campaigns/{campaign_id}/groups": {
+      "get": {
+        "summary": "List Groups by Campaign",
+        "deprecated": false,
+        "description": "Lists groups belonging to a single campaign.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups in the campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Group"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignGroupsGetAll"
+      },
+      "post": {
+        "summary": "Create Group in Campaign",
+        "deprecated": false,
+        "description": "Creates a new group within a campaign.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignGroupsPost"
+      }
+    },
+    "/organizations/{organization_id}/campaigns/{campaign_id}/recipients": {
+      "get": {
+        "summary": "List Recipients by Campaign",
+        "deprecated": false,
+        "description": "Lists recipients belonging to a single campaign.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipients in the campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignRecipientsGetAll"
+      },
+      "post": {
+        "summary": "Create Recipient in Campaign",
+        "deprecated": false,
+        "description": "Creates a new recipient within a campaign.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "campaignRecipientsPost"
+      }
+    },
+    "/organizations/{organization_id}/campaigns/{campaign_id}/groups/{group_id}/recipients": {
+      "get": {
+        "summary": "List Recipients by Group",
+        "deprecated": false,
+        "description": "Lists recipients belonging to a single group.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipients in the group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Recipient"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupRecipientsGetAll"
+      },
+      "post": {
+        "summary": "Create Recipient in Group",
+        "deprecated": false,
+        "description": "Creates a new recipient within a group.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created recipient.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "groupRecipientsPost"
+      }
+    },
+    "/organizations/{organization_id}/identities": {
+      "get": {
+        "summary": "List Identities",
+        "deprecated": false,
+        "description": "Lists identities belonging to an organization.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by type.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "domain",
+                "email"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "active"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identities in the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Identity"
+                      }
+                    },
+                    "next_page_token": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesGetAll"
+      },
+      "post": {
+        "summary": "Create Identity",
+        "deprecated": false,
+        "description": "Creates a new identity within an organization.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesPost"
+      }
+    },
+    "/organizations/{organization_id}/identities/{identity_id}": {
+      "get": {
+        "summary": "Get Identity",
+        "deprecated": false,
+        "description": "Fetches a single identity by id.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesGet"
+      },
+      "patch": {
+        "summary": "Update Identity",
+        "deprecated": false,
+        "description": "Partially updates an identity.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesUpdate"
+      },
+      "delete": {
+        "summary": "Delete Identity",
+        "deprecated": false,
+        "description": "Deletes an identity.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesDelete"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message."
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "description": "A tenant in Mail Rocket. Every other resource is scoped to one organization.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the organization."
+          },
+          "entity": {
+            "type": "string",
+            "description": "Denotes the type of object and the domain it belongs to."
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the organization."
+          },
+          "normalized_name": {
+            "type": "string",
+            "description": "Normalized name of the organization."
+          },
+          "description": {
+            "type": "string",
+            "description": "Free-form metadata about the record."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrganizationCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "OrganizationUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "A member of an organization.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the user."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "ID of the organization the user belongs to."
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level of the user within their organization."
+          }
+        }
+      },
+      "UserCreate": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level of the user within their organization. Defaults to \"viewer\" if omitted."
+          }
+        }
+      },
+      "UserUpdate": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level of the user within their organization."
+          }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "description": "A postal address belonging to an organization and/or a user.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the address."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "description": "Whether this is the primary address of the organization."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AddressCreate": {
+        "type": "object",
+        "properties": {
+          "street": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Optional user to associate the address with."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "AddressUpdate": {
+        "type": "object",
+        "properties": {
+          "street": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ContactDetails": {
+        "type": "object",
+        "description": "Email/phone contact info reachable via a user or an organization.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the contact detail."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "country_code": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ContactDetailsCreate": {
+        "type": "object",
+        "properties": {
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "country_code": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "Optional user to associate the contact detail with."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ContactDetailsUpdate": {
+        "type": "object",
+        "properties": {
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "country_code": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Campaign": {
+        "type": "object",
+        "description": "An email campaign run by an organization.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the campaign."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Subject line of the campaign email."
+          },
+          "logo_key": {
+            "type": "string",
+            "description": "Storage key/path of the campaign logo."
+          },
+          "logo_bucket": {
+            "type": "string",
+            "description": "Storage bucket where the campaign logo is stored."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "organizer_id": {
+            "type": "string",
+            "description": "ID of the user organizing the campaign."
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "description": "Lifecycle status of the campaign."
+          }
+        }
+      },
+      "CampaignCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "logo_key": {
+            "type": "string"
+          },
+          "logo_bucket": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "organizer_id": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "description": "Lifecycle status of the campaign. Defaults to \"draft\" if omitted."
+          }
+        }
+      },
+      "CampaignUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "logo_key": {
+            "type": "string"
+          },
+          "logo_bucket": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "description": "Lifecycle status of the campaign."
+          }
+        }
+      },
+      "Group": {
+        "type": "object",
+        "description": "A recipient list within a campaign.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the group."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "campaign_id": {
+            "type": "string",
+            "description": "ID of the campaign the group belongs to."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "creator_id": {
+            "type": "string",
+            "description": "ID of the user who created the group."
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GroupCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "campaign_id": {
+            "type": "string"
+          },
+          "creator_id": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Recipient": {
+        "type": "object",
+        "description": "A person targeted by a campaign/group.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the recipient."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "campaign_id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecipientCreate": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "campaign_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "RecipientUpdate": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "email_id": {
+            "type": "string",
+            "format": "email"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Identity": {
+        "type": "object",
+        "description": "A domain or email address an organization sends from.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the identity."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity."
+          }
+        }
+      },
+      "IdentityCreate": {
+        "type": "object",
+        "required": [
+          "type",
+          "identity"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity. Defaults to \"created\" if omitted."
+          }
+        }
+      },
+      "IdentityUpdate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity."
+          }
+        }
+      }
+    },
+    "responses": {},
+    "securitySchemes": {}
+  },
+  "servers": [],
+  "security": []
+}

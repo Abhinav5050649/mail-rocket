@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
-import { db, logger } from "../libs";
-import { userTable } from "../models";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
+import { userTable, type UserRole } from "../models";
 
 /** Fields accepted when creating a new user row. */
 export interface CreateUserInput {
@@ -9,6 +9,7 @@ export interface CreateUserInput {
     organization_id?: string;
     description?: string;
     normalized_name?: string;
+    role?: UserRole;
 }
 
 /** Fields accepted when partially updating an existing user row. */
@@ -17,6 +18,7 @@ export interface UpdateUserInput {
     last_name?: string;
     description?: string;
     normalized_name?: string;
+    role?: UserRole;
 }
 
 /**
@@ -78,23 +80,30 @@ export class UserService {
     }
 
     /**
-     * Lists every user belonging to a given organization.
+     * Lists every user belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
+     * @param options.count - max number of rows to return.
+     * @param options.pageToken - id of the last row from the previous page;
+     * rows are fetched starting strictly after it.
      * @returns Array of matching user rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, options?: PaginationOptions) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching users for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching users for organization`);
 
-            const users = await db.select().from(userTable).where(eq(userTable.organization_id, organizationId));
+            const conditions = [eq(userTable.organization_id, organizationId)];
+            if (options?.pageToken) conditions.push(gt(userTable.id, options.pageToken));
+
+            const users = await db.select().from(userTable).where(and(...conditions)).orderBy(asc(userTable.id))
+                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
             logger.info({ organizationId, count: users.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched users for organization`);
 
             return users;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get users for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get users for organization`);
             throw error;
         }
     }

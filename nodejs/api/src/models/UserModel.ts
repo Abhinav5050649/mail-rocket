@@ -1,5 +1,11 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
+
+/** Permission level of a user within their organization. */
+export const userRoleEnum = pgEnum("user_role", ["viewer", "editor", "admin"]);
+
+/** TS union type for a user's `role` column. */
+export type UserRole = (typeof userRoleEnum.enumValues)[number];
 
 /**
  * Drizzle schema for `user`: a member of an organization.
@@ -21,6 +27,8 @@ export const userTable = pgTable("user", {
     description: varchar("description"),
     /** Normalized name of user. */
     normalized_name: varchar("normalized_name"),
+    /** Permission level of the user within their organization. */
+    role: userRoleEnum("role").default("viewer"),
 });
 
 /** TS type for a user row, inferred directly from the table schema above. */
