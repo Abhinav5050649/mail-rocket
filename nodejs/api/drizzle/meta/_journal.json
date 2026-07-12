@@ -15,6 +15,20 @@
       "when": 1783865301811,
       "tag": "0001_blue_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783866267844,
+      "tag": "0002_normal_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783866713468,
+      "tag": "0003_blue_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

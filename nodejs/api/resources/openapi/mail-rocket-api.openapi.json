@@ -33,6 +33,10 @@
     {
       "name": "Recipients",
       "description": "People targeted by a campaign/group."
+    },
+    {
+      "name": "Identities",
+      "description": "Domains/email addresses an organization sends from."
     }
   ],
   "paths": {
@@ -2493,6 +2497,305 @@
         "security": [],
         "operationId": "groupRecipientsPost"
       }
+    },
+    "/organizations/{organization_id}/identities": {
+      "get": {
+        "summary": "List Identities",
+        "deprecated": false,
+        "description": "Lists identities belonging to an organization.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identities in the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Identity"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesGetAll"
+      },
+      "post": {
+        "summary": "Create Identity",
+        "deprecated": false,
+        "description": "Creates a new identity within an organization.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesPost"
+      }
+    },
+    "/organizations/{organization_id}/identities/{identity_id}": {
+      "get": {
+        "summary": "Get Identity",
+        "deprecated": false,
+        "description": "Fetches a single identity by id.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesGet"
+      },
+      "patch": {
+        "summary": "Update Identity",
+        "deprecated": false,
+        "description": "Partially updates an identity.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesUpdate"
+      },
+      "delete": {
+        "summary": "Delete Identity",
+        "deprecated": false,
+        "description": "Deletes an identity.",
+        "tags": [
+          "Identities"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity_id",
+            "in": "path",
+            "description": "ID of the identity.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Identity not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "identitiesDelete"
+      }
     }
   },
   "components": {
@@ -3160,6 +3463,113 @@
           },
           "description": {
             "type": "string"
+          }
+        }
+      },
+      "Identity": {
+        "type": "object",
+        "description": "A domain or email address an organization sends from.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the identity."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity."
+          }
+        }
+      },
+      "IdentityCreate": {
+        "type": "object",
+        "required": [
+          "type",
+          "identity"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity. Defaults to \"created\" if omitted."
+          }
+        }
+      },
+      "IdentityUpdate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "domain",
+              "email"
+            ],
+            "description": "Whether this identity is a domain or an email address."
+          },
+          "identity": {
+            "type": "string",
+            "description": "The domain name or email address being identified."
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "active"
+            ],
+            "description": "Lifecycle status of the identity."
           }
         }
       }

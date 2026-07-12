@@ -3,6 +3,7 @@ import { userRoute, organizationUserRoute } from "./UserRoute";
 import { organizationRoute } from "./OrganizationRoute";
 import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
+import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
 import { recipientRoute, campaignRecipientRoute, groupRecipientRoute } from "./RecipientRoute";
@@ -22,6 +23,7 @@ export const appRoute = new Hono()
     .route('/organizations/:organization_id/users', organizationUserRoute)
     .route('/organizations/:organization_id/addresses', addressRoute)
     .route('/organizations/:organization_id/contact-details', contactDetailsRoute)
+    .route('/organizations/:organization_id/identities', identityRoute)
     .route('/organizations/:organization_id/campaigns', campaignRoute)
     .route('/organizations/:organization_id/groups', groupRoute)
     .route('/organizations/:organization_id/recipients', recipientRoute)
