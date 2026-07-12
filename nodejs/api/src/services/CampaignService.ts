@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, logger } from "../libs";
-import { campaignTable } from "../models";
+import { campaignTable, type CampaignStatus } from "../models";
 
 /** Fields accepted when creating a new campaign row. */
 export interface CreateCampaignInput {
@@ -13,6 +13,7 @@ export interface CreateCampaignInput {
     organizer_id?: string;
     normalized_name?: string;
     description?: string;
+    status?: CampaignStatus;
 }
 
 /** Fields accepted when partially updating an existing campaign row. */
@@ -24,6 +25,7 @@ export interface UpdateCampaignInput {
     start_time?: Date;
     normalized_name?: string;
     description?: string;
+    status?: CampaignStatus;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, logger } from "../libs";
 import { addressTable } from "../models";
 
@@ -112,20 +112,26 @@ export class AddressService {
      * Lists every address belonging to a given organization.
      *
      * @param organizationId - id of the organization.
+     * @param isPrimary - optional filter on the `is_primary` flag.
      * @returns Array of matching address rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, isPrimary?: boolean) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching addresses for organization`);
+            logger.info({ organizationId, isPrimary }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching addresses for organization`);
 
-            const addresses = await db.select().from(addressTable).where(eq(addressTable.organization_id, organizationId));
+            const conditions = [eq(addressTable.organization_id, organizationId)];
+            if (isPrimary !== undefined) {
+                conditions.push(eq(addressTable.is_primary, isPrimary));
+            }
 
-            logger.info({ organizationId, count: addresses.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched addresses for organization`);
+            const addresses = await db.select().from(addressTable).where(and(...conditions));
+
+            logger.info({ organizationId, isPrimary, count: addresses.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched addresses for organization`);
 
             return addresses;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get addresses for organization`);
+            logger.error({ err: error, organizationId, isPrimary }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get addresses for organization`);
             throw error;
         }
     }

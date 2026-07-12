@@ -104,20 +104,26 @@ export class ContactDetailsService {
      * Lists every contact_details row belonging to a given organization.
      *
      * @param organizationId - id of the organization.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip, for pagination.
      * @returns Array of matching contact_details rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string) {
+    async getByOrganization(organizationId: string, options?: { limit?: number; offset?: number }) {
         try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching contact details for organization`);
+            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching contact details for organization`);
 
-            const contactDetails = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.organization_id, organizationId));
+            let query = db.select().from(contactDetailsTable).where(eq(contactDetailsTable.organization_id, organizationId)).$dynamic();
+            if (options?.limit !== undefined) query = query.limit(options.limit);
+            if (options?.offset !== undefined) query = query.offset(options.offset);
+
+            const contactDetails = await query;
 
             logger.info({ organizationId, count: contactDetails.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched contact details for organization`);
 
             return contactDetails;
         } catch (error) {
-            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get contact details for organization`);
+            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get contact details for organization`);
             throw error;
         }
     }

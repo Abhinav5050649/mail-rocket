@@ -105,6 +105,28 @@ export class RecipientService {
     }
 
     /**
+     * Lists every recipient belonging to a given organization.
+     *
+     * @param organizationId - id of the organization.
+     * @returns Array of matching recipient rows (empty if none exist).
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getByOrganization(organizationId: string) {
+        try {
+            logger.info({ organizationId }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching recipients for organization`);
+
+            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.organization_id, organizationId));
+
+            logger.info({ organizationId, count: recipients.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched recipients for organization`);
+
+            return recipients;
+        } catch (error) {
+            logger.error({ err: error, organizationId }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get recipients for organization`);
+            throw error;
+        }
+    }
+
+    /**
      * Lists every recipient belonging to a given campaign.
      *
      * @param campaignId - id of the campaign.

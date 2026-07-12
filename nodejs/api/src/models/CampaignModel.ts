@@ -1,6 +1,12 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
+
+/** Lifecycle status of a campaign. */
+export const campaignStatusEnum = pgEnum("campaign_status", ["draft", "active"]);
+
+/** TS union type for a campaign's `status` column. */
+export type CampaignStatus = (typeof campaignStatusEnum.enumValues)[number];
 
 /** Drizzle schema for `campaign`: an email campaign run by an organization. */
 export const campaignTable = pgTable("campaign", {
@@ -28,6 +34,8 @@ export const campaignTable = pgTable("campaign", {
     organizer_id: varchar("organizer_id").references(() => userTable.id),
     /** Normalized name of campaign. */
     normalized_name: varchar("normalized_name"),
+    /** Lifecycle status of the campaign. */
+    status: campaignStatusEnum("status").default("draft"),
 });
 
 /** TS type for a campaign row, inferred directly from the table schema above. */

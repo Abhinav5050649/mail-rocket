@@ -48,6 +48,33 @@ export class OrganizationService {
     }
 
     /**
+     * Lists organizations.
+     *
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip, for pagination.
+     * @returns Array of organization rows (empty if none exist).
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getAll(options?: { limit?: number; offset?: number }) {
+        try {
+            logger.info({ options }, `${this.constructor.name}.${this.getAll.name}: Fetching organizations`);
+
+            let query = db.select().from(organizationTable).$dynamic();
+            if (options?.limit !== undefined) query = query.limit(options.limit);
+            if (options?.offset !== undefined) query = query.offset(options.offset);
+
+            const organizations = await query;
+
+            logger.info({ count: organizations.length }, `${this.constructor.name}.${this.getAll.name}: Fetched organizations`);
+
+            return organizations;
+        } catch (error) {
+            logger.error({ err: error, options }, `Exception in ${this.constructor.name}.${this.getAll.name}: Failed to get organizations`);
+            throw error;
+        }
+    }
+
+    /**
      * Fetches a single organization by id.
      *
      * @param organizationId - id of the organization.

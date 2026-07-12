@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, logger } from "../libs";
-import { userTable } from "../models";
+import { userTable, type UserRole } from "../models";
 
 /** Fields accepted when creating a new user row. */
 export interface CreateUserInput {
@@ -9,6 +9,7 @@ export interface CreateUserInput {
     organization_id?: string;
     description?: string;
     normalized_name?: string;
+    role?: UserRole;
 }
 
 /** Fields accepted when partially updating an existing user row. */
@@ -17,6 +18,7 @@ export interface UpdateUserInput {
     last_name?: string;
     description?: string;
     normalized_name?: string;
+    role?: UserRole;
 }
 
 /**
