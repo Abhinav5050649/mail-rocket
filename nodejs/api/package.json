@@ -7,19 +7,24 @@
     "start": "node --experimental-strip-types index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "build": "esbuild index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.mjs",
+    "sst:dev": "sst dev",
+    "deploy": "sst deploy"
   },
   "devDependencies": {
     "@types/node": "latest",
     "drizzle-kit": "^0.31.0",
+    "esbuild": "^0.28.1",
+    "sst": "^4.17.1",
     "tsx": "^4.19.4",
     "typescript": "^5"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
+    "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.44.0",
     "hono": "^4.12.23",
-    "pino": "^10.3.1",
-    "postgres": "^3.4.7"
+    "pino": "^10.3.1"
   }
 }
