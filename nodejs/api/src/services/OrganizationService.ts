@@ -19,9 +19,10 @@ export interface UpdateOrganizationInput {
 /**
  * Data-access layer for `organization` rows (tenants). Wraps
  * `organizationTable` (Drizzle) and adds structured logging around every
- * operation: an `info` log when the operation starts, `info`/`warn` on
- * completion depending on whether a row was found, and `error` (with the
- * full stack via the pino `err` serializer) if the underlying query throws.
+ * operation: `info` logs marking method start/end, `debug` logs of the
+ * request params and response payload, `warn` if no matching row is
+ * found, and `error` (with the full stack via the pino `err` serializer)
+ * if the underlying query throws.
  */
 export class OrganizationService {
 
@@ -33,12 +34,14 @@ export class OrganizationService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateOrganizationInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [organization] = await db.insert(organizationTable).values(data).returning();
 
-            logger.info({ organizationId: organization!.id }, `${this.constructor.name}.${this.create.name}: Organization created`);
+            logger.debug({ organizationId: organization!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return organization!;
         } catch (error) {
@@ -58,15 +61,17 @@ export class OrganizationService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getAll(options?: PaginationOptions) {
-        try {
-            logger.info({ options }, `${this.constructor.name}.${this.getAll.name}: Fetching organizations`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+        logger.debug({ options }, `Request:`);
 
+        try {
             const organizations = await db.select().from(organizationTable)
                 .where(options?.pageToken ? gt(organizationTable.id, options.pageToken) : undefined)
                 .orderBy(asc(organizationTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ count: organizations.length }, `${this.constructor.name}.${this.getAll.name}: Fetched organizations`);
+            logger.debug({ count: organizations.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
             return organizations;
         } catch (error) {
@@ -83,9 +88,10 @@ export class OrganizationService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(organizationId: string) {
-        try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getById.name}: Fetching organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ organizationId }, `Request:`);
 
+        try {
             const [organization] = await db.select().from(organizationTable).where(eq(organizationTable.id, organizationId));
 
             if (!organization) {
@@ -93,7 +99,8 @@ export class OrganizationService {
                 return null;
             }
 
-            logger.info({ organizationId }, `${this.constructor.name}.${this.getById.name}: Organization fetched`);
+            logger.debug({ organizationId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return organization;
         } catch (error) {
@@ -111,9 +118,10 @@ export class OrganizationService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(organizationId: string, data: UpdateOrganizationInput) {
-        try {
-            logger.info({ organizationId, data }, `${this.constructor.name}.${this.update.name}: Updating organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ organizationId, data }, `Request:`);
 
+        try {
             const [organization] = await db.update(organizationTable).set(data).where(eq(organizationTable.id, organizationId)).returning();
 
             if (!organization) {
@@ -121,7 +129,8 @@ export class OrganizationService {
                 return null;
             }
 
-            logger.info({ organizationId }, `${this.constructor.name}.${this.update.name}: Organization updated`);
+            logger.debug({ organizationId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return organization;
         } catch (error) {
@@ -138,9 +147,10 @@ export class OrganizationService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(organizationId: string) {
-        try {
-            logger.info({ organizationId }, `${this.constructor.name}.${this.delete.name}: Deleting organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ organizationId }, `Request:`);
 
+        try {
             const [organization] = await db.delete(organizationTable).where(eq(organizationTable.id, organizationId)).returning();
 
             if (!organization) {
@@ -148,7 +158,8 @@ export class OrganizationService {
                 return null;
             }
 
-            logger.info({ organizationId }, `${this.constructor.name}.${this.delete.name}: Organization deleted`);
+            logger.debug({ organizationId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return organization;
         } catch (error) {

@@ -21,13 +21,15 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
             throw new HTTPException(400, { message: "Missing Parameters: userId" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.get.name}: Fetching user`);
+        logger.debug({ userId }, `Request:`);
 
         const user = await this.userService.getById(userId);
 
@@ -36,7 +38,8 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.get.name}: User fetched successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(user);
     }
@@ -54,6 +57,8 @@ export class UserController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -65,11 +70,12 @@ export class UserController {
         const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
         const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching users`);
+        logger.debug({ organizationId, count, pageToken }, `Request:`);
 
         const users = await this.userService.getByOrganization(organizationId, { count, pageToken });
 
-        logger.info({ organizationId, count: users.length }, `${this.constructor.name}.${this.getAll.name}: Users fetched successfully`);
+        logger.debug({ organizationId, count: users.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(buildPage(users, count));
     }
@@ -84,6 +90,8 @@ export class UserController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -92,11 +100,12 @@ export class UserController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating user`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const user = await this.userService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, userId: user.id }, `${this.constructor.name}.${this.post.name}: User created successfully`);
+        logger.debug({ organizationId, user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(user, 201);
     }
@@ -112,6 +121,8 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
@@ -120,7 +131,7 @@ export class UserController {
 
         const body = await c.req.json();
 
-        logger.info({ userId, body }, `${this.constructor.name}.${this.update.name}: Updating user`);
+        logger.debug({ userId, body }, `Request:`);
 
         const user = await this.userService.update(userId, body);
 
@@ -129,7 +140,8 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.update.name}: User updated successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(user);
     }
@@ -144,13 +156,15 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
             throw new HTTPException(400, { message: "Missing Parameters: userId" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: Deleting user`);
+        logger.debug({ userId }, `Request:`);
 
         const user = await this.userService.delete(userId);
 
@@ -159,7 +173,8 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: User deleted successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(user);
     }

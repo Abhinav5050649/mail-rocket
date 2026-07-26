@@ -32,6 +32,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -43,11 +45,12 @@ export class RecipientController {
         const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
         const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching recipients`);
+        logger.debug({ organizationId, count, pageToken }, `Request:`);
 
         const recipients = await this.recipientService.getByOrganization(organizationId, { count, pageToken });
 
-        logger.info({ organizationId, count: recipients.length }, `${this.constructor.name}.${this.getAll.name}: Recipients fetched successfully`);
+        logger.debug({ organizationId, count: recipients.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(buildPage(recipients, count));
     }
@@ -62,6 +65,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -70,11 +75,12 @@ export class RecipientController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating recipient`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const recipient = await this.recipientService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, recipientId: recipient.id }, `${this.constructor.name}.${this.post.name}: Recipient created successfully`);
+        logger.debug({ organizationId, recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(recipient, 201);
     }
@@ -92,6 +98,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     getAllByCampaign = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
+
         const campaignId = c.req.param('campaign_id');
 
         if (!campaignId) {
@@ -103,11 +111,12 @@ export class RecipientController {
         const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
         const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        logger.info({ campaignId, count, pageToken }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching recipients for campaign`);
+        logger.debug({ campaignId, count, pageToken }, `Request:`);
 
         const recipients = await this.recipientService.getByCampaign(campaignId, { count, pageToken });
 
-        logger.info({ campaignId, count: recipients.length }, `${this.constructor.name}.${this.getAllByCampaign.name}: Recipients fetched successfully`);
+        logger.debug({ campaignId, count: recipients.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
 
         return c.json(buildPage(recipients, count));
     }
@@ -122,6 +131,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if `organization_id` or `campaign_id` is missing.
      */
     postByCampaign = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
+
         const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
 
@@ -131,11 +142,12 @@ export class RecipientController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, campaignId, body }, `${this.constructor.name}.${this.postByCampaign.name}: Creating recipient`);
+        logger.debug({ organizationId, campaignId, body }, `Request:`);
 
         const recipient = await this.recipientService.create({ ...body, organization_id: organizationId, campaign_id: campaignId });
 
-        logger.info({ organizationId, campaignId, recipientId: recipient.id }, `${this.constructor.name}.${this.postByCampaign.name}: Recipient created successfully`);
+        logger.debug({ organizationId, campaignId, recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(recipient, 201);
     }
@@ -153,6 +165,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if the `group_id` param is missing.
      */
     getAllByGroup = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAllByGroup.name}`);
+
         const groupId = c.req.param('group_id');
 
         if (!groupId) {
@@ -164,11 +178,12 @@ export class RecipientController {
         const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
         const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        logger.info({ groupId, count, pageToken }, `${this.constructor.name}.${this.getAllByGroup.name}: Fetching recipients for group`);
+        logger.debug({ groupId, count, pageToken }, `Request:`);
 
         const recipients = await this.recipientService.getByGroup(groupId, { count, pageToken });
 
-        logger.info({ groupId, count: recipients.length }, `${this.constructor.name}.${this.getAllByGroup.name}: Recipients fetched successfully`);
+        logger.debug({ groupId, count: recipients.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAllByGroup.name}`);
 
         return c.json(buildPage(recipients, count));
     }
@@ -184,6 +199,8 @@ export class RecipientController {
      * @throws {HTTPException} 400 if `organization_id`, `campaign_id`, or `group_id` is missing.
      */
     postByGroup = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.postByGroup.name}`);
+
         const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
         const groupId = c.req.param('group_id');
@@ -194,7 +211,7 @@ export class RecipientController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, campaignId, groupId, body }, `${this.constructor.name}.${this.postByGroup.name}: Creating recipient`);
+        logger.debug({ organizationId, campaignId, groupId, body }, `Request:`);
 
         const recipient = await this.recipientService.create({
             ...body,
@@ -203,7 +220,8 @@ export class RecipientController {
             group_id: groupId,
         });
 
-        logger.info({ organizationId, campaignId, groupId, recipientId: recipient.id }, `${this.constructor.name}.${this.postByGroup.name}: Recipient created successfully`);
+        logger.debug({ organizationId, campaignId, groupId, recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.postByGroup.name}`);
 
         return c.json(recipient, 201);
     }
@@ -218,13 +236,15 @@ export class RecipientController {
      * @throws {HTTPException} 404 if no recipient matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const recipientId = c.req.param('recipient_id');
 
         if (!recipientId) {
             throw new HTTPException(400, { message: "Missing Parameters: recipientId" });
         }
 
-        logger.info({ recipientId }, `${this.constructor.name}.${this.get.name}: Fetching recipient`);
+        logger.debug({ recipientId }, `Request:`);
 
         const recipient = await this.recipientService.getById(recipientId);
 
@@ -233,7 +253,8 @@ export class RecipientController {
             throw new HTTPException(404, { message: "Recipient not found" });
         }
 
-        logger.info({ recipientId }, `${this.constructor.name}.${this.get.name}: Recipient fetched successfully`);
+        logger.debug({ recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(recipient);
     }
@@ -249,6 +270,8 @@ export class RecipientController {
      * @throws {HTTPException} 404 if no recipient matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const recipientId = c.req.param('recipient_id');
 
         if (!recipientId) {
@@ -257,7 +280,7 @@ export class RecipientController {
 
         const body = await c.req.json();
 
-        logger.info({ recipientId, body }, `${this.constructor.name}.${this.update.name}: Updating recipient`);
+        logger.debug({ recipientId, body }, `Request:`);
 
         const recipient = await this.recipientService.update(recipientId, body);
 
@@ -266,7 +289,8 @@ export class RecipientController {
             throw new HTTPException(404, { message: "Recipient not found" });
         }
 
-        logger.info({ recipientId }, `${this.constructor.name}.${this.update.name}: Recipient updated successfully`);
+        logger.debug({ recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(recipient);
     }
@@ -281,13 +305,15 @@ export class RecipientController {
      * @throws {HTTPException} 404 if no recipient matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const recipientId = c.req.param('recipient_id');
 
         if (!recipientId) {
             throw new HTTPException(400, { message: "Missing Parameters: recipientId" });
         }
 
-        logger.info({ recipientId }, `${this.constructor.name}.${this.delete.name}: Deleting recipient`);
+        logger.debug({ recipientId }, `Request:`);
 
         const recipient = await this.recipientService.delete(recipientId);
 
@@ -296,7 +322,8 @@ export class RecipientController {
             throw new HTTPException(404, { message: "Recipient not found" });
         }
 
-        logger.info({ recipientId }, `${this.constructor.name}.${this.delete.name}: Recipient deleted successfully`);
+        logger.debug({ recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(recipient);
     }

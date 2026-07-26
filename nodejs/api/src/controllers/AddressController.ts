@@ -29,6 +29,8 @@ export class AddressController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -43,13 +45,14 @@ export class AddressController {
         const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
         const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
 
-        logger.info({ organizationId, userId, isPrimary, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching addresses`);
+        logger.debug({ organizationId, userId, isPrimary, count, pageToken }, `Request:`);
 
         const addresses = userId
             ? await this.addressService.getByUser(userId, { count, pageToken })
             : await this.addressService.getByOrganization(organizationId, { isPrimary, count, pageToken });
 
-        logger.info({ organizationId, count: addresses.length }, `${this.constructor.name}.${this.getAll.name}: Addresses fetched successfully`);
+        logger.debug({ organizationId, count: addresses.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(buildPage(addresses, count));
     }
@@ -64,6 +67,8 @@ export class AddressController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -72,11 +77,12 @@ export class AddressController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating address`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const address = await this.addressService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, addressId: address.id }, `${this.constructor.name}.${this.post.name}: Address created successfully`);
+        logger.debug({ organizationId, address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(address, 201);
     }
@@ -91,13 +97,15 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
             throw new HTTPException(400, { message: "Missing Parameters: addressId" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.get.name}: Fetching address`);
+        logger.debug({ addressId }, `Request:`);
 
         const address = await this.addressService.getById(addressId);
 
@@ -106,7 +114,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.get.name}: Address fetched successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(address);
     }
@@ -122,6 +131,8 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
@@ -130,7 +141,7 @@ export class AddressController {
 
         const body = await c.req.json();
 
-        logger.info({ addressId, body }, `${this.constructor.name}.${this.update.name}: Updating address`);
+        logger.debug({ addressId, body }, `Request:`);
 
         const address = await this.addressService.update(addressId, body);
 
@@ -139,7 +150,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.update.name}: Address updated successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(address);
     }
@@ -154,13 +166,15 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
             throw new HTTPException(400, { message: "Missing Parameters: addressId" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Deleting address`);
+        logger.debug({ addressId }, `Request:`);
 
         const address = await this.addressService.delete(addressId);
 
@@ -169,7 +183,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Address deleted successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(address);
     }

@@ -30,10 +30,10 @@ export interface UpdateAddressInput {
 
 /**
  * Data-access layer for `address` rows. Wraps `addressTable` (Drizzle) and
- * adds structured logging around every operation: an `info` log when the
- * operation starts, `info`/`warn` on completion depending on whether a
- * row was found, and `error` (with the full stack via the pino `err`
- * serializer) if the underlying query throws.
+ * adds structured logging around every operation: `info` logs marking
+ * method start/end, `debug` logs of the request params and response
+ * payload, `warn` if no matching row is found, and `error` (with the full
+ * stack via the pino `err` serializer) if the underlying query throws.
  */
 export class AddressService {
 
@@ -45,12 +45,14 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateAddressInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating address`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [address] = await db.insert(addressTable).values(data).returning();
 
-            logger.info({ addressId: address!.id }, `${this.constructor.name}.${this.create.name}: Address created`);
+            logger.debug({ addressId: address!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return address!;
         } catch (error) {
@@ -67,9 +69,10 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(addressId: string) {
-        try {
-            logger.info({ addressId }, `${this.constructor.name}.${this.getById.name}: Fetching address`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ addressId }, `Request:`);
 
+        try {
             const [address] = await db.select().from(addressTable).where(eq(addressTable.id, addressId));
 
             if (!address) {
@@ -77,7 +80,8 @@ export class AddressService {
                 return null;
             }
 
-            logger.info({ addressId }, `${this.constructor.name}.${this.getById.name}: Address fetched`);
+            logger.debug({ addressId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return address;
         } catch (error) {
@@ -97,16 +101,18 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByUser(userId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ userId, options }, `${this.constructor.name}.${this.getByUser.name}: Fetching addresses for user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByUser.name}`);
+        logger.debug({ userId, options }, `Request:`);
 
+        try {
             const conditions = [eq(addressTable.user_id, userId)];
             if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
 
             const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ userId, count: addresses.length }, `${this.constructor.name}.${this.getByUser.name}: Fetched addresses for user`);
+            logger.debug({ userId, count: addresses.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
 
             return addresses;
         } catch (error) {
@@ -127,9 +133,10 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions & { isPrimary?: boolean }) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching addresses for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(addressTable.organization_id, organizationId)];
             if (options?.isPrimary !== undefined) conditions.push(eq(addressTable.is_primary, options.isPrimary));
             if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
@@ -137,7 +144,8 @@ export class AddressService {
             const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, count: addresses.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched addresses for organization`);
+            logger.debug({ organizationId, count: addresses.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return addresses;
         } catch (error) {
@@ -155,9 +163,10 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(addressId: string, data: UpdateAddressInput) {
-        try {
-            logger.info({ addressId, data }, `${this.constructor.name}.${this.update.name}: Updating address`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ addressId, data }, `Request:`);
 
+        try {
             const [address] = await db.update(addressTable).set(data).where(eq(addressTable.id, addressId)).returning();
 
             if (!address) {
@@ -165,7 +174,8 @@ export class AddressService {
                 return null;
             }
 
-            logger.info({ addressId }, `${this.constructor.name}.${this.update.name}: Address updated`);
+            logger.debug({ addressId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return address;
         } catch (error) {
@@ -182,9 +192,10 @@ export class AddressService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(addressId: string) {
-        try {
-            logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Deleting address`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ addressId }, `Request:`);
 
+        try {
             const [address] = await db.delete(addressTable).where(eq(addressTable.id, addressId)).returning();
 
             if (!address) {
@@ -192,7 +203,8 @@ export class AddressService {
                 return null;
             }
 
-            logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Address deleted`);
+            logger.debug({ addressId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return address;
         } catch (error) {

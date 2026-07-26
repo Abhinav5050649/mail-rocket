@@ -26,10 +26,10 @@ export interface UpdateRecipientInput {
 /**
  * Data-access layer for `recipients` rows (people targeted by a
  * campaign/group). Wraps `recipientsTable` (Drizzle) and adds structured
- * logging around every operation: an `info` log when the operation
- * starts, `info`/`warn` on completion depending on whether a row was
- * found, and `error` (with the full stack via the pino `err` serializer)
- * if the underlying query throws.
+ * logging around every operation: `info` logs marking method start/end,
+ * `debug` logs of the request params and response payload, `warn` if no
+ * matching row is found, and `error` (with the full stack via the pino
+ * `err` serializer) if the underlying query throws.
  */
 export class RecipientService {
 
@@ -41,12 +41,14 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateRecipientInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating recipient`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [recipient] = await db.insert(recipientsTable).values(data).returning();
 
-            logger.info({ recipientId: recipient!.id }, `${this.constructor.name}.${this.create.name}: Recipient created`);
+            logger.debug({ recipientId: recipient!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return recipient!;
         } catch (error) {
@@ -63,9 +65,10 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(recipientId: string) {
-        try {
-            logger.info({ recipientId }, `${this.constructor.name}.${this.getById.name}: Fetching recipient`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ recipientId }, `Request:`);
 
+        try {
             const [recipient] = await db.select().from(recipientsTable).where(eq(recipientsTable.id, recipientId));
 
             if (!recipient) {
@@ -73,7 +76,8 @@ export class RecipientService {
                 return null;
             }
 
-            logger.info({ recipientId }, `${this.constructor.name}.${this.getById.name}: Recipient fetched`);
+            logger.debug({ recipientId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return recipient;
         } catch (error) {
@@ -93,16 +97,18 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByGroup(groupId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ groupId, options }, `${this.constructor.name}.${this.getByGroup.name}: Fetching recipients for group`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByGroup.name}`);
+        logger.debug({ groupId, options }, `Request:`);
 
+        try {
             const conditions = [eq(recipientsTable.group_id, groupId)];
             if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
 
             const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ groupId, count: recipients.length }, `${this.constructor.name}.${this.getByGroup.name}: Fetched recipients for group`);
+            logger.debug({ groupId, count: recipients.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByGroup.name}`);
 
             return recipients;
         } catch (error) {
@@ -122,16 +128,18 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching recipients for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(recipientsTable.organization_id, organizationId)];
             if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
 
             const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, count: recipients.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched recipients for organization`);
+            logger.debug({ organizationId, count: recipients.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return recipients;
         } catch (error) {
@@ -151,16 +159,18 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByCampaign(campaignId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ campaignId, options }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching recipients for campaign`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByCampaign.name}`);
+        logger.debug({ campaignId, options }, `Request:`);
 
+        try {
             const conditions = [eq(recipientsTable.campaign_id, campaignId)];
             if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
 
             const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ campaignId, count: recipients.length }, `${this.constructor.name}.${this.getByCampaign.name}: Fetched recipients for campaign`);
+            logger.debug({ campaignId, count: recipients.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByCampaign.name}`);
 
             return recipients;
         } catch (error) {
@@ -178,9 +188,10 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(recipientId: string, data: UpdateRecipientInput) {
-        try {
-            logger.info({ recipientId, data }, `${this.constructor.name}.${this.update.name}: Updating recipient`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ recipientId, data }, `Request:`);
 
+        try {
             const [recipient] = await db.update(recipientsTable).set(data).where(eq(recipientsTable.id, recipientId)).returning();
 
             if (!recipient) {
@@ -188,7 +199,8 @@ export class RecipientService {
                 return null;
             }
 
-            logger.info({ recipientId }, `${this.constructor.name}.${this.update.name}: Recipient updated`);
+            logger.debug({ recipientId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return recipient;
         } catch (error) {
@@ -205,9 +217,10 @@ export class RecipientService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(recipientId: string) {
-        try {
-            logger.info({ recipientId }, `${this.constructor.name}.${this.delete.name}: Deleting recipient`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ recipientId }, `Request:`);
 
+        try {
             const [recipient] = await db.delete(recipientsTable).where(eq(recipientsTable.id, recipientId)).returning();
 
             if (!recipient) {
@@ -215,7 +228,8 @@ export class RecipientService {
                 return null;
             }
 
-            logger.info({ recipientId }, `${this.constructor.name}.${this.delete.name}: Recipient deleted`);
+            logger.debug({ recipientId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return recipient;
         } catch (error) {

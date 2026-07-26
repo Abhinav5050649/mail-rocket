@@ -30,10 +30,10 @@ export interface UpdateCampaignInput {
 
 /**
  * Data-access layer for `campaign` rows. Wraps `campaignTable` (Drizzle)
- * and adds structured logging around every operation: an `info` log when
- * the operation starts, `info`/`warn` on completion depending on whether a
- * row was found, and `error` (with the full stack via the pino `err`
- * serializer) if the underlying query throws.
+ * and adds structured logging around every operation: `info` logs marking
+ * method start/end, `debug` logs of the request params and response
+ * payload, `warn` if no matching row is found, and `error` (with the full
+ * stack via the pino `err` serializer) if the underlying query throws.
  */
 export class CampaignService {
 
@@ -45,12 +45,14 @@ export class CampaignService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateCampaignInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating campaign`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [campaign] = await db.insert(campaignTable).values(data).returning();
 
-            logger.info({ campaignId: campaign!.id }, `${this.constructor.name}.${this.create.name}: Campaign created`);
+            logger.debug({ campaignId: campaign!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return campaign!;
         } catch (error) {
@@ -67,9 +69,10 @@ export class CampaignService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(campaignId: string) {
-        try {
-            logger.info({ campaignId }, `${this.constructor.name}.${this.getById.name}: Fetching campaign`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ campaignId }, `Request:`);
 
+        try {
             const [campaign] = await db.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
 
             if (!campaign) {
@@ -77,7 +80,8 @@ export class CampaignService {
                 return null;
             }
 
-            logger.info({ campaignId }, `${this.constructor.name}.${this.getById.name}: Campaign fetched`);
+            logger.debug({ campaignId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return campaign;
         } catch (error) {
@@ -98,9 +102,10 @@ export class CampaignService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions & { status?: CampaignStatus }) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching campaigns for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(campaignTable.organization_id, organizationId)];
             if (options?.status !== undefined) conditions.push(eq(campaignTable.status, options.status));
             if (options?.pageToken) conditions.push(gt(campaignTable.id, options.pageToken));
@@ -108,7 +113,8 @@ export class CampaignService {
             const campaigns = await db.select().from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, count: campaigns.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched campaigns for organization`);
+            logger.debug({ organizationId, count: campaigns.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return campaigns;
         } catch (error) {
@@ -126,9 +132,10 @@ export class CampaignService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(campaignId: string, data: UpdateCampaignInput) {
-        try {
-            logger.info({ campaignId, data }, `${this.constructor.name}.${this.update.name}: Updating campaign`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ campaignId, data }, `Request:`);
 
+        try {
             const [campaign] = await db.update(campaignTable).set(data).where(eq(campaignTable.id, campaignId)).returning();
 
             if (!campaign) {
@@ -136,7 +143,8 @@ export class CampaignService {
                 return null;
             }
 
-            logger.info({ campaignId }, `${this.constructor.name}.${this.update.name}: Campaign updated`);
+            logger.debug({ campaignId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return campaign;
         } catch (error) {
@@ -153,9 +161,10 @@ export class CampaignService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(campaignId: string) {
-        try {
-            logger.info({ campaignId }, `${this.constructor.name}.${this.delete.name}: Deleting campaign`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ campaignId }, `Request:`);
 
+        try {
             const [campaign] = await db.delete(campaignTable).where(eq(campaignTable.id, campaignId)).returning();
 
             if (!campaign) {
@@ -163,7 +172,8 @@ export class CampaignService {
                 return null;
             }
 
-            logger.info({ campaignId }, `${this.constructor.name}.${this.delete.name}: Campaign deleted`);
+            logger.debug({ campaignId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return campaign;
         } catch (error) {

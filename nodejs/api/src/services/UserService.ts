@@ -24,9 +24,10 @@ export interface UpdateUserInput {
 /**
  * Data-access layer for `user` rows (organization members). Wraps
  * `userTable` (Drizzle) and adds structured logging around every
- * operation: an `info` log when the operation starts, `info`/`warn` on
- * completion depending on whether a row was found, and `error` (with the
- * full stack via the pino `err` serializer) if the underlying query throws.
+ * operation: `info` logs marking method start/end, `debug` logs of the
+ * request params and response payload, `warn` if no matching row is found,
+ * and `error` (with the full stack via the pino `err` serializer) if the
+ * underlying query throws.
  */
 export class UserService {
 
@@ -38,12 +39,14 @@ export class UserService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateUserInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [user] = await db.insert(userTable).values(data).returning();
 
-            logger.info({ userId: user!.id }, `${this.constructor.name}.${this.create.name}: User created`);
+            logger.debug({ userId: user!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return user!;
         } catch (error) {
@@ -60,9 +63,10 @@ export class UserService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(userId: string) {
-        try {
-            logger.info({ userId }, `${this.constructor.name}.${this.getById.name}: Fetching user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ userId }, `Request:`);
 
+        try {
             const [user] = await db.select().from(userTable).where(eq(userTable.id, userId));
 
             if (!user) {
@@ -70,7 +74,8 @@ export class UserService {
                 return null;
             }
 
-            logger.info({ userId }, `${this.constructor.name}.${this.getById.name}: User fetched`);
+            logger.debug({ userId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return user;
         } catch (error) {
@@ -90,16 +95,18 @@ export class UserService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching users for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(userTable.organization_id, organizationId)];
             if (options?.pageToken) conditions.push(gt(userTable.id, options.pageToken));
 
             const users = await db.select().from(userTable).where(and(...conditions)).orderBy(asc(userTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, count: users.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched users for organization`);
+            logger.debug({ organizationId, count: users.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return users;
         } catch (error) {
@@ -117,9 +124,10 @@ export class UserService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(userId: string, data: UpdateUserInput) {
-        try {
-            logger.info({ userId, data }, `${this.constructor.name}.${this.update.name}: Updating user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ userId, data }, `Request:`);
 
+        try {
             const [user] = await db.update(userTable).set(data).where(eq(userTable.id, userId)).returning();
 
             if (!user) {
@@ -127,7 +135,8 @@ export class UserService {
                 return null;
             }
 
-            logger.info({ userId }, `${this.constructor.name}.${this.update.name}: User updated`);
+            logger.debug({ userId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return user;
         } catch (error) {
@@ -144,9 +153,10 @@ export class UserService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(userId: string) {
-        try {
-            logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: Deleting user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ userId }, `Request:`);
 
+        try {
             const [user] = await db.delete(userTable).where(eq(userTable.id, userId)).returning();
 
             if (!user) {
@@ -154,7 +164,8 @@ export class UserService {
                 return null;
             }
 
-            logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: User deleted`);
+            logger.debug({ userId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return user;
         } catch (error) {

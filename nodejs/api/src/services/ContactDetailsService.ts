@@ -22,10 +22,11 @@ export interface UpdateContactDetailsInput {
 
 /**
  * Data-access layer for `contact_details` rows. Wraps `contactDetailsTable`
- * (Drizzle) and adds structured logging around every operation: an `info`
- * log when the operation starts, `info`/`warn` on completion depending on
- * whether a row was found, and `error` (with the full stack via the pino
- * `err` serializer) if the underlying query throws.
+ * (Drizzle) and adds structured logging around every operation: `info`
+ * logs marking method start/end, `debug` logs of the request params and
+ * response payload, `warn` if no matching row is found, and `error` (with
+ * the full stack via the pino `err` serializer) if the underlying query
+ * throws.
  */
 export class ContactDetailsService {
 
@@ -37,12 +38,14 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateContactDetailsInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating contact details`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [contactDetails] = await db.insert(contactDetailsTable).values(data).returning();
 
-            logger.info({ contactDetailsId: contactDetails!.id }, `${this.constructor.name}.${this.create.name}: Contact details created`);
+            logger.debug({ contactDetailsId: contactDetails!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return contactDetails!;
         } catch (error) {
@@ -59,9 +62,10 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(contactDetailsId: string) {
-        try {
-            logger.info({ contactDetailsId }, `${this.constructor.name}.${this.getById.name}: Fetching contact details`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ contactDetailsId }, `Request:`);
 
+        try {
             const [contactDetails] = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.id, contactDetailsId));
 
             if (!contactDetails) {
@@ -69,7 +73,8 @@ export class ContactDetailsService {
                 return null;
             }
 
-            logger.info({ contactDetailsId }, `${this.constructor.name}.${this.getById.name}: Contact details fetched`);
+            logger.debug({ contactDetailsId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return contactDetails;
         } catch (error) {
@@ -89,16 +94,18 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByUser(userId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ userId, options }, `${this.constructor.name}.${this.getByUser.name}: Fetching contact details for user`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByUser.name}`);
+        logger.debug({ userId, options }, `Request:`);
 
+        try {
             const conditions = [eq(contactDetailsTable.user_id, userId)];
             if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
 
             const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ userId, count: contactDetails.length }, `${this.constructor.name}.${this.getByUser.name}: Fetched contact details for user`);
+            logger.debug({ userId, count: contactDetails.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
 
             return contactDetails;
         } catch (error) {
@@ -118,16 +125,18 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching contact details for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(contactDetailsTable.organization_id, organizationId)];
             if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
 
             const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
                 .limit(options?.count ?? DEFAULT_PAGE_SIZE);
 
-            logger.info({ organizationId, count: contactDetails.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched contact details for organization`);
+            logger.debug({ organizationId, count: contactDetails.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return contactDetails;
         } catch (error) {
@@ -145,9 +154,10 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(contactDetailsId: string, data: UpdateContactDetailsInput) {
-        try {
-            logger.info({ contactDetailsId, data }, `${this.constructor.name}.${this.update.name}: Updating contact details`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ contactDetailsId, data }, `Request:`);
 
+        try {
             const [contactDetails] = await db.update(contactDetailsTable).set(data).where(eq(contactDetailsTable.id, contactDetailsId)).returning();
 
             if (!contactDetails) {
@@ -155,7 +165,8 @@ export class ContactDetailsService {
                 return null;
             }
 
-            logger.info({ contactDetailsId }, `${this.constructor.name}.${this.update.name}: Contact details updated`);
+            logger.debug({ contactDetailsId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return contactDetails;
         } catch (error) {
@@ -172,9 +183,10 @@ export class ContactDetailsService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(contactDetailsId: string) {
-        try {
-            logger.info({ contactDetailsId }, `${this.constructor.name}.${this.delete.name}: Deleting contact details`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ contactDetailsId }, `Request:`);
 
+        try {
             const [contactDetails] = await db.delete(contactDetailsTable).where(eq(contactDetailsTable.id, contactDetailsId)).returning();
 
             if (!contactDetails) {
@@ -182,7 +194,8 @@ export class ContactDetailsService {
                 return null;
             }
 
-            logger.info({ contactDetailsId }, `${this.constructor.name}.${this.delete.name}: Contact details deleted`);
+            logger.debug({ contactDetailsId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return contactDetails;
         } catch (error) {
