@@ -50,7 +50,7 @@
         ],
         "parameters": [
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -60,12 +60,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -75,19 +76,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Organization"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Organization"
                   }
                 }
               }
@@ -355,13 +346,153 @@
         },
         "security": [],
         "operationId": "usersGet"
+      },
+      "patch": {
+        "summary": "Update User",
+        "deprecated": false,
+        "description": "Partially updates a user's profile.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              },
+              "example": {
+                "last_name": "Byron",
+                "normalized_name": "ada byron"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                },
+                "example": {
+                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "entity": "mail_rocket.user",
+                  "first_name": "Ada",
+                  "last_name": "Byron",
+                  "normalized_name": "ada byron",
+                  "description": "Founding engineer",
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-08-01T10:15:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "usersUpdate"
+      },
+      "delete": {
+        "summary": "Delete User",
+        "deprecated": false,
+        "description": "Deletes a user account entirely (all of their organization memberships go with it). To remove a user from a single organization without deleting their account, use `DELETE /organizations/{organization_id}/users/{user_id}` instead.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                },
+                "example": {
+                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "entity": "mail_rocket.user",
+                  "first_name": "Ada",
+                  "last_name": "Byron",
+                  "normalized_name": "ada byron",
+                  "description": "Founding engineer",
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-08-01T10:15:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "usersDelete"
       }
     },
     "/organizations/{organization_id}/users": {
       "get": {
-        "summary": "List Users",
+        "summary": "List Members",
         "deprecated": false,
-        "description": "Lists users belonging to an organization.",
+        "description": "Lists the members of an organization, each combined with their role.",
         "tags": [
           "Users"
         ],
@@ -376,7 +507,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -386,36 +517,41 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Users in the organization.",
+            "description": "Members of the organization.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/User"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Member"
                   }
-                }
+                },
+                "example": [
+                  {
+                    "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
+                    "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                    "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
+                    "role": "editor",
+                    "first_name": "Ada",
+                    "last_name": "Lovelace",
+                    "normalized_name": "ada lovelace",
+                    "description": "Founding engineer",
+                    "created_at": "2026-07-15T09:00:00.000Z",
+                    "updated_at": "2026-07-15T09:00:00.000Z"
+                  }
+                ]
               }
             }
           },
@@ -434,9 +570,9 @@
         "operationId": "organizationUsersGetAll"
       },
       "post": {
-        "summary": "Create User",
+        "summary": "Create Member",
         "deprecated": false,
-        "description": "Creates a new user within an organization.",
+        "description": "Creates a new user and adds them to the organization in one step.",
         "tags": [
           "Users"
         ],
@@ -456,18 +592,36 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserCreate"
+                "$ref": "#/components/schemas/MemberCreate"
+              },
+              "example": {
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "normalized_name": "ada lovelace",
+                "role": "editor"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created user.",
+            "description": "The created user, combined with their role and membership id in this organization.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/Member"
+                },
+                "example": {
+                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
+                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
+                  "role": "editor",
+                  "first_name": "Ada",
+                  "last_name": "Lovelace",
+                  "normalized_name": "ada lovelace",
+                  "description": "Founding engineer",
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-07-15T09:00:00.000Z"
                 }
               }
             }
@@ -485,142 +639,6 @@
         },
         "security": [],
         "operationId": "organizationUsersPost"
-      }
-    },
-    "/organizations/{organization_id}/users/{id}": {
-      "patch": {
-        "summary": "Update User",
-        "deprecated": false,
-        "description": "Partially updates a user.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The updated user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "operationId": "organizationUsersUpdate"
-      },
-      "delete": {
-        "summary": "Delete User",
-        "deprecated": false,
-        "description": "Deletes a user.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The deleted user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "operationId": "organizationUsersDelete"
       }
     },
     "/organizations/{organization_id}/addresses": {
@@ -660,7 +678,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -670,12 +688,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -685,19 +704,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Address"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Address"
                   }
                 }
               }
@@ -997,7 +1006,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -1007,12 +1016,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -1022,19 +1032,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/ContactDetails"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContactDetails"
                   }
                 }
               }
@@ -1325,25 +1325,6 @@
             }
           },
           {
-            "name": "count",
-            "in": "query",
-            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 10
-            }
-          },
-          {
-            "name": "page_token",
-            "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "status",
             "in": "query",
             "description": "Filter by status.",
@@ -1355,6 +1336,26 @@
                 "active"
               ]
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
           }
         ],
         "responses": {
@@ -1363,19 +1364,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Campaign"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Campaign"
                   }
                 }
               }
@@ -1665,7 +1656,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -1675,12 +1666,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -1690,19 +1682,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Group"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
                   }
                 }
               }
@@ -1994,7 +1976,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -2004,12 +1986,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -2019,19 +2002,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Recipient"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Recipient"
                   }
                 }
               }
@@ -2331,7 +2304,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -2341,12 +2314,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -2356,19 +2330,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Group"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
                   }
                 }
               }
@@ -2479,7 +2443,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -2489,12 +2453,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -2504,19 +2469,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Recipient"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Recipient"
                   }
                 }
               }
@@ -2636,7 +2591,7 @@
             }
           },
           {
-            "name": "count",
+            "name": "limit",
             "in": "query",
             "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
             "required": false,
@@ -2646,12 +2601,13 @@
             }
           },
           {
-            "name": "page_token",
+            "name": "offset",
             "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "number",
+              "default": 0
             }
           }
         ],
@@ -2661,19 +2617,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Recipient"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Recipient"
                   }
                 }
               }
@@ -2784,25 +2730,6 @@
             }
           },
           {
-            "name": "count",
-            "in": "query",
-            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 10
-            }
-          },
-          {
-            "name": "page_token",
-            "in": "query",
-            "description": "Opaque cursor (the `next_page_token` from the previous response); fetches rows starting strictly after it. Omit to fetch the first page.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "type",
             "in": "query",
             "description": "Filter by type.",
@@ -2827,6 +2754,26 @@
                 "active"
               ]
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
           }
         ],
         "responses": {
@@ -2835,19 +2782,9 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Identity"
-                      }
-                    },
-                    "next_page_token": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Opaque cursor to pass as `page_token` to fetch the next page; `null` once the last page has been reached."
-                    }
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Identity"
                   }
                 }
               }
@@ -3118,6 +3055,296 @@
         "security": [],
         "operationId": "identitiesDelete"
       }
+    },
+    "/users": {
+      "post": {
+        "summary": "Create User",
+        "deprecated": false,
+        "description": "Creates a new standalone user account, with no organization membership yet - add one via `POST /organizations/{organization_id}/users` or `PATCH /organizations/{organization_id}/users/{user_id}`.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              },
+              "example": {
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "normalized_name": "ada lovelace",
+                "description": "Founding engineer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                },
+                "example": {
+                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "entity": "mail_rocket.user",
+                  "first_name": "Ada",
+                  "last_name": "Lovelace",
+                  "normalized_name": "ada lovelace",
+                  "description": "Founding engineer",
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-07-15T09:00:00.000Z"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "usersPost"
+      }
+    },
+    "/users/{id}/organizations": {
+      "get": {
+        "summary": "List User's Organizations",
+        "deprecated": false,
+        "description": "Lists the organizations a user belongs to, each combined with the role they hold there.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations the user belongs to.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationMembership"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
+                    "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
+                    "role": "editor",
+                    "name": "Acme Inc",
+                    "normalized_name": "acme inc",
+                    "description": null,
+                    "created_at": "2026-07-15T09:00:00.000Z",
+                    "updated_at": "2026-07-15T09:00:00.000Z"
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "usersGetOrganizations"
+      }
+    },
+    "/organizations/{organization_id}/users/{user_id}": {
+      "patch": {
+        "summary": "Update Member",
+        "deprecated": false,
+        "description": "Updates a member's role (or membership metadata) within the organization. Does not touch the user's own profile fields - see `PATCH /users/{id}` for that.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpdate"
+              },
+              "example": {
+                "role": "admin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated membership.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Membership"
+                },
+                "example": {
+                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
+                  "entity": "mail_rocket.organization_user",
+                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
+                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "role": "admin",
+                  "description": null,
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-08-01T10:15:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The user isn't a member of the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersUpdate"
+      },
+      "delete": {
+        "summary": "Remove Member",
+        "deprecated": false,
+        "description": "Removes a user from the organization by deleting their membership row. The user's account itself is untouched - see `DELETE /users/{id}` to delete the account entirely.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "description": "ID of the user.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted membership.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Membership"
+                },
+                "example": {
+                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
+                  "entity": "mail_rocket.organization_user",
+                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
+                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
+                  "role": "admin",
+                  "description": null,
+                  "created_at": "2026-07-15T09:00:00.000Z",
+                  "updated_at": "2026-08-01T10:15:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The user isn't a member of the organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "operationId": "organizationUsersDelete"
+      }
     }
   },
   "components": {
@@ -3195,7 +3422,7 @@
       },
       "User": {
         "type": "object",
-        "description": "A member of an organization.",
+        "description": "A user's identity, independent of any organization - see Member/OrganizationMembership for which organizations they belong to and their role in each.",
         "properties": {
           "id": {
             "type": "string",
@@ -3213,10 +3440,6 @@
           "normalized_name": {
             "type": "string"
           },
-          "organization_id": {
-            "type": "string",
-            "description": "ID of the organization the user belongs to."
-          },
           "description": {
             "type": "string"
           },
@@ -3227,15 +3450,6 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "viewer",
-              "editor",
-              "admin"
-            ],
-            "description": "Permission level of the user within their organization."
           }
         }
       },
@@ -3253,15 +3467,6 @@
           },
           "description": {
             "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "viewer",
-              "editor",
-              "admin"
-            ],
-            "description": "Permission level of the user within their organization. Defaults to \"viewer\" if omitted."
           }
         }
       },
@@ -3279,15 +3484,6 @@
           },
           "description": {
             "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "viewer",
-              "editor",
-              "admin"
-            ],
-            "description": "Permission level of the user within their organization."
           }
         }
       },
@@ -3892,6 +4088,175 @@
               "active"
             ],
             "description": "Lifecycle status of the identity."
+          }
+        }
+      },
+      "Membership": {
+        "type": "object",
+        "description": "Grants a user membership (and a role) in an organization.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the membership row."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "ID of the organization."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "ID of the user."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level the user holds within this specific organization."
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MembershipUpdate": {
+        "type": "object",
+        "description": "Fields accepted when updating a membership (e.g. to change the user's role).",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level to grant the user within the organization."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "MemberCreate": {
+        "type": "object",
+        "description": "Fields for a new user, plus their initial role in the organization they're being added to.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UserCreate"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "admin"
+                ],
+                "description": "Permission level to grant the user within the organization. Defaults to \"viewer\" if omitted."
+              }
+            }
+          }
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "description": "A user's profile fields combined with their role in one organization. `id` is the membership row's id; `user_id` is the user's own id.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the membership row."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "UUID of the user."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level of the user within this organization."
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the membership was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrganizationMembership": {
+        "type": "object",
+        "description": "An organization's fields combined with the role a user holds there. `id` is the membership row's id.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the membership row."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin"
+            ],
+            "description": "Permission level the user holds within this organization."
+          },
+          "name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the membership was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }
