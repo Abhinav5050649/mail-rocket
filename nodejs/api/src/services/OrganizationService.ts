@@ -1,4 +1,4 @@
-import { asc, eq, gt } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { organizationTable } from "../models";
 
@@ -53,10 +53,9 @@ export class OrganizationService {
     /**
      * Lists organizations, ordered by `id` ascending.
      *
-     * @param options.count - max number of rows to return; defaults to
+     * @param options.limit - max number of rows to return; defaults to
      * {@link DEFAULT_PAGE_SIZE}.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of organization rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -66,9 +65,9 @@ export class OrganizationService {
 
         try {
             const organizations = await db.select().from(organizationTable)
-                .where(options?.pageToken ? gt(organizationTable.id, options.pageToken) : undefined)
                 .orderBy(asc(organizationTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ count: organizations.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);

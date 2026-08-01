@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { identityTable, type IdentityType, type IdentityStatus } from "../models";
 
@@ -88,9 +88,8 @@ export class IdentityService {
      * @param organizationId - id of the organization.
      * @param options.type - optional filter on the `type` column.
      * @param options.status - optional filter on the `status` column.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching identity rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -102,10 +101,10 @@ export class IdentityService {
             const conditions = [eq(identityTable.organization_id, organizationId)];
             if (options?.type !== undefined) conditions.push(eq(identityTable.type, options.type));
             if (options?.status !== undefined) conditions.push(eq(identityTable.status, options.status));
-            if (options?.pageToken) conditions.push(gt(identityTable.id, options.pageToken));
 
             const identities = await db.select().from(identityTable).where(and(...conditions)).orderBy(asc(identityTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: identities.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);

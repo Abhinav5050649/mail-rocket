@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { addressTable } from "../models";
 
@@ -94,9 +94,8 @@ export class AddressService {
      * Lists every address belonging to a given user, ordered by `id` ascending.
      *
      * @param userId - id of the user.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching address rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -105,11 +104,9 @@ export class AddressService {
         logger.debug({ userId, options }, `Request:`);
 
         try {
-            const conditions = [eq(addressTable.user_id, userId)];
-            if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
-
-            const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const addresses = await db.select().from(addressTable).where(eq(addressTable.user_id, userId)).orderBy(asc(addressTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ userId, count: addresses.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
@@ -126,9 +123,8 @@ export class AddressService {
      *
      * @param organizationId - id of the organization.
      * @param options.isPrimary - optional filter on the `is_primary` flag.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching address rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -139,10 +135,10 @@ export class AddressService {
         try {
             const conditions = [eq(addressTable.organization_id, organizationId)];
             if (options?.isPrimary !== undefined) conditions.push(eq(addressTable.is_primary, options.isPrimary));
-            if (options?.pageToken) conditions.push(gt(addressTable.id, options.pageToken));
 
             const addresses = await db.select().from(addressTable).where(and(...conditions)).orderBy(asc(addressTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: addresses.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);

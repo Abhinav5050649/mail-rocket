@@ -1,15 +1,13 @@
-import { and, asc, eq, gt } from "drizzle-orm";
-import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
-import { userTable, type UserRole } from "../models";
+import { eq } from "drizzle-orm";
+import { db, logger } from "../libs";
+import { userTable } from "../models";
 
 /** Fields accepted when creating a new user row. */
 export interface CreateUserInput {
     first_name?: string;
     last_name?: string;
-    organization_id?: string;
     description?: string;
     normalized_name?: string;
-    role?: UserRole;
 }
 
 /** Fields accepted when partially updating an existing user row. */
@@ -18,11 +16,12 @@ export interface UpdateUserInput {
     last_name?: string;
     description?: string;
     normalized_name?: string;
-    role?: UserRole;
 }
 
 /**
- * Data-access layer for `user` rows (organization members). Wraps
+ * Data-access layer for `user` rows. A user's identity is
+ * organization-independent - which organizations they belong to, and what
+ * role they hold in each, is `OrganizationUserService`'s job. Wraps
  * `userTable` (Drizzle) and adds structured logging around every
  * operation: `info` logs marking method start/end, `debug` logs of the
  * request params and response payload, `warn` if no matching row is found,
@@ -80,37 +79,6 @@ export class UserService {
             return user;
         } catch (error) {
             logger.error({ err: error, userId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get user`);
-            throw error;
-        }
-    }
-
-    /**
-     * Lists every user belonging to a given organization, ordered by `id` ascending.
-     *
-     * @param organizationId - id of the organization.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
-     * @returns Array of matching user rows (empty if none exist).
-     * @throws Re-throws any error from the underlying query, after logging it.
-     */
-    async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
-        logger.debug({ organizationId, options }, `Request:`);
-
-        try {
-            const conditions = [eq(userTable.organization_id, organizationId)];
-            if (options?.pageToken) conditions.push(gt(userTable.id, options.pageToken));
-
-            const users = await db.select().from(userTable).where(and(...conditions)).orderBy(asc(userTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
-
-            logger.debug({ organizationId, count: users.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
-
-            return users;
-        } catch (error) {
-            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get users for organization`);
             throw error;
         }
     }

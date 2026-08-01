@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 
 /** Kind of sending identity: a whole domain or a single email address. */
@@ -31,7 +31,10 @@ export const identityTable = pgTable("identity", {
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */
     description: varchar("description"),
-});
+}, (table) => [
+    // Backs `getByOrganization`, which filters on organization_id.
+    index("identity_organization_id_idx").on(table.organization_id),
+]);
 
 /** TS type for an identity row, inferred directly from the table schema above. */
 export type IIdentity = typeof identityTable.$inferSelect;

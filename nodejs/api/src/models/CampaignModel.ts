@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
 
@@ -36,7 +36,10 @@ export const campaignTable = pgTable("campaign", {
     normalized_name: varchar("normalized_name"),
     /** Lifecycle status of the campaign. */
     status: campaignStatusEnum("status").default("draft"),
-});
+}, (table) => [
+    // Backs `getByOrganization`, which filters on organization_id.
+    index("campaign_organization_id_idx").on(table.organization_id),
+]);
 
 /** TS type for a campaign row, inferred directly from the table schema above. */
 export type ICampaign = typeof campaignTable.$inferSelect;

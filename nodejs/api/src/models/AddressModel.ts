@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
 
@@ -34,7 +34,11 @@ export const addressTable = pgTable("address", {
     organization_id: varchar("organization_id").references(() => organizationTable.id),
     /** ID of user. */
     user_id: varchar("user_id").references(() => userTable.id),
-});
+}, (table) => [
+    // Backs `getByOrganization` and `getByUser`.
+    index("address_organization_id_idx").on(table.organization_id),
+    index("address_user_id_idx").on(table.user_id),
+]);
 
 /** TS type for an address row, inferred directly from the table schema above. */
 export type IAddress = typeof addressTable.$inferSelect;

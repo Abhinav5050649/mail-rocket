@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { AddressService } from "../services";
 
 /**
@@ -20,12 +20,9 @@ export class AddressController {
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts an optional `user_id` query param to scope the list to
      * a single user, an optional `is_primary` query param to filter by the
-     * primary-address flag, and optional `count` (max rows to return,
-     * defaults to {@link DEFAULT_PAGE_SIZE}) and `page_token` (the
-     * base64-encoded `next_page_token` from the previous response) query
-     * params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * primary-address flag, and optional `limit` (max rows to return) and
+     * `offset` (rows to skip before returning results) query params.
+     * @returns JSON array of addresses.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -40,21 +37,21 @@ export class AddressController {
         const userId = c.req.query('user_id');
         const isPrimaryParam = c.req.query('is_primary');
         const isPrimary = isPrimaryParam === undefined ? undefined : isPrimaryParam === 'true';
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, userId, isPrimary, count, pageToken }, `Request:`);
+        logger.debug({ organizationId, userId, isPrimary, limit, offset }, `Request:`);
 
         const addresses = userId
-            ? await this.addressService.getByUser(userId, { count, pageToken })
-            : await this.addressService.getByOrganization(organizationId, { isPrimary, count, pageToken });
+            ? await this.addressService.getByUser(userId, { limit, offset })
+            : await this.addressService.getByOrganization(organizationId, { isPrimary, limit, offset });
 
         logger.debug({ organizationId, count: addresses.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(addresses, count));
+        return c.json(addresses);
     }
 
     /**

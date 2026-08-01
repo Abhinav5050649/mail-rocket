@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { OrganizationService } from "../services";
 
 /**
@@ -16,29 +16,27 @@ export class OrganizationController {
      * GET /organizations
      * Lists organizations.
      *
-     * @param c - Hono request context; accepts optional `count` (max rows
-     * to return, defaults to {@link DEFAULT_PAGE_SIZE}) and `page_token`
-     * (the base64-encoded `next_page_token` from the previous response)
+     * @param c - Hono request context; accepts optional `limit` (max rows
+     * to return) and `offset` (rows to skip before returning results)
      * query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * @returns JSON array of organizations.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ count, pageToken }, `Request:`);
+        logger.debug({ limit, offset }, `Request:`);
 
-        const organizations = await this.organizationService.getAll({ count, pageToken });
+        const organizations = await this.organizationService.getAll({ limit, offset });
 
         logger.debug({ count: organizations.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(organizations, count));
+        return c.json(organizations);
     }
 
     /**

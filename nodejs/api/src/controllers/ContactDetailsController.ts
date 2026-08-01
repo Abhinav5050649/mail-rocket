@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { ContactDetailsService } from "../services";
 
 /**
@@ -19,11 +19,9 @@ export class ContactDetailsController {
      *
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts an optional `user_id` query param to scope the list to
-     * a single user, and optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * a single user, and optional `limit` (max rows to return) and `offset`
+     * (rows to skip before returning results) query params.
+     * @returns JSON array of contact-details rows.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -36,21 +34,21 @@ export class ContactDetailsController {
         }
 
         const userId = c.req.query('user_id');
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, userId, count, pageToken }, `Request:`);
+        logger.debug({ organizationId, userId, limit, offset }, `Request:`);
 
         const contactDetails = userId
-            ? await this.contactDetailsService.getByUser(userId, { count, pageToken })
-            : await this.contactDetailsService.getByOrganization(organizationId, { count, pageToken });
+            ? await this.contactDetailsService.getByUser(userId, { limit, offset })
+            : await this.contactDetailsService.getByOrganization(organizationId, { limit, offset });
 
         logger.debug({ organizationId, count: contactDetails.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(contactDetails, count));
+        return c.json(contactDetails);
     }
 
     /**

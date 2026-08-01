@@ -1,14 +1,10 @@
-import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
-
-/** Permission level of a user within their organization. */
-export const userRoleEnum = pgEnum("user_role", ["viewer", "editor", "admin"]);
-
-/** TS union type for a user's `role` column. */
-export type UserRole = (typeof userRoleEnum.enumValues)[number];
+import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 
 /**
- * Drizzle schema for `user`: a member of an organization.
+ * Drizzle schema for `user`. A user's identity is organization-independent
+ * - which organizations they belong to, and what role they hold in each,
+ * lives on the `organization_user` join table instead, so the same person
+ * can be a member of multiple organizations.
  */
 export const userTable = pgTable("user", {
     /** UUID to identify user. */
@@ -19,16 +15,12 @@ export const userTable = pgTable("user", {
     first_name: varchar("first_name"),
     /** Last name of user. */
     last_name: varchar("last_name"),
-    /** ID of the organization the user belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */
     description: varchar("description"),
     /** Normalized name of user. */
     normalized_name: varchar("normalized_name"),
-    /** Permission level of the user within their organization. */
-    role: userRoleEnum("role").default("viewer"),
 });
 
 /** TS type for a user row, inferred directly from the table schema above. */

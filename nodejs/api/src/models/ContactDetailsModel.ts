@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
 
@@ -22,7 +22,11 @@ export const contactDetailsTable = pgTable("contact_details", {
     organization_id: varchar("organization_id").references(() => organizationTable.id),
     /** User the contact detail is associated to. */
     user_id: varchar("user_id").references(() => userTable.id),
-});
+}, (table) => [
+    // Backs `getByOrganization` and `getByUser`.
+    index("contact_details_organization_id_idx").on(table.organization_id),
+    index("contact_details_user_id_idx").on(table.user_id),
+]);
 
 /** TS type for a contact_details row, inferred directly from the table schema above. */
 export type IContactDetails = typeof contactDetailsTable.$inferSelect;

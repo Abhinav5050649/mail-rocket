@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { contactDetailsTable } from "../models";
 
@@ -87,9 +87,8 @@ export class ContactDetailsService {
      * Lists every contact_details row belonging to a given user, ordered by `id` ascending.
      *
      * @param userId - id of the user.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching contact_details rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -98,11 +97,9 @@ export class ContactDetailsService {
         logger.debug({ userId, options }, `Request:`);
 
         try {
-            const conditions = [eq(contactDetailsTable.user_id, userId)];
-            if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
-
-            const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const contactDetails = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.user_id, userId)).orderBy(asc(contactDetailsTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ userId, count: contactDetails.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
@@ -118,9 +115,8 @@ export class ContactDetailsService {
      * Lists every contact_details row belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching contact_details rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -129,11 +125,9 @@ export class ContactDetailsService {
         logger.debug({ organizationId, options }, `Request:`);
 
         try {
-            const conditions = [eq(contactDetailsTable.organization_id, organizationId)];
-            if (options?.pageToken) conditions.push(gt(contactDetailsTable.id, options.pageToken));
-
-            const contactDetails = await db.select().from(contactDetailsTable).where(and(...conditions)).orderBy(asc(contactDetailsTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const contactDetails = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.organization_id, organizationId)).orderBy(asc(contactDetailsTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: contactDetails.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);

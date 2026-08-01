@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { IdentityService } from "../services";
 import type { IdentityType, IdentityStatus } from "../models";
 
@@ -20,11 +20,9 @@ export class IdentityController {
      *
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts optional `type` and `status` filters, and optional
-     * `count` (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE})
-     * and `page_token` (the base64-encoded `next_page_token` from the
-     * previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * `limit` (max rows to return) and `offset` (rows to skip before
+     * returning results) query params.
+     * @returns JSON array of identities.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -38,19 +36,19 @@ export class IdentityController {
 
         const type = c.req.query('type') as IdentityType | undefined;
         const status = c.req.query('status') as IdentityStatus | undefined;
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, type, status, count, pageToken }, `Request:`);
+        logger.debug({ organizationId, type, status, limit, offset }, `Request:`);
 
-        const identities = await this.identityService.getByOrganization(organizationId, { type, status, count, pageToken });
+        const identities = await this.identityService.getByOrganization(organizationId, { type, status, limit, offset });
 
         logger.debug({ organizationId, count: identities.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(identities, count));
+        return c.json(identities);
     }
 
     /**

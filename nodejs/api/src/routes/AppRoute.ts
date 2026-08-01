@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { userRoute, organizationUserRoute } from "./UserRoute";
+import { userRoute } from "./UserRoute";
+import { organizationUserRoute } from "./OrganizationUserRoute";
 import { organizationRoute } from "./OrganizationRoute";
 import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
@@ -12,10 +13,13 @@ import { recipientRoute, campaignRecipientRoute, groupRecipientRoute } from "./R
  * Root route table. Mounts every feature's sub-router under its resource
  * prefix; `index.ts` mounts this whole thing at `/`. Most resources are
  * nested under `/organizations/:organization_id/...` since every table is
- * ultimately scoped to an organization. Groups and recipients additionally
- * get dedicated routes nested under `/campaigns/:campaign_id/...` (and, for
- * recipients, `/groups/:group_id/...`) instead of relying on query-param
- * filters.
+ * ultimately scoped to an organization - except `user`, which is
+ * many-to-many with organizations via the `organization_user` join table,
+ * so `/organizations/:organization_id/users` manages membership rather than
+ * the user records themselves (see `OrganizationUserRoute`/`UserRoute`).
+ * Groups and recipients additionally get dedicated routes nested under
+ * `/campaigns/:campaign_id/...` (and, for recipients, `/groups/:group_id/...`)
+ * instead of relying on query-param filters.
  */
 export const appRoute = new Hono()
     .route('/users', userRoute)

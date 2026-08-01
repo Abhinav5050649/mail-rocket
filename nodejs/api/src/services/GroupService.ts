@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { groupTable } from "../models";
 
@@ -86,9 +86,8 @@ export class GroupService {
      * Lists every group belonging to a given campaign, ordered by `id` ascending.
      *
      * @param campaignId - id of the campaign.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -97,11 +96,9 @@ export class GroupService {
         logger.debug({ campaignId, options }, `Request:`);
 
         try {
-            const conditions = [eq(groupTable.campaign_id, campaignId)];
-            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
-
-            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const groups = await db.select().from(groupTable).where(eq(groupTable.campaign_id, campaignId)).orderBy(asc(groupTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ campaignId, count: groups.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByCampaign.name}`);
@@ -117,9 +114,8 @@ export class GroupService {
      * Lists every group belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -128,11 +124,9 @@ export class GroupService {
         logger.debug({ organizationId, options }, `Request:`);
 
         try {
-            const conditions = [eq(groupTable.organization_id, organizationId)];
-            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
-
-            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const groups = await db.select().from(groupTable).where(eq(groupTable.organization_id, organizationId)).orderBy(asc(groupTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: groups.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);

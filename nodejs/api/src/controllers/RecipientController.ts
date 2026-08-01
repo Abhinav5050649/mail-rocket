@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { RecipientService } from "../services";
 
 /**
@@ -24,11 +24,9 @@ export class RecipientController {
      * campaigns and groups.
      *
      * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * param. Accepts optional `limit` (max rows to return) and `offset`
+     * (rows to skip before returning results) query params.
+     * @returns JSON array of recipients.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -40,19 +38,19 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, count, pageToken }, `Request:`);
+        logger.debug({ organizationId, limit, offset }, `Request:`);
 
-        const recipients = await this.recipientService.getByOrganization(organizationId, { count, pageToken });
+        const recipients = await this.recipientService.getByOrganization(organizationId, { limit, offset });
 
         logger.debug({ organizationId, count: recipients.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(recipients, count));
+        return c.json(recipients);
     }
 
     /**
@@ -90,11 +88,9 @@ export class RecipientController {
      * Lists recipients belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
-     * Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * Accepts optional `limit` (max rows to return) and `offset` (rows to
+     * skip before returning results) query params.
+     * @returns JSON array of recipients.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     getAllByCampaign = async (c: Context) => {
@@ -106,19 +102,19 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ campaignId, count, pageToken }, `Request:`);
+        logger.debug({ campaignId, limit, offset }, `Request:`);
 
-        const recipients = await this.recipientService.getByCampaign(campaignId, { count, pageToken });
+        const recipients = await this.recipientService.getByCampaign(campaignId, { limit, offset });
 
         logger.debug({ campaignId, count: recipients.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
 
-        return c.json(buildPage(recipients, count));
+        return c.json(recipients);
     }
 
     /**
@@ -157,11 +153,9 @@ export class RecipientController {
      * Lists recipients belonging to a single group.
      *
      * @param c - Hono request context; expects a `group_id` route param.
-     * Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * Accepts optional `limit` (max rows to return) and `offset` (rows to
+     * skip before returning results) query params.
+     * @returns JSON array of recipients.
      * @throws {HTTPException} 400 if the `group_id` param is missing.
      */
     getAllByGroup = async (c: Context) => {
@@ -173,19 +167,19 @@ export class RecipientController {
             throw new HTTPException(400, { message: "Missing Parameters: groupId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ groupId, count, pageToken }, `Request:`);
+        logger.debug({ groupId, limit, offset }, `Request:`);
 
-        const recipients = await this.recipientService.getByGroup(groupId, { count, pageToken });
+        const recipients = await this.recipientService.getByGroup(groupId, { limit, offset });
 
         logger.debug({ groupId, count: recipients.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAllByGroup.name}`);
 
-        return c.json(buildPage(recipients, count));
+        return c.json(recipients);
     }
 
     /**

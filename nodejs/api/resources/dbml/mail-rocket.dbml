@@ -1,0 +1,211 @@
+Project mail_rocket {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Mail Rocket relational schema, mirroring the Drizzle table definitions
+    in `src/models/*.ts`. `organization` is the tenant root; every other
+    table scopes its rows to one organization via `organization_id` -
+    except `user`, which is many-to-many with `organization` via the
+    `organization_user` join table, so a user can belong to (and hold a
+    different role in) multiple organizations.
+  '''
+}
+
+Enum organization_user_role {
+  viewer
+  editor
+  admin
+}
+
+Enum identity_type {
+  domain
+  email
+}
+
+Enum identity_status {
+  created
+  active
+}
+
+Enum campaign_status {
+  draft
+  active
+}
+
+Table organization {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.organization', note: 'Denotes the type of object and the domain it belongs to.']
+  name varchar
+  normalized_name varchar
+  created_at timestamp
+  updated_at timestamp
+  description varchar [note: 'Extra information about the record.']
+
+  Note: 'A tenant in Mail Rocket. Every other table scopes its rows to one organization.'
+}
+
+Table "user" {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.user']
+  first_name varchar
+  last_name varchar
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  normalized_name varchar
+
+  Note: '''
+    A user's identity, independent of any organization. See
+    `organization_user` for which organizations they belong to and their
+    role in each.
+  '''
+}
+
+Table organization_user {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.organization_user']
+  organization_id varchar [not null, ref: > organization.id]
+  user_id varchar [not null, ref: > "user".id]
+  role organization_user_role [default: 'viewer', note: 'Permission level the user holds within this specific organization.']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    // Also backs organization_id-only lookups (its leading column), so no
+    // separate organization_id index is needed.
+    (organization_id, user_id) [unique, name: 'organization_user_organization_id_user_id_unique']
+    user_id [name: 'organization_user_user_id_idx']
+  }
+
+  Note: '''
+    Join table granting a user membership (and a role) in an organization -
+    what makes user<->organization many-to-many. Deleting either the
+    organization or the user cascades to their membership rows.
+  '''
+}
+
+Table identity {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.identity']
+  type identity_type [not null, note: 'Whether this identity is a domain or an email address.']
+  identity varchar [not null, note: 'The domain name or email address being identified.']
+  organization_id varchar [ref: > organization.id]
+  status identity_status [default: 'created']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    organization_id [name: 'identity_organization_id_idx']
+  }
+
+  Note: 'A domain or email address an organization sends from.'
+}
+
+Table address {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.address']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  street varchar
+  area varchar
+  city varchar
+  state varchar
+  country varchar
+  postal_code varchar
+  is_primary boolean [default: true, note: 'Whether this is the primary address of the organization.']
+  organization_id varchar [ref: > organization.id]
+  user_id varchar [ref: > "user".id]
+
+  indexes {
+    organization_id [name: 'address_organization_id_idx']
+    user_id [name: 'address_user_id_idx']
+  }
+}
+
+Table contact_details {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.contact_details']
+  email_id varchar
+  country_code varchar
+  phone_number varchar
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  organization_id varchar [ref: > organization.id]
+  user_id varchar [ref: > "user".id]
+
+  indexes {
+    organization_id [name: 'contact_details_organization_id_idx']
+    user_id [name: 'contact_details_user_id_idx']
+  }
+
+  Note: 'Email/phone reachable via a user or organization.'
+}
+
+Table campaign {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.campaign']
+  name varchar
+  subject varchar [note: 'Subject line of the campaign email.']
+  logo_key varchar [note: 'Storage key/path of the campaign logo.']
+  logo_bucket varchar [note: 'Storage bucket where the campaign logo is stored.']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  organization_id varchar [ref: > organization.id]
+  start_time timestamp [note: 'When the campaign starts/started.']
+  organizer_id varchar [ref: > "user".id]
+  normalized_name varchar
+  status campaign_status [default: 'draft']
+
+  indexes {
+    organization_id [name: 'campaign_organization_id_idx']
+  }
+
+  Note: 'An email campaign run by an organization.'
+}
+
+Table "group" {
+  id varchar [pk, note: 'UUID']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  entity varchar [default: 'mail_rocket.group']
+  name varchar
+  campaign_id varchar [ref: > campaign.id]
+  organization_id varchar [ref: > organization.id]
+  creator_id varchar [ref: > "user".id]
+  normalized_name varchar
+
+  indexes {
+    campaign_id [name: 'group_campaign_id_idx']
+    organization_id [name: 'group_organization_id_idx']
+  }
+
+  Note: 'A recipient list within a campaign.'
+}
+
+Table recipients {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.recipients']
+  first_name varchar
+  last_name varchar
+  normalized_name varchar
+  email_id varchar
+  group_id varchar [ref: > "group".id]
+  campaign_id varchar [ref: > campaign.id]
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+  organization_id varchar [ref: > organization.id]
+
+  indexes {
+    group_id [name: 'recipients_group_id_idx']
+    campaign_id [name: 'recipients_campaign_id_idx']
+    organization_id [name: 'recipients_organization_id_idx']
+  }
+
+  Note: 'A person targeted by a campaign/group.'
+}

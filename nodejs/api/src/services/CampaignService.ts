@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { campaignTable, type CampaignStatus } from "../models";
 
@@ -95,9 +95,8 @@ export class CampaignService {
      *
      * @param organizationId - id of the organization.
      * @param options.status - optional filter on the `status` column.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching campaign rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -108,10 +107,10 @@ export class CampaignService {
         try {
             const conditions = [eq(campaignTable.organization_id, organizationId)];
             if (options?.status !== undefined) conditions.push(eq(campaignTable.status, options.status));
-            if (options?.pageToken) conditions.push(gt(campaignTable.id, options.pageToken));
 
             const campaigns = await db.select().from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: campaigns.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);

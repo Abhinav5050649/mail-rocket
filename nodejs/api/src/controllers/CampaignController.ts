@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { CampaignService } from "../services";
 import type { CampaignStatus } from "../models";
 
@@ -19,12 +19,10 @@ export class CampaignController {
      * Lists campaigns belonging to an organization.
      *
      * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts an optional `status` filter, and optional `count`
-     * (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE}) and
-     * `page_token` (the base64-encoded `next_page_token` from the previous
-     * response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * param. Accepts an optional `status` filter, and optional `limit`
+     * (max rows to return) and `offset` (rows to skip before returning
+     * results) query params.
+     * @returns JSON array of campaigns.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
@@ -37,19 +35,19 @@ export class CampaignController {
         }
 
         const status = c.req.query('status') as CampaignStatus | undefined;
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, status, count, pageToken }, `Request:`);
+        logger.debug({ organizationId, status, limit, offset }, `Request:`);
 
-        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, count, pageToken });
+        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, limit, offset });
 
         logger.debug({ organizationId, count: campaigns.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(campaigns, count));
+        return c.json(campaigns);
     }
 
     /**

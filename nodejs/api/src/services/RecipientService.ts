@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { recipientsTable } from "../models";
 
@@ -90,9 +90,8 @@ export class RecipientService {
      * Lists every recipient belonging to a given group, ordered by `id` ascending.
      *
      * @param groupId - id of the group.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -101,11 +100,9 @@ export class RecipientService {
         logger.debug({ groupId, options }, `Request:`);
 
         try {
-            const conditions = [eq(recipientsTable.group_id, groupId)];
-            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
-
-            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.group_id, groupId)).orderBy(asc(recipientsTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ groupId, count: recipients.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByGroup.name}`);
@@ -121,9 +118,8 @@ export class RecipientService {
      * Lists every recipient belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -132,11 +128,9 @@ export class RecipientService {
         logger.debug({ organizationId, options }, `Request:`);
 
         try {
-            const conditions = [eq(recipientsTable.organization_id, organizationId)];
-            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
-
-            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.organization_id, organizationId)).orderBy(asc(recipientsTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ organizationId, count: recipients.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
@@ -152,9 +146,8 @@ export class RecipientService {
      * Lists every recipient belonging to a given campaign, ordered by `id` ascending.
      *
      * @param campaignId - id of the campaign.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
@@ -163,11 +156,9 @@ export class RecipientService {
         logger.debug({ campaignId, options }, `Request:`);
 
         try {
-            const conditions = [eq(recipientsTable.campaign_id, campaignId)];
-            if (options?.pageToken) conditions.push(gt(recipientsTable.id, options.pageToken));
-
-            const recipients = await db.select().from(recipientsTable).where(and(...conditions)).orderBy(asc(recipientsTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.campaign_id, campaignId)).orderBy(asc(recipientsTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
             logger.debug({ campaignId, count: recipients.length }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.getByCampaign.name}`);

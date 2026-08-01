@@ -1,32 +1,27 @@
 import { Hono } from "hono";
 import { UserController } from "../controllers";
-import { UserService } from "../services";
+import { UserService, OrganizationUserService } from "../services";
 
 // Wired up once per process; Hono handlers are bound instance methods, so a
 // single shared controller/service pair is safe to reuse across requests.
 const userService = new UserService();
-const userController = new UserController(userService);
+const organizationUserService = new OrganizationUserService();
+const userController = new UserController(userService, organizationUserService);
 
 /**
- * Routes for the `/users` resource.
+ * Routes for the `/users` resource. A user's identity is
+ * organization-independent - see `OrganizationUserRoute` for managing
+ * which organizations a user belongs to and their role in each.
  *
- * - GET /:id - fetch a single user by id.
+ * - POST   /                - create a standalone user (no org membership yet).
+ * - GET    /:id              - fetch a single user by id.
+ * - GET    /:id/organizations - list the organizations a user belongs to, with role.
+ * - PATCH  /:id              - partially update a user's profile.
+ * - DELETE /:id              - delete a user account entirely.
  */
 export const userRoute = new Hono()
-    .get('/:id', userController.get)
-
-/**
- * Routes for the `/organizations/:organization_id/users` resource.
- *
- * - GET    /     - list users in the organization.
- * - POST   /     - create a user.
- * - GET    /:id  - fetch a single user (shared with `userRoute` above).
- * - PATCH  /:id  - partially update a user.
- * - DELETE /:id  - delete a user.
- */
-export const organizationUserRoute = new Hono()
-    .get('/', userController.getAll)
     .post('/', userController.post)
     .get('/:id', userController.get)
+    .get('/:id/organizations', userController.getOrganizations)
     .patch('/:id', userController.update)
     .delete('/:id', userController.delete)
