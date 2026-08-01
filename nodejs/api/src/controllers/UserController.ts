@@ -1,14 +1,43 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
-import { UserService } from "../services";
+import { logger } from "../libs";
+import { UserService, OrganizationUserService } from "../services";
 
 /**
  * HTTP layer for user-related endpoints. Translates Hono `Context` objects
- * into `UserService` calls and maps the results to HTTP responses/errors.
+ * into `UserService`/`OrganizationUserService` calls and maps the results
+ * to HTTP responses/errors. A user's identity is organization-independent -
+ * see `OrganizationUserController` for adding/removing/listing a user's
+ * organization memberships and roles.
  */
 export class UserController {
-    constructor(private userService: UserService) {
+    constructor(private userService: UserService, private organizationUserService: OrganizationUserService) {
+    }
+
+    /**
+     * POST /users
+     * Creates a new standalone user account, with no organization
+     * membership yet - add one via
+     * `POST /organizations/:organization_id/users` or
+     * `PATCH /organizations/:organization_id/users/:user_id`.
+     *
+     * @param c - Hono request context; expects a JSON body with the user's
+     * profile fields.
+     * @returns JSON response with the created user.
+     */
+    post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
+        const body = await c.req.json();
+
+        logger.debug({ body }, `Request:`);
+
+        const user = await this.userService.create(body);
+
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
+
+        return c.json(user, 201);
     }
 
     /**
@@ -21,13 +50,15 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
             throw new HTTPException(400, { message: "Missing Parameters: userId" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.get.name}: Fetching user`);
+        logger.debug({ userId }, `Request:`);
 
         const user = await this.userService.getById(userId);
 
@@ -36,74 +67,60 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.get.name}: User fetched successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(user);
     }
 
     /**
-     * GET /organizations/:organization_id/users
-     * Lists users belonging to an organization.
+     * GET /users/:id/organizations
+     * Lists the organizations a user belongs to, each combined with the
+     * role they hold there.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @param c - Hono request context; expects an `id` route param.
+     * Accepts optional `limit` (max rows to return) and `offset` (rows to
+     * skip before returning results) query params.
+     * @returns JSON array of memberships.
+     * @throws {HTTPException} 400 if the `id` param is missing.
      */
-    getAll = async (c: Context) => {
-        const organizationId = c.req.param('organization_id');
+    getOrganizations = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getOrganizations.name}`);
 
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
+        const userId = c.req.param('id');
+
+        if (!userId) {
+            throw new HTTPException(400, { message: "Missing Parameters: userId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching users`);
+        logger.debug({ userId, limit, offset }, `Request:`);
 
-        const users = await this.userService.getByOrganization(organizationId, { count, pageToken });
+        const rows = await this.organizationUserService.getOrganizationsByUser(userId, { limit, offset });
+        const memberships = rows.map(({ organization, membership }) => ({
+            id: membership.id,
+            organization_id: organization.id,
+            role: membership.role,
+            name: organization.name,
+            normalized_name: organization.normalized_name,
+            description: organization.description,
+            created_at: membership.created_at,
+            updated_at: membership.updated_at,
+        }));
 
-        logger.info({ organizationId, count: users.length }, `${this.constructor.name}.${this.getAll.name}: Users fetched successfully`);
+        logger.debug({ userId, count: memberships.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getOrganizations.name}`);
 
-        return c.json(buildPage(users, count));
+        return c.json(memberships);
     }
 
     /**
-     * POST /organizations/:organization_id/users
-     * Creates a new user within an organization.
-     *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the user fields.
-     * @returns JSON response with the created user.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
-     */
-    post = async (c: Context) => {
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
-        const body = await c.req.json();
-
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating user`);
-
-        const user = await this.userService.create({ ...body, organization_id: organizationId });
-
-        logger.info({ organizationId, userId: user.id }, `${this.constructor.name}.${this.post.name}: User created successfully`);
-
-        return c.json(user, 201);
-    }
-
-    /**
-     * PATCH /organizations/:organization_id/users/:id
-     * Partially updates a user.
+     * PATCH /users/:id
+     * Partially updates a user's profile.
      *
      * @param c - Hono request context; expects an `id` route param and a
      * JSON body with the fields to update.
@@ -112,6 +129,8 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
@@ -120,7 +139,7 @@ export class UserController {
 
         const body = await c.req.json();
 
-        logger.info({ userId, body }, `${this.constructor.name}.${this.update.name}: Updating user`);
+        logger.debug({ userId, body }, `Request:`);
 
         const user = await this.userService.update(userId, body);
 
@@ -129,14 +148,18 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.update.name}: User updated successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(user);
     }
 
     /**
-     * DELETE /organizations/:organization_id/users/:id
-     * Deletes a user.
+     * DELETE /users/:id
+     * Deletes a user account entirely (all of their organization
+     * memberships go with it, via the FK). To remove a user from a single
+     * organization without deleting their account, use
+     * `DELETE /organizations/:organization_id/users/:user_id` instead.
      *
      * @param c - Hono request context; expects an `id` route param.
      * @returns JSON response with the deleted user.
@@ -144,13 +167,15 @@ export class UserController {
      * @throws {HTTPException} 404 if no user matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const userId = c.req.param('id');
 
         if (!userId) {
             throw new HTTPException(400, { message: "Missing Parameters: userId" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: Deleting user`);
+        logger.debug({ userId }, `Request:`);
 
         const user = await this.userService.delete(userId);
 
@@ -159,7 +184,8 @@ export class UserController {
             throw new HTTPException(404, { message: "User not found" });
         }
 
-        logger.info({ userId }, `${this.constructor.name}.${this.delete.name}: User deleted successfully`);
+        logger.debug({ user }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(user);
     }

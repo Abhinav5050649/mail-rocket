@@ -29,6 +29,27 @@
       "when": 1783866713468,
       "tag": "0003_blue_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785614649738,
+      "tag": "0004_user_organization_independent",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785614668963,
+      "tag": "0005_organization_user_join_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785614978278,
+      "tag": "0006_fk_indexes",
+      "breakpoints": true
     }
   ]
 }

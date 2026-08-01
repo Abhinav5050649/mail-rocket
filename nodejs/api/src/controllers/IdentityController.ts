@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { IdentityService } from "../services";
 import type { IdentityType, IdentityStatus } from "../models";
 
@@ -20,14 +20,14 @@ export class IdentityController {
      *
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts optional `type` and `status` filters, and optional
-     * `count` (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE})
-     * and `page_token` (the base64-encoded `next_page_token` from the
-     * previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * `limit` (max rows to return) and `offset` (rows to skip before
+     * returning results) query params.
+     * @returns JSON array of identities.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -36,18 +36,19 @@ export class IdentityController {
 
         const type = c.req.query('type') as IdentityType | undefined;
         const status = c.req.query('status') as IdentityStatus | undefined;
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, type, status, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching identities`);
+        logger.debug({ organizationId, type, status, limit, offset }, `Request:`);
 
-        const identities = await this.identityService.getByOrganization(organizationId, { type, status, count, pageToken });
+        const identities = await this.identityService.getByOrganization(organizationId, { type, status, limit, offset });
 
-        logger.info({ organizationId, count: identities.length }, `${this.constructor.name}.${this.getAll.name}: Identities fetched successfully`);
+        logger.debug({ organizationId, count: identities.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(identities, count));
+        return c.json(identities);
     }
 
     /**
@@ -60,6 +61,8 @@ export class IdentityController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -68,11 +71,12 @@ export class IdentityController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating identity`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const identity = await this.identityService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, identityId: identity.id }, `${this.constructor.name}.${this.post.name}: Identity created successfully`);
+        logger.debug({ organizationId, identity }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(identity, 201);
     }
@@ -87,13 +91,15 @@ export class IdentityController {
      * @throws {HTTPException} 404 if no identity matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const identityId = c.req.param('identity_id');
 
         if (!identityId) {
             throw new HTTPException(400, { message: "Missing Parameters: identityId" });
         }
 
-        logger.info({ identityId }, `${this.constructor.name}.${this.get.name}: Fetching identity`);
+        logger.debug({ identityId }, `Request:`);
 
         const identity = await this.identityService.getById(identityId);
 
@@ -102,7 +108,8 @@ export class IdentityController {
             throw new HTTPException(404, { message: "Identity not found" });
         }
 
-        logger.info({ identityId }, `${this.constructor.name}.${this.get.name}: Identity fetched successfully`);
+        logger.debug({ identity }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(identity);
     }
@@ -118,6 +125,8 @@ export class IdentityController {
      * @throws {HTTPException} 404 if no identity matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const identityId = c.req.param('identity_id');
 
         if (!identityId) {
@@ -126,7 +135,7 @@ export class IdentityController {
 
         const body = await c.req.json();
 
-        logger.info({ identityId, body }, `${this.constructor.name}.${this.update.name}: Updating identity`);
+        logger.debug({ identityId, body }, `Request:`);
 
         const identity = await this.identityService.update(identityId, body);
 
@@ -135,7 +144,8 @@ export class IdentityController {
             throw new HTTPException(404, { message: "Identity not found" });
         }
 
-        logger.info({ identityId }, `${this.constructor.name}.${this.update.name}: Identity updated successfully`);
+        logger.debug({ identity }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(identity);
     }
@@ -150,13 +160,15 @@ export class IdentityController {
      * @throws {HTTPException} 404 if no identity matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const identityId = c.req.param('identity_id');
 
         if (!identityId) {
             throw new HTTPException(400, { message: "Missing Parameters: identityId" });
         }
 
-        logger.info({ identityId }, `${this.constructor.name}.${this.delete.name}: Deleting identity`);
+        logger.debug({ identityId }, `Request:`);
 
         const identity = await this.identityService.delete(identityId);
 
@@ -165,7 +177,8 @@ export class IdentityController {
             throw new HTTPException(404, { message: "Identity not found" });
         }
 
-        logger.info({ identityId }, `${this.constructor.name}.${this.delete.name}: Identity deleted successfully`);
+        logger.debug({ identity }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(identity);
     }

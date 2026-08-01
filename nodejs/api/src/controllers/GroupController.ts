@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { GroupService } from "../services";
 
 /**
@@ -21,32 +21,33 @@ export class GroupController {
      * Lists every group belonging to an organization, across all campaigns.
      *
      * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * param. Accepts optional `limit` (max rows to return) and `offset`
+     * (rows to skip before returning results) query params.
+     * @returns JSON array of groups.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching groups`);
+        logger.debug({ organizationId, limit, offset }, `Request:`);
 
-        const groups = await this.groupService.getByOrganization(organizationId, { count, pageToken });
+        const groups = await this.groupService.getByOrganization(organizationId, { limit, offset });
 
-        logger.info({ organizationId, count: groups.length }, `${this.constructor.name}.${this.getAll.name}: Groups fetched successfully`);
+        logger.debug({ organizationId, count: groups.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(groups, count));
+        return c.json(groups);
     }
 
     /**
@@ -59,6 +60,8 @@ export class GroupController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -67,11 +70,12 @@ export class GroupController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating group`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const group = await this.groupService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, groupId: group.id }, `${this.constructor.name}.${this.post.name}: Group created successfully`);
+        logger.debug({ organizationId, group }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(group, 201);
     }
@@ -81,32 +85,33 @@ export class GroupController {
      * Lists groups belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
-     * Accepts optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * Accepts optional `limit` (max rows to return) and `offset` (rows to
+     * skip before returning results) query params.
+     * @returns JSON array of groups.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     getAllByCampaign = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
+
         const campaignId = c.req.param('campaign_id');
 
         if (!campaignId) {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ campaignId, count, pageToken }, `${this.constructor.name}.${this.getAllByCampaign.name}: Fetching groups for campaign`);
+        logger.debug({ campaignId, limit, offset }, `Request:`);
 
-        const groups = await this.groupService.getByCampaign(campaignId, { count, pageToken });
+        const groups = await this.groupService.getByCampaign(campaignId, { limit, offset });
 
-        logger.info({ campaignId, count: groups.length }, `${this.constructor.name}.${this.getAllByCampaign.name}: Groups fetched successfully`);
+        logger.debug({ campaignId, count: groups.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
 
-        return c.json(buildPage(groups, count));
+        return c.json(groups);
     }
 
     /**
@@ -119,6 +124,8 @@ export class GroupController {
      * @throws {HTTPException} 400 if `organization_id` or `campaign_id` is missing.
      */
     postByCampaign = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
+
         const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
 
@@ -128,11 +135,12 @@ export class GroupController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, campaignId, body }, `${this.constructor.name}.${this.postByCampaign.name}: Creating group`);
+        logger.debug({ organizationId, campaignId, body }, `Request:`);
 
         const group = await this.groupService.create({ ...body, organization_id: organizationId, campaign_id: campaignId });
 
-        logger.info({ organizationId, campaignId, groupId: group.id }, `${this.constructor.name}.${this.postByCampaign.name}: Group created successfully`);
+        logger.debug({ organizationId, campaignId, group }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(group, 201);
     }
@@ -147,13 +155,15 @@ export class GroupController {
      * @throws {HTTPException} 404 if no group matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const groupId = c.req.param('group_id');
 
         if (!groupId) {
             throw new HTTPException(400, { message: "Missing Parameters: groupId" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.get.name}: Fetching group`);
+        logger.debug({ groupId }, `Request:`);
 
         const group = await this.groupService.getById(groupId);
 
@@ -162,7 +172,8 @@ export class GroupController {
             throw new HTTPException(404, { message: "Group not found" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.get.name}: Group fetched successfully`);
+        logger.debug({ group }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(group);
     }
@@ -178,6 +189,8 @@ export class GroupController {
      * @throws {HTTPException} 404 if no group matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const groupId = c.req.param('group_id');
 
         if (!groupId) {
@@ -186,7 +199,7 @@ export class GroupController {
 
         const body = await c.req.json();
 
-        logger.info({ groupId, body }, `${this.constructor.name}.${this.update.name}: Updating group`);
+        logger.debug({ groupId, body }, `Request:`);
 
         const group = await this.groupService.update(groupId, body);
 
@@ -195,7 +208,8 @@ export class GroupController {
             throw new HTTPException(404, { message: "Group not found" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.update.name}: Group updated successfully`);
+        logger.debug({ group }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(group);
     }
@@ -210,13 +224,15 @@ export class GroupController {
      * @throws {HTTPException} 404 if no group matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const groupId = c.req.param('group_id');
 
         if (!groupId) {
             throw new HTTPException(400, { message: "Missing Parameters: groupId" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.delete.name}: Deleting group`);
+        logger.debug({ groupId }, `Request:`);
 
         const group = await this.groupService.delete(groupId);
 
@@ -225,7 +241,8 @@ export class GroupController {
             throw new HTTPException(404, { message: "Group not found" });
         }
 
-        logger.info({ groupId }, `${this.constructor.name}.${this.delete.name}: Group deleted successfully`);
+        logger.debug({ group }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(group);
     }

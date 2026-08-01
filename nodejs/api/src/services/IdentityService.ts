@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { identityTable, type IdentityType, type IdentityStatus } from "../models";
 
@@ -22,10 +22,10 @@ export interface UpdateIdentityInput {
 /**
  * Data-access layer for `identity` rows (domains/email addresses an
  * organization sends from). Wraps `identityTable` (Drizzle) and adds
- * structured logging around every operation: an `info` log when the
- * operation starts, `info`/`warn` on completion depending on whether a row
- * was found, and `error` (with the full stack via the pino `err`
- * serializer) if the underlying query throws.
+ * structured logging around every operation: `info` logs marking method
+ * start/end, `debug` logs of the request params and response payload,
+ * `warn` if no matching row is found, and `error` (with the full stack via
+ * the pino `err` serializer) if the underlying query throws.
  */
 export class IdentityService {
 
@@ -37,12 +37,14 @@ export class IdentityService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateIdentityInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating identity`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [identity] = await db.insert(identityTable).values(data).returning();
 
-            logger.info({ identityId: identity!.id }, `${this.constructor.name}.${this.create.name}: Identity created`);
+            logger.debug({ identityId: identity!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return identity!;
         } catch (error) {
@@ -59,9 +61,10 @@ export class IdentityService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(identityId: string) {
-        try {
-            logger.info({ identityId }, `${this.constructor.name}.${this.getById.name}: Fetching identity`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ identityId }, `Request:`);
 
+        try {
             const [identity] = await db.select().from(identityTable).where(eq(identityTable.id, identityId));
 
             if (!identity) {
@@ -69,7 +72,8 @@ export class IdentityService {
                 return null;
             }
 
-            logger.info({ identityId }, `${this.constructor.name}.${this.getById.name}: Identity fetched`);
+            logger.debug({ identityId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return identity;
         } catch (error) {
@@ -84,25 +88,26 @@ export class IdentityService {
      * @param organizationId - id of the organization.
      * @param options.type - optional filter on the `type` column.
      * @param options.status - optional filter on the `status` column.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching identity rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions & { type?: IdentityType; status?: IdentityStatus }) {
-        try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching identities for organization`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
 
+        try {
             const conditions = [eq(identityTable.organization_id, organizationId)];
             if (options?.type !== undefined) conditions.push(eq(identityTable.type, options.type));
             if (options?.status !== undefined) conditions.push(eq(identityTable.status, options.status));
-            if (options?.pageToken) conditions.push(gt(identityTable.id, options.pageToken));
 
             const identities = await db.select().from(identityTable).where(and(...conditions)).orderBy(asc(identityTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
-            logger.info({ organizationId, count: identities.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched identities for organization`);
+            logger.debug({ organizationId, count: identities.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return identities;
         } catch (error) {
@@ -120,9 +125,10 @@ export class IdentityService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(identityId: string, data: UpdateIdentityInput) {
-        try {
-            logger.info({ identityId, data }, `${this.constructor.name}.${this.update.name}: Updating identity`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ identityId, data }, `Request:`);
 
+        try {
             const [identity] = await db.update(identityTable).set(data).where(eq(identityTable.id, identityId)).returning();
 
             if (!identity) {
@@ -130,7 +136,8 @@ export class IdentityService {
                 return null;
             }
 
-            logger.info({ identityId }, `${this.constructor.name}.${this.update.name}: Identity updated`);
+            logger.debug({ identityId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return identity;
         } catch (error) {
@@ -147,9 +154,10 @@ export class IdentityService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(identityId: string) {
-        try {
-            logger.info({ identityId }, `${this.constructor.name}.${this.delete.name}: Deleting identity`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ identityId }, `Request:`);
 
+        try {
             const [identity] = await db.delete(identityTable).where(eq(identityTable.id, identityId)).returning();
 
             if (!identity) {
@@ -157,7 +165,8 @@ export class IdentityService {
                 return null;
             }
 
-            logger.info({ identityId }, `${this.constructor.name}.${this.delete.name}: Identity deleted`);
+            logger.debug({ identityId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return identity;
         } catch (error) {

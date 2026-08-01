@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { CampaignService } from "../services";
 import type { CampaignStatus } from "../models";
 
@@ -19,15 +19,15 @@ export class CampaignController {
      * Lists campaigns belonging to an organization.
      *
      * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts an optional `status` filter, and optional `count`
-     * (max rows to return, defaults to {@link DEFAULT_PAGE_SIZE}) and
-     * `page_token` (the base64-encoded `next_page_token` from the previous
-     * response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * param. Accepts an optional `status` filter, and optional `limit`
+     * (max rows to return) and `offset` (rows to skip before returning
+     * results) query params.
+     * @returns JSON array of campaigns.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -35,18 +35,19 @@ export class CampaignController {
         }
 
         const status = c.req.query('status') as CampaignStatus | undefined;
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, status, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching campaigns`);
+        logger.debug({ organizationId, status, limit, offset }, `Request:`);
 
-        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, count, pageToken });
+        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, limit, offset });
 
-        logger.info({ organizationId, count: campaigns.length }, `${this.constructor.name}.${this.getAll.name}: Campaigns fetched successfully`);
+        logger.debug({ organizationId, count: campaigns.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(campaigns, count));
+        return c.json(campaigns);
     }
 
     /**
@@ -59,6 +60,8 @@ export class CampaignController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -67,11 +70,12 @@ export class CampaignController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating campaign`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const campaign = await this.campaignService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, campaignId: campaign.id }, `${this.constructor.name}.${this.post.name}: Campaign created successfully`);
+        logger.debug({ organizationId, campaign }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(campaign, 201);
     }
@@ -86,13 +90,15 @@ export class CampaignController {
      * @throws {HTTPException} 404 if no campaign matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const campaignId = c.req.param('campaign_id');
 
         if (!campaignId) {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.get.name}: Fetching campaign`);
+        logger.debug({ campaignId }, `Request:`);
 
         const campaign = await this.campaignService.getById(campaignId);
 
@@ -101,7 +107,8 @@ export class CampaignController {
             throw new HTTPException(404, { message: "Campaign not found" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.get.name}: Campaign fetched successfully`);
+        logger.debug({ campaign }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(campaign);
     }
@@ -117,6 +124,8 @@ export class CampaignController {
      * @throws {HTTPException} 404 if no campaign matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const campaignId = c.req.param('campaign_id');
 
         if (!campaignId) {
@@ -125,7 +134,7 @@ export class CampaignController {
 
         const body = await c.req.json();
 
-        logger.info({ campaignId, body }, `${this.constructor.name}.${this.update.name}: Updating campaign`);
+        logger.debug({ campaignId, body }, `Request:`);
 
         const campaign = await this.campaignService.update(campaignId, body);
 
@@ -134,7 +143,8 @@ export class CampaignController {
             throw new HTTPException(404, { message: "Campaign not found" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.update.name}: Campaign updated successfully`);
+        logger.debug({ campaign }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(campaign);
     }
@@ -149,13 +159,15 @@ export class CampaignController {
      * @throws {HTTPException} 404 if no campaign matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const campaignId = c.req.param('campaign_id');
 
         if (!campaignId) {
             throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.delete.name}: Deleting campaign`);
+        logger.debug({ campaignId }, `Request:`);
 
         const campaign = await this.campaignService.delete(campaignId);
 
@@ -164,7 +176,8 @@ export class CampaignController {
             throw new HTTPException(404, { message: "Campaign not found" });
         }
 
-        logger.info({ campaignId }, `${this.constructor.name}.${this.delete.name}: Campaign deleted successfully`);
+        logger.debug({ campaign }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(campaign);
     }

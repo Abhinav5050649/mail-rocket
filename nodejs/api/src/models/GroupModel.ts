@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
 import { campaignTable } from "./CampaignModel";
@@ -23,7 +23,11 @@ export const groupTable = pgTable("group", {
     creator_id: varchar("creator_id").references(() => userTable.id),
     /** Normalized name of group. */
     normalized_name: varchar("normalized_name"),
-});
+}, (table) => [
+    // Backs `getByCampaign` and `getByOrganization`.
+    index("group_campaign_id_idx").on(table.campaign_id),
+    index("group_organization_id_idx").on(table.organization_id),
+]);
 
 /** TS type for a group row, inferred directly from the table schema above. */
 export type IGroup = typeof groupTable.$inferSelect;

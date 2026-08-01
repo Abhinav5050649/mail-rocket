@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { AddressService } from "../services";
 
 /**
@@ -20,15 +20,14 @@ export class AddressController {
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts an optional `user_id` query param to scope the list to
      * a single user, an optional `is_primary` query param to filter by the
-     * primary-address flag, and optional `count` (max rows to return,
-     * defaults to {@link DEFAULT_PAGE_SIZE}) and `page_token` (the
-     * base64-encoded `next_page_token` from the previous response) query
-     * params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * primary-address flag, and optional `limit` (max rows to return) and
+     * `offset` (rows to skip before returning results) query params.
+     * @returns JSON array of addresses.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -38,20 +37,21 @@ export class AddressController {
         const userId = c.req.query('user_id');
         const isPrimaryParam = c.req.query('is_primary');
         const isPrimary = isPrimaryParam === undefined ? undefined : isPrimaryParam === 'true';
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, userId, isPrimary, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching addresses`);
+        logger.debug({ organizationId, userId, isPrimary, limit, offset }, `Request:`);
 
         const addresses = userId
-            ? await this.addressService.getByUser(userId, { count, pageToken })
-            : await this.addressService.getByOrganization(organizationId, { isPrimary, count, pageToken });
+            ? await this.addressService.getByUser(userId, { limit, offset })
+            : await this.addressService.getByOrganization(organizationId, { isPrimary, limit, offset });
 
-        logger.info({ organizationId, count: addresses.length }, `${this.constructor.name}.${this.getAll.name}: Addresses fetched successfully`);
+        logger.debug({ organizationId, count: addresses.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(addresses, count));
+        return c.json(addresses);
     }
 
     /**
@@ -64,6 +64,8 @@ export class AddressController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -72,11 +74,12 @@ export class AddressController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating address`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const address = await this.addressService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, addressId: address.id }, `${this.constructor.name}.${this.post.name}: Address created successfully`);
+        logger.debug({ organizationId, address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(address, 201);
     }
@@ -91,13 +94,15 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
             throw new HTTPException(400, { message: "Missing Parameters: addressId" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.get.name}: Fetching address`);
+        logger.debug({ addressId }, `Request:`);
 
         const address = await this.addressService.getById(addressId);
 
@@ -106,7 +111,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.get.name}: Address fetched successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(address);
     }
@@ -122,6 +128,8 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
@@ -130,7 +138,7 @@ export class AddressController {
 
         const body = await c.req.json();
 
-        logger.info({ addressId, body }, `${this.constructor.name}.${this.update.name}: Updating address`);
+        logger.debug({ addressId, body }, `Request:`);
 
         const address = await this.addressService.update(addressId, body);
 
@@ -139,7 +147,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.update.name}: Address updated successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(address);
     }
@@ -154,13 +163,15 @@ export class AddressController {
      * @throws {HTTPException} 404 if no address matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const addressId = c.req.param('address_id');
 
         if (!addressId) {
             throw new HTTPException(400, { message: "Missing Parameters: addressId" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Deleting address`);
+        logger.debug({ addressId }, `Request:`);
 
         const address = await this.addressService.delete(addressId);
 
@@ -169,7 +180,8 @@ export class AddressController {
             throw new HTTPException(404, { message: "Address not found" });
         }
 
-        logger.info({ addressId }, `${this.constructor.name}.${this.delete.name}: Address deleted successfully`);
+        logger.debug({ address }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(address);
     }

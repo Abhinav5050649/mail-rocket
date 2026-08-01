@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { ContactDetailsService } from "../services";
 
 /**
@@ -19,14 +19,14 @@ export class ContactDetailsController {
      *
      * @param c - Hono request context; expects an `organization_id` route
      * param. Accepts an optional `user_id` query param to scope the list to
-     * a single user, and optional `count` (max rows to return, defaults to
-     * {@link DEFAULT_PAGE_SIZE}) and `page_token` (the base64-encoded
-     * `next_page_token` from the previous response) query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * a single user, and optional `limit` (max rows to return) and `offset`
+     * (rows to skip before returning results) query params.
+     * @returns JSON array of contact-details rows.
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -34,20 +34,21 @@ export class ContactDetailsController {
         }
 
         const userId = c.req.query('user_id');
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.info({ organizationId, userId, count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching contact details`);
+        logger.debug({ organizationId, userId, limit, offset }, `Request:`);
 
         const contactDetails = userId
-            ? await this.contactDetailsService.getByUser(userId, { count, pageToken })
-            : await this.contactDetailsService.getByOrganization(organizationId, { count, pageToken });
+            ? await this.contactDetailsService.getByUser(userId, { limit, offset })
+            : await this.contactDetailsService.getByOrganization(organizationId, { limit, offset });
 
-        logger.info({ organizationId, count: contactDetails.length }, `${this.constructor.name}.${this.getAll.name}: Contact details fetched successfully`);
+        logger.debug({ organizationId, count: contactDetails.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
-        return c.json(buildPage(contactDetails, count));
+        return c.json(contactDetails);
     }
 
     /**
@@ -60,6 +61,8 @@ export class ContactDetailsController {
      * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -68,11 +71,12 @@ export class ContactDetailsController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.post.name}: Creating contact details`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const contactDetails = await this.contactDetailsService.create({ ...body, organization_id: organizationId });
 
-        logger.info({ organizationId, contactDetailsId: contactDetails.id }, `${this.constructor.name}.${this.post.name}: Contact details created successfully`);
+        logger.debug({ organizationId, contactDetails }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(contactDetails, 201);
     }
@@ -87,13 +91,15 @@ export class ContactDetailsController {
      * @throws {HTTPException} 404 if no contact-details row matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const contactDetailsId = c.req.param('contact_details_id');
 
         if (!contactDetailsId) {
             throw new HTTPException(400, { message: "Missing Parameters: contactDetailsId" });
         }
 
-        logger.info({ contactDetailsId }, `${this.constructor.name}.${this.get.name}: Fetching contact details`);
+        logger.debug({ contactDetailsId }, `Request:`);
 
         const contactDetails = await this.contactDetailsService.getById(contactDetailsId);
 
@@ -102,7 +108,8 @@ export class ContactDetailsController {
             throw new HTTPException(404, { message: "Contact details not found" });
         }
 
-        logger.info({ contactDetailsId }, `${this.constructor.name}.${this.get.name}: Contact details fetched successfully`);
+        logger.debug({ contactDetails }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(contactDetails);
     }
@@ -118,6 +125,8 @@ export class ContactDetailsController {
      * @throws {HTTPException} 404 if no contact-details row matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const contactDetailsId = c.req.param('contact_details_id');
 
         if (!contactDetailsId) {
@@ -126,7 +135,7 @@ export class ContactDetailsController {
 
         const body = await c.req.json();
 
-        logger.info({ contactDetailsId, body }, `${this.constructor.name}.${this.update.name}: Updating contact details`);
+        logger.debug({ contactDetailsId, body }, `Request:`);
 
         const contactDetails = await this.contactDetailsService.update(contactDetailsId, body);
 
@@ -135,7 +144,8 @@ export class ContactDetailsController {
             throw new HTTPException(404, { message: "Contact details not found" });
         }
 
-        logger.info({ contactDetailsId }, `${this.constructor.name}.${this.update.name}: Contact details updated successfully`);
+        logger.debug({ contactDetails }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(contactDetails);
     }
@@ -150,13 +160,15 @@ export class ContactDetailsController {
      * @throws {HTTPException} 404 if no contact-details row matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const contactDetailsId = c.req.param('contact_details_id');
 
         if (!contactDetailsId) {
             throw new HTTPException(400, { message: "Missing Parameters: contactDetailsId" });
         }
 
-        logger.info({ contactDetailsId }, `${this.constructor.name}.${this.delete.name}: Deleting contact details`);
+        logger.debug({ contactDetailsId }, `Request:`);
 
         const contactDetails = await this.contactDetailsService.delete(contactDetailsId);
 
@@ -165,7 +177,8 @@ export class ContactDetailsController {
             throw new HTTPException(404, { message: "Contact details not found" });
         }
 
-        logger.info({ contactDetailsId }, `${this.constructor.name}.${this.delete.name}: Contact details deleted successfully`);
+        logger.debug({ contactDetails }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(contactDetails);
     }

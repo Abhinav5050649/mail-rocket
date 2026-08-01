@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, DEFAULT_PAGE_SIZE, decodePageToken, buildPage } from "../libs";
+import { logger } from "../libs";
 import { OrganizationService } from "../services";
 
 /**
@@ -16,26 +16,27 @@ export class OrganizationController {
      * GET /organizations
      * Lists organizations.
      *
-     * @param c - Hono request context; accepts optional `count` (max rows
-     * to return, defaults to {@link DEFAULT_PAGE_SIZE}) and `page_token`
-     * (the base64-encoded `next_page_token` from the previous response)
+     * @param c - Hono request context; accepts optional `limit` (max rows
+     * to return) and `offset` (rows to skip before returning results)
      * query params.
-     * @returns JSON `{ data, next_page_token }` - `next_page_token` is
-     * `null` once the last page has been reached.
+     * @returns JSON array of organizations.
      */
     getAll = async (c: Context) => {
-        const countParam = c.req.query('count');
-        const pageTokenParam = c.req.query('page_token');
-        const count = countParam !== undefined ? Number(countParam) : DEFAULT_PAGE_SIZE;
-        const pageToken = pageTokenParam ? decodePageToken(pageTokenParam) : undefined;
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
 
-        logger.info({ count, pageToken }, `${this.constructor.name}.${this.getAll.name}: Fetching organizations`);
+        const limitParam = c.req.query('limit');
+        const offsetParam = c.req.query('offset');
+        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
+        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        const organizations = await this.organizationService.getAll({ count, pageToken });
+        logger.debug({ limit, offset }, `Request:`);
 
-        logger.info({ count: organizations.length }, `${this.constructor.name}.${this.getAll.name}: Organizations fetched successfully`);
+        const organizations = await this.organizationService.getAll({ limit, offset });
 
-        return c.json(buildPage(organizations, count));
+        logger.debug({ count: organizations.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
+
+        return c.json(organizations);
     }
 
     /**
@@ -47,13 +48,16 @@ export class OrganizationController {
      * @returns JSON response with the created organization.
      */
     post = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
+
         const body = await c.req.json();
 
-        logger.info({ body }, `${this.constructor.name}.${this.post.name}: Creating organization`);
+        logger.debug({ body }, `Request:`);
 
         const organization = await this.organizationService.create(body);
 
-        logger.info({ organizationId: organization.id }, `${this.constructor.name}.${this.post.name}: Organization created successfully`);
+        logger.debug({ organization }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(organization, 201);
     }
@@ -68,13 +72,15 @@ export class OrganizationController {
      * @throws {HTTPException} 404 if no organization matches the given id.
      */
     get = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.get.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.get.name}: Fetching organization`);
+        logger.debug({ organizationId }, `Request:`);
 
         const organization = await this.organizationService.getById(organizationId);
 
@@ -83,7 +89,8 @@ export class OrganizationController {
             throw new HTTPException(404, { message: "Organization not found" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.get.name}: Organization fetched successfully`);
+        logger.debug({ organization }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
         return c.json(organization);
     }
@@ -99,6 +106,8 @@ export class OrganizationController {
      * @throws {HTTPException} 404 if no organization matches the given id.
      */
     update = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
@@ -107,7 +116,7 @@ export class OrganizationController {
 
         const body = await c.req.json();
 
-        logger.info({ organizationId, body }, `${this.constructor.name}.${this.update.name}: Updating organization`);
+        logger.debug({ organizationId, body }, `Request:`);
 
         const organization = await this.organizationService.update(organizationId, body);
 
@@ -116,7 +125,8 @@ export class OrganizationController {
             throw new HTTPException(404, { message: "Organization not found" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.update.name}: Organization updated successfully`);
+        logger.debug({ organization }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
         return c.json(organization);
     }
@@ -131,13 +141,15 @@ export class OrganizationController {
      * @throws {HTTPException} 404 if no organization matches the given id.
      */
     delete = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+
         const organizationId = c.req.param('organization_id');
 
         if (!organizationId) {
             throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.delete.name}: Deleting organization`);
+        logger.debug({ organizationId }, `Request:`);
 
         const organization = await this.organizationService.delete(organizationId);
 
@@ -146,7 +158,8 @@ export class OrganizationController {
             throw new HTTPException(404, { message: "Organization not found" });
         }
 
-        logger.info({ organizationId }, `${this.constructor.name}.${this.delete.name}: Organization deleted successfully`);
+        logger.debug({ organization }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
         return c.json(organization);
     }

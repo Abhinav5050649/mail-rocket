@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { groupTable } from "../models";
 
@@ -22,9 +22,10 @@ export interface UpdateGroupInput {
 /**
  * Data-access layer for `group` rows (recipient lists within a campaign).
  * Wraps `groupTable` (Drizzle) and adds structured logging around every
- * operation: an `info` log when the operation starts, `info`/`warn` on
- * completion depending on whether a row was found, and `error` (with the
- * full stack via the pino `err` serializer) if the underlying query throws.
+ * operation: `info` logs marking method start/end, `debug` logs of the
+ * request params and response payload, `warn` if no matching row is
+ * found, and `error` (with the full stack via the pino `err` serializer)
+ * if the underlying query throws.
  */
 export class GroupService {
 
@@ -36,12 +37,14 @@ export class GroupService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateGroupInput) {
-        try {
-            logger.info({ data }, `${this.constructor.name}.${this.create.name}: Creating group`);
+        logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
+        logger.debug({ data }, `Request:`);
 
+        try {
             const [group] = await db.insert(groupTable).values(data).returning();
 
-            logger.info({ groupId: group!.id }, `${this.constructor.name}.${this.create.name}: Group created`);
+            logger.debug({ groupId: group!.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
             return group!;
         } catch (error) {
@@ -58,9 +61,10 @@ export class GroupService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(groupId: string) {
-        try {
-            logger.info({ groupId }, `${this.constructor.name}.${this.getById.name}: Fetching group`);
+        logger.info(`Start method: ${this.constructor.name}.${this.getById.name}`);
+        logger.debug({ groupId }, `Request:`);
 
+        try {
             const [group] = await db.select().from(groupTable).where(eq(groupTable.id, groupId));
 
             if (!group) {
@@ -68,7 +72,8 @@ export class GroupService {
                 return null;
             }
 
-            logger.info({ groupId }, `${this.constructor.name}.${this.getById.name}: Group fetched`);
+            logger.debug({ groupId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getById.name}`);
 
             return group;
         } catch (error) {
@@ -81,23 +86,22 @@ export class GroupService {
      * Lists every group belonging to a given campaign, ordered by `id` ascending.
      *
      * @param campaignId - id of the campaign.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByCampaign(campaignId: string, options?: PaginationOptions) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getByCampaign.name}`);
+        logger.debug({ campaignId, options }, `Request:`);
+
         try {
-            logger.info({ campaignId, options }, `${this.constructor.name}.${this.getByCampaign.name}: Fetching groups for campaign`);
+            const groups = await db.select().from(groupTable).where(eq(groupTable.campaign_id, campaignId)).orderBy(asc(groupTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
-            const conditions = [eq(groupTable.campaign_id, campaignId)];
-            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
-
-            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
-
-            logger.info({ campaignId, count: groups.length }, `${this.constructor.name}.${this.getByCampaign.name}: Fetched groups for campaign`);
+            logger.debug({ campaignId, count: groups.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByCampaign.name}`);
 
             return groups;
         } catch (error) {
@@ -110,23 +114,22 @@ export class GroupService {
      * Lists every group belonging to a given organization, ordered by `id` ascending.
      *
      * @param organizationId - id of the organization.
-     * @param options.count - max number of rows to return.
-     * @param options.pageToken - id of the last row from the previous page;
-     * rows are fetched starting strictly after it.
+     * @param options.limit - max number of rows to return.
+     * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching group rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getByOrganization(organizationId: string, options?: PaginationOptions) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
+        logger.debug({ organizationId, options }, `Request:`);
+
         try {
-            logger.info({ organizationId, options }, `${this.constructor.name}.${this.getByOrganization.name}: Fetching groups for organization`);
+            const groups = await db.select().from(groupTable).where(eq(groupTable.organization_id, organizationId)).orderBy(asc(groupTable.id))
+                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
+                .offset(options?.offset ?? 0);
 
-            const conditions = [eq(groupTable.organization_id, organizationId)];
-            if (options?.pageToken) conditions.push(gt(groupTable.id, options.pageToken));
-
-            const groups = await db.select().from(groupTable).where(and(...conditions)).orderBy(asc(groupTable.id))
-                .limit(options?.count ?? DEFAULT_PAGE_SIZE);
-
-            logger.info({ organizationId, count: groups.length }, `${this.constructor.name}.${this.getByOrganization.name}: Fetched groups for organization`);
+            logger.debug({ organizationId, count: groups.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
 
             return groups;
         } catch (error) {
@@ -144,9 +147,10 @@ export class GroupService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(groupId: string, data: UpdateGroupInput) {
-        try {
-            logger.info({ groupId, data }, `${this.constructor.name}.${this.update.name}: Updating group`);
+        logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
+        logger.debug({ groupId, data }, `Request:`);
 
+        try {
             const [group] = await db.update(groupTable).set(data).where(eq(groupTable.id, groupId)).returning();
 
             if (!group) {
@@ -154,7 +158,8 @@ export class GroupService {
                 return null;
             }
 
-            logger.info({ groupId }, `${this.constructor.name}.${this.update.name}: Group updated`);
+            logger.debug({ groupId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
             return group;
         } catch (error) {
@@ -171,9 +176,10 @@ export class GroupService {
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(groupId: string) {
-        try {
-            logger.info({ groupId }, `${this.constructor.name}.${this.delete.name}: Deleting group`);
+        logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);
+        logger.debug({ groupId }, `Request:`);
 
+        try {
             const [group] = await db.delete(groupTable).where(eq(groupTable.id, groupId)).returning();
 
             if (!group) {
@@ -181,7 +187,8 @@ export class GroupService {
                 return null;
             }
 
-            logger.info({ groupId }, `${this.constructor.name}.${this.delete.name}: Group deleted`);
+            logger.debug({ groupId }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
             return group;
         } catch (error) {
