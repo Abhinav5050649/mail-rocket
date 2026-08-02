@@ -1,13 +1,16 @@
+import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { config } from "./config";
-import { appRoute, requestLogger, errorHandler, connectDB } from "./src";
+import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB } from "./src";
 
 await connectDB();
 
 const app = new Hono();
 
 app.use('*', requestLogger);
+app.use('*', jsonOnly);
+app.notFound(notFound);
 app.onError(errorHandler);
 app.route('/', appRoute);
 
