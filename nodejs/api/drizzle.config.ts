@@ -3,10 +3,9 @@ import { defineConfig } from "drizzle-kit";
 
 /**
  * The drizzle-kit CLI reads `DB_URL` straight from `process.env` and has no
- * built-in `.env` loading of its own (unlike `tsx`, which the app's `dev`
- * script relies on), so `dotenv/config` is loaded explicitly here. This file
- * stays free of the `config.ts` import-time validation that the running app
- * relies on.
+ * built-in `.env` loading of its own, so `dotenv/config` is loaded explicitly
+ * here (same as `index.ts` does for the running app). This file stays free
+ * of the `config.ts` import-time validation that the running app relies on.
  */
 export default defineConfig({
     dialect: "postgresql",
