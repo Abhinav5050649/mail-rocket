@@ -1,9 +1,12 @@
+import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 
 /**
- * drizzle-kit reads `DB_URL` straight from the environment (Bun loads `.env`
- * automatically for any `bun`/`bunx` invocation), so this file stays free of
- * the `config.ts` import-time validation that the running app relies on.
+ * The drizzle-kit CLI reads `DB_URL` straight from `process.env` and has no
+ * built-in `.env` loading of its own (unlike `tsx`, which the app's `dev`
+ * script relies on), so `dotenv/config` is loaded explicitly here. This file
+ * stays free of the `config.ts` import-time validation that the running app
+ * relies on.
  */
 export default defineConfig({
     dialect: "postgresql",
