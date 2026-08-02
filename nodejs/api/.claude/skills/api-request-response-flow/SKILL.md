@@ -11,7 +11,7 @@ description: Use when adding a new endpoint, tracing how a request moves through
 
 1. `await connectDB()` - fails fast on boot if Postgres is unreachable.
 2. `new Hono()`, then `app.use('*', requestLogger)`, `app.onError(errorHandler)`, `app.route('/', appRoute)`.
-3. Dual runtime: exports `handler = handle(app)` (via `hono/aws-lambda`) for Lambda, and if `AWS_LAMBDA_FUNCTION_NAME` isn't set, also starts `@hono/node-server`'s `serve()` for local dev (`npm start`).
+3. Starts `@hono/node-server`'s `serve()` unconditionally - the process is a single long-lived server (run directly for local dev, or built with `npm run build` and run in Docker on EC2 for deployment; see the repo README's Deployment section). No Lambda/dual-runtime branching.
 
 `src/index.ts` is just the barrel (`export * from "./controllers" | "./libs" | "./middleware" | "./models" | "./routes" | "./services"`), not app logic.
 
