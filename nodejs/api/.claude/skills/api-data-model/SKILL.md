@@ -1,14 +1,14 @@
 ---
 name: api-data-model
-description: Use when adding or modifying a database table/column, writing a Drizzle query, or reasoning about how data is stored in the mail-rocket Node.js API (nodejs/api) - covers the Neon Postgres + Drizzle ORM setup, common schema conventions, enums, relations/multi-tenancy, indexes, and migrations. Trigger whenever creating/editing files under src/models, writing db.select/insert/update/delete, or touching resources/dbml or drizzle/.
+description: Use when adding or modifying a database table/column, writing a Drizzle query, or reasoning about how data is stored in the mail-rocket Node.js API (nodejs/api) - covers the self-hosted Postgres + Drizzle ORM setup, common schema conventions, enums, relations/multi-tenancy, indexes, and migrations. Trigger whenever creating/editing files under src/models, writing db.select/insert/update/delete, or touching resources/dbml or drizzle/.
 ---
 
 # Data storage & model in nodejs/api
 
 ## Storage
 
-- Postgres, hosted on Neon. Accessed via `drizzle-orm/node-postgres` in [src/libs/db.ts](../../../src/libs/db.ts) - a pooled `pg.Pool` TCP client, not Neon's HTTP driver.
-  - Deliberate choice: the API runs as a long-lived process on EC2 (via Docker), not per-invocation Lambda, so a pooled TCP client is the natural fit - the pool is created once and reused across every request instead of opening a connection per invocation. `DB_URL` should be Neon's **pooled** connection string (the `-pooler` host) so this pool sits behind PgBouncer rather than holding direct connections. Don't "fix" this by switching to `drizzle-orm/neon-http` (`@neondatabase/serverless`) - that driver exists for short-lived serverless environments and would just add per-query HTTP overhead here.
+- Postgres, self-hosted (local install for dev, a `postgres` container alongside `api` in `docker-compose.yml` for production). Accessed via `drizzle-orm/node-postgres` in [src/libs/db.ts](../../../src/libs/db.ts) - a pooled `pg.Pool` TCP client.
+  - Deliberate choice: the API runs as a long-lived process (via Docker), not per-invocation Lambda, so a pooled TCP client is the natural fit - the pool is created once and reused across every request instead of opening a connection per invocation.
   - `db = drizzle({ client: pool, schema })` where `schema` is the full barrel of `src/models`.
   - `connectDB()` runs `select 1` at boot and logs/throws - called once from the root `index.ts` before the server starts.
 
