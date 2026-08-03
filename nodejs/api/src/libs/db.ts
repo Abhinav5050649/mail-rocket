@@ -6,11 +6,10 @@ import { logger } from "./logger";
 import * as schema from "../models";
 
 /**
- * The API now runs as a long-lived process on EC2 rather than per-invocation
- * Lambda, so a pooled TCP client fits better than Neon's HTTP driver (which
- * existed to avoid cold starts opening a fresh connection per invocation).
- * Point DB_URL at Neon's pooled connection string (the "-pooler" host) so
- * this pool sits behind PgBouncer instead of holding direct connections.
+ * The API runs as a long-lived process (not per-invocation Lambda), so a
+ * pooled TCP client that's created once and reused across requests is the
+ * natural fit. Postgres itself is self-hosted (local for dev, a container
+ * alongside the api in production) - see docker-compose.yml.
  */
 const pool = new Pool({ connectionString: config.databaseUrl });
 
