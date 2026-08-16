@@ -11,6 +11,7 @@
     "build": "esbuild index.ts --bundle --platform=node --target=node24 --format=esm --banner:js=\"import{createRequire}from 'module';const require=createRequire(import.meta.url);\" --outfile=dist/index.mjs"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "latest",
     "@types/pg": "^8.11.0",
     "dotenv": "^17.4.2",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
+    "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.44.0",
     "hono": "^4.12.23",
     "pg": "^8.13.0",

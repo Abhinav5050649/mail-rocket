@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { AddressController } from "../controllers";
 import { AddressService } from "../services";
+import { requireRole } from "../middleware";
 
 // Wired up once per process; Hono handlers are bound instance methods, so a
 // single shared controller/service pair is safe to reuse across requests.
@@ -9,6 +10,7 @@ const addressController = new AddressController(addressService);
 
 /**
  * Routes for the `/organizations/:organization_id/addresses` resource.
+ * Reads require `viewer`+; writes require `editor`+.
  *
  * - GET    /            - list addresses in the organization.
  * - POST   /            - create an address.
@@ -17,8 +19,8 @@ const addressController = new AddressController(addressService);
  * - DELETE /:address_id - delete an address.
  */
 export const addressRoute = new Hono()
-    .get('/', addressController.getAll)
-    .post('/', addressController.post)
-    .get('/:address_id', addressController.get)
-    .patch('/:address_id', addressController.update)
-    .delete('/:address_id', addressController.delete)
+    .get('/', requireRole('viewer'), addressController.getAll)
+    .post('/', requireRole('editor'), addressController.post)
+    .get('/:address_id', requireRole('viewer'), addressController.get)
+    .patch('/:address_id', requireRole('editor'), addressController.update)
+    .delete('/:address_id', requireRole('editor'), addressController.delete)

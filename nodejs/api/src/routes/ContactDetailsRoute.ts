@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { ContactDetailsController } from "../controllers";
 import { ContactDetailsService } from "../services";
+import { requireRole } from "../middleware";
 
 // Wired up once per process; Hono handlers are bound instance methods, so a
 // single shared controller/service pair is safe to reuse across requests.
@@ -9,6 +10,7 @@ const contactDetailsController = new ContactDetailsController(contactDetailsServ
 
 /**
  * Routes for the `/organizations/:organization_id/contact-details` resource.
+ * Reads require `viewer`+; writes require `editor`+.
  *
  * - GET    /                     - list contact details in the organization.
  * - POST   /                     - create a contact-details row.
@@ -17,8 +19,8 @@ const contactDetailsController = new ContactDetailsController(contactDetailsServ
  * - DELETE /:contact_details_id  - delete a contact-details row.
  */
 export const contactDetailsRoute = new Hono()
-    .get('/', contactDetailsController.getAll)
-    .post('/', contactDetailsController.post)
-    .get('/:contact_details_id', contactDetailsController.get)
-    .patch('/:contact_details_id', contactDetailsController.update)
-    .delete('/:contact_details_id', contactDetailsController.delete)
+    .get('/', requireRole('viewer'), contactDetailsController.getAll)
+    .post('/', requireRole('editor'), contactDetailsController.post)
+    .get('/:contact_details_id', requireRole('viewer'), contactDetailsController.get)
+    .patch('/:contact_details_id', requireRole('editor'), contactDetailsController.update)
+    .delete('/:contact_details_id', requireRole('editor'), contactDetailsController.delete)

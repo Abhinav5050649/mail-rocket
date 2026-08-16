@@ -15,6 +15,15 @@ export const userTable = pgTable("user", {
     first_name: varchar("first_name"),
     /** Last name of user. */
     last_name: varchar("last_name"),
+    /** Login identity - unique across every user, used by signup/signin. */
+    email: varchar("email").notNull().unique(),
+    /**
+     * Bcrypt hash of the user's password. Null means the account was
+     * created without credentials (e.g. an org admin inviting a member by
+     * email) and hasn't been activated yet - signin must reject these, and
+     * signup is allowed to attach credentials to them.
+     */
+    password_hash: varchar("password_hash"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */

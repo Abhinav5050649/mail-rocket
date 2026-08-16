@@ -16,5 +16,7 @@ export const config = {
   nodeEnv:     process.env.NODE_ENV || "dev",
   databaseUrl: required("DB_URL"),
   jwtSecret:   required("JWT_SECRET"),
+  // How long an auth token stays valid for, in seconds. Defaults to 7 days.
+  jwtExpiresInSeconds: Number(process.env.JWT_EXPIRES_IN_SECONDS) || 60 * 60 * 24 * 7,
   logLevel:    process.env.LOG_LEVEL || "info"
 };
