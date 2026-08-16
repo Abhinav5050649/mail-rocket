@@ -169,6 +169,31 @@ Table campaign {
   Note: 'An email campaign run by an organization.'
 }
 
+Table template {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.template']
+  name varchar
+  html_body varchar [note: 'HTML markup of the email body.']
+  campaign_id varchar [ref: > campaign.id]
+  organization_id varchar [ref: > organization.id]
+  normalized_name varchar
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    campaign_id [name: 'template_campaign_id_idx']
+    organization_id [name: 'template_organization_id_idx']
+  }
+
+  Note: '''
+    Reusable HTML content for a campaign email. Subject/name for the send
+    itself live on `campaign` - a template only carries the body markup, so
+    a campaign can hold several template rows (draft revisions, A/B
+    variants) without duplicating campaign-level metadata.
+  '''
+}
+
 Table "group" {
   id varchar [pk, note: 'UUID']
   created_at timestamp

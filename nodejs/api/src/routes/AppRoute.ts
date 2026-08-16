@@ -7,6 +7,7 @@ import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
 import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
+import { templateRoute, campaignTemplateRoute } from "./TemplateRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
 import { recipientRoute, campaignRecipientRoute, groupRecipientRoute } from "./RecipientRoute";
 import { authenticate } from "../middleware";
@@ -37,8 +38,10 @@ protectedRoute
     .route('/organizations/:organization_id/contact-details', contactDetailsRoute)
     .route('/organizations/:organization_id/identities', identityRoute)
     .route('/organizations/:organization_id/campaigns', campaignRoute)
+    .route('/organizations/:organization_id/templates', templateRoute)
     .route('/organizations/:organization_id/groups', groupRoute)
     .route('/organizations/:organization_id/recipients', recipientRoute)
+    .route('/organizations/:organization_id/campaigns/:campaign_id/templates', campaignTemplateRoute)
     .route('/organizations/:organization_id/campaigns/:campaign_id/groups', campaignGroupRoute)
     .route('/organizations/:organization_id/campaigns/:campaign_id/recipients', campaignRecipientRoute)
     .route('/organizations/:organization_id/campaigns/:campaign_id/groups/:group_id/recipients', groupRecipientRoute);

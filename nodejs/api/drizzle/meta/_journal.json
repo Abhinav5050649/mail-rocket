@@ -57,6 +57,13 @@
       "when": 1786902835613,
       "tag": "0007_sloppy_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786904430212,
+      "tag": "0008_wealthy_tiger_shark",
+      "breakpoints": true
     }
   ]
 }
