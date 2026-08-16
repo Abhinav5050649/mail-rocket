@@ -1,9 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db, logger } from "../libs";
-import { userTable } from "../models";
+import { userTable, type IUser } from "../models";
 
 /** Fields accepted when creating a new user row. */
 export interface CreateUserInput {
+    /** Login identity - required, must be unique. */
+    email: string;
+    /** Bcrypt hash of the user's password; omitted/null for an invited-but-not-yet-activated user. */
+    password_hash?: string | null;
     first_name?: string;
     last_name?: string;
     description?: string;
@@ -12,10 +16,27 @@ export interface CreateUserInput {
 
 /** Fields accepted when partially updating an existing user row. */
 export interface UpdateUserInput {
+    email?: string;
+    password_hash?: string | null;
     first_name?: string;
     last_name?: string;
     description?: string;
     normalized_name?: string;
+}
+
+/**
+ * Strips `password_hash` off a user row before it's serialized to JSON - a
+ * bcrypt hash should never round-trip over HTTP, even though it's not
+ * usable to an attacker on its own. Every controller that returns a user
+ * (directly, or spread into a larger response object) must pass it through
+ * this first.
+ *
+ * @param user - The full user row, as returned by this service.
+ * @returns The same row with `password_hash` removed.
+ */
+export function toPublicUser(user: IUser): Omit<IUser, "password_hash"> {
+    const { password_hash, ...publicUser } = user;
+    return publicUser;
 }
 
 /**
@@ -79,6 +100,36 @@ export class UserService {
             return user;
         } catch (error) {
             logger.error({ err: error, userId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get user`);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetches a single user by email. Used by signup (to detect an existing
+     * or invited account) and signin (to look up credentials).
+     *
+     * @param email - email of the user.
+     * @returns The user row, or `null` if no match exists.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getByEmail(email: string) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getByEmail.name}`);
+        logger.debug({ email }, `Request:`);
+
+        try {
+            const [user] = await db.select().from(userTable).where(eq(userTable.email, email));
+
+            if (!user) {
+                logger.warn({ email }, `${this.constructor.name}.${this.getByEmail.name}: User not found`);
+                return null;
+            }
+
+            logger.debug({ userId: user.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByEmail.name}`);
+
+            return user;
+        } catch (error) {
+            logger.error({ err: error, email }, `Exception in ${this.constructor.name}.${this.getByEmail.name}: Failed to get user by email`);
             throw error;
         }
     }

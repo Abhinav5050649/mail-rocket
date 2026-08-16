@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../libs";
-import { UserService, OrganizationUserService } from "../services";
+import { UserService, OrganizationUserService, toPublicUser } from "../services";
 
 /**
  * HTTP layer for organization-membership endpoints
@@ -92,7 +92,7 @@ export class OrganizationUserController {
         logger.debug({ organizationId, user, membership }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
-        return c.json({ ...user, organization_id: organizationId, role: membership.role, membership_id: membership.id }, 201);
+        return c.json({ ...toPublicUser(user), organization_id: organizationId, role: membership.role, membership_id: membership.id }, 201);
     }
 
     /**

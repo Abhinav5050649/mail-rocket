@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../libs";
-import { UserService, OrganizationUserService } from "../services";
+import { UserService, OrganizationUserService, toPublicUser } from "../services";
 
 /**
  * HTTP layer for user-related endpoints. Translates Hono `Context` objects
@@ -37,7 +37,7 @@ export class UserController {
         logger.debug({ user }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
-        return c.json(user, 201);
+        return c.json(toPublicUser(user), 201);
     }
 
     /**
@@ -70,7 +70,7 @@ export class UserController {
         logger.debug({ user }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
 
-        return c.json(user);
+        return c.json(toPublicUser(user));
     }
 
     /**
@@ -151,7 +151,7 @@ export class UserController {
         logger.debug({ user }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
 
-        return c.json(user);
+        return c.json(toPublicUser(user));
     }
 
     /**
@@ -187,6 +187,6 @@ export class UserController {
         logger.debug({ user }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
 
-        return c.json(user);
+        return c.json(toPublicUser(user));
     }
 }

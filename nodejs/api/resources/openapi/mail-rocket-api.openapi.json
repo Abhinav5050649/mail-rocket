@@ -7,6 +7,10 @@
   },
   "tags": [
     {
+      "name": "Auth",
+      "description": "Password-based signup/signin. The only endpoints that don't require an Authorization header."
+    },
+    {
       "name": "Organizations",
       "description": "Tenants. Every other resource is scoped to one organization."
     },
@@ -40,6 +44,82 @@
     }
   ],
   "paths": {
+    "/auth/signup": {
+      "post": {
+        "summary": "Sign Up",
+        "deprecated": false,
+        "description": "Creates credentials for an email - either a brand new account, or (if the email belongs to a user invited by an org admin but never activated) attaches a password to that existing row.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthSignup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Credentials created; caller is signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The email already belongs to an activated account."
+          }
+        },
+        "security": [],
+        "operationId": "authSignup"
+      }
+    },
+    "/auth/signin": {
+      "post": {
+        "summary": "Sign In",
+        "deprecated": false,
+        "description": "Verifies credentials and issues an auth token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthSignin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credentials verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password."
+          }
+        },
+        "security": [],
+        "operationId": "authSignin"
+      }
+    },
     "/organizations": {
       "get": {
         "summary": "List Organizations",
@@ -85,7 +165,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationsGetAll"
       },
       "post": {
@@ -118,7 +197,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationsPost"
       }
     },
@@ -173,7 +251,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationsGet"
       },
       "patch": {
@@ -236,7 +313,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationsUpdate"
       },
       "delete": {
@@ -289,7 +365,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationsDelete"
       }
     },
@@ -344,7 +419,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "usersGet"
       },
       "patch": {
@@ -421,7 +495,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "usersUpdate"
       },
       "delete": {
@@ -484,7 +557,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "usersDelete"
       }
     },
@@ -566,7 +638,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationUsersGetAll"
       },
       "post": {
@@ -637,7 +708,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationUsersPost"
       }
     },
@@ -723,7 +793,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "addressesGetAll"
       },
       "post": {
@@ -776,7 +845,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "addressesPost"
       }
     },
@@ -840,7 +908,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "addressesGet"
       },
       "patch": {
@@ -912,7 +979,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "addressesUpdate"
       },
       "delete": {
@@ -974,7 +1040,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "addressesDelete"
       }
     },
@@ -1051,7 +1116,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "contactDetailsGetAll"
       },
       "post": {
@@ -1104,7 +1168,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "contactDetailsPost"
       }
     },
@@ -1168,7 +1231,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "contactDetailsGet"
       },
       "patch": {
@@ -1240,7 +1302,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "contactDetailsUpdate"
       },
       "delete": {
@@ -1302,7 +1363,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "contactDetailsDelete"
       }
     },
@@ -1383,7 +1443,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignsGetAll"
       },
       "post": {
@@ -1436,7 +1495,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignsPost"
       }
     },
@@ -1500,7 +1558,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignsGet"
       },
       "patch": {
@@ -1572,7 +1629,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignsUpdate"
       },
       "delete": {
@@ -1634,7 +1690,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignsDelete"
       }
     },
@@ -1701,7 +1756,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupsGetAll",
         "description": "Lists every group belonging to an organization, across all campaigns. For campaign-scoped listing, use GET /organizations/{organization_id}/campaigns/{campaign_id}/groups instead."
       },
@@ -1755,7 +1809,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupsPost"
       }
     },
@@ -1819,7 +1872,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupsGet"
       },
       "patch": {
@@ -1891,7 +1943,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupsUpdate"
       },
       "delete": {
@@ -1953,7 +2004,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupsDelete"
       }
     },
@@ -2021,7 +2071,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "recipientsGetAll"
       },
       "post": {
@@ -2074,7 +2123,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "recipientsPost"
       }
     },
@@ -2138,7 +2186,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "recipientsGet"
       },
       "patch": {
@@ -2210,7 +2257,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "recipientsUpdate"
       },
       "delete": {
@@ -2272,7 +2318,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "recipientsDelete"
       }
     },
@@ -2349,7 +2394,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignGroupsGetAll"
       },
       "post": {
@@ -2411,7 +2455,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignGroupsPost"
       }
     },
@@ -2488,7 +2531,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignRecipientsGetAll"
       },
       "post": {
@@ -2550,7 +2592,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "campaignRecipientsPost"
       }
     },
@@ -2636,7 +2677,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupRecipientsGetAll"
       },
       "post": {
@@ -2707,7 +2747,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "groupRecipientsPost"
       }
     },
@@ -2801,7 +2840,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "identitiesGetAll"
       },
       "post": {
@@ -2854,7 +2892,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "identitiesPost"
       }
     },
@@ -2918,7 +2955,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "identitiesGet"
       },
       "patch": {
@@ -2990,7 +3026,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "identitiesUpdate"
       },
       "delete": {
@@ -3052,7 +3087,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "identitiesDelete"
       }
     },
@@ -3103,7 +3137,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "usersPost"
       }
     },
@@ -3183,7 +3216,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "usersGetOrganizations"
       }
     },
@@ -3270,7 +3302,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationUsersUpdate"
       },
       "delete": {
@@ -3342,7 +3373,6 @@
             }
           }
         },
-        "security": [],
         "operationId": "organizationUsersDelete"
       }
     }
@@ -3437,6 +3467,11 @@
           "last_name": {
             "type": "string"
           },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Login identity. Never includes the password hash."
+          },
           "normalized_name": {
             "type": "string"
           },
@@ -3455,12 +3490,19 @@
       },
       "UserCreate": {
         "type": "object",
+        "required": [
+          "email"
+        ],
         "properties": {
           "first_name": {
             "type": "string"
           },
           "last_name": {
             "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
           },
           "normalized_name": {
             "type": "string"
@@ -3479,11 +3521,69 @@
           "last_name": {
             "type": "string"
           },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
           "normalized_name": {
             "type": "string"
           },
           "description": {
             "type": "string"
+          }
+        }
+      },
+      "AuthSignup": {
+        "type": "object",
+        "description": "Creates credentials for an email - either a brand new account, or (if the email belongs to a user invited by an org admin but never activated) attaches a password to that existing row.",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          }
+        }
+      },
+      "AuthSignin": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "token": {
+            "type": "string",
+            "description": "JWT to send as `Authorization: Bearer <token>` on subsequent requests."
           }
         }
       },
@@ -4262,8 +4362,19 @@
       }
     },
     "responses": {},
-    "securitySchemes": {}
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token returned by POST /auth/signup or POST /auth/signin."
+      }
+    }
   },
   "servers": [],
-  "security": []
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }

@@ -48,6 +48,8 @@ Table "user" {
   entity varchar [default: 'mail_rocket.user']
   first_name varchar
   last_name varchar
+  email varchar [not null, unique, note: 'Login identity, used by signup/signin.']
+  password_hash varchar [note: 'Bcrypt hash of the password. Null = invited but not yet activated.']
   created_at timestamp
   updated_at timestamp
   description varchar
