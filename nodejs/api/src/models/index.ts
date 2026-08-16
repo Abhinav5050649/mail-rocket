@@ -6,5 +6,6 @@ export * from "./AddressModel";
 export * from "./ContactDetailsModel";
 export * from "./IdentityModel";
 export * from "./CampaignModel";
+export * from "./TemplateModel";
 export * from "./GroupModel";
 export * from "./RecipientModel";

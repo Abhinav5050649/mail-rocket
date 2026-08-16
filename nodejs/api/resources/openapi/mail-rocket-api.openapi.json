@@ -31,6 +31,10 @@
       "description": "Email campaigns run by an organization."
     },
     {
+      "name": "Templates",
+      "description": "Reusable HTML content for a campaign email."
+    },
+    {
       "name": "Groups",
       "description": "Recipient lists within a campaign."
     },
@@ -2007,6 +2011,320 @@
         "operationId": "groupsDelete"
       }
     },
+    "/organizations/{organization_id}/templates": {
+      "get": {
+        "summary": "List Templates",
+        "deprecated": false,
+        "description": "Lists every template belonging to an organization, across all campaigns. For campaign-scoped listing, use GET /organizations/{organization_id}/campaigns/{campaign_id}/templates instead.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Templates matching the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Template"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "templatesGetAll"
+      },
+      "post": {
+        "summary": "Create Template",
+        "deprecated": false,
+        "description": "Creates a new template within an organization.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created template.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "templatesPost"
+      }
+    },
+    "/organizations/{organization_id}/templates/{template_id}": {
+      "get": {
+        "summary": "Get Template",
+        "deprecated": false,
+        "description": "Fetches a single template by id.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "template_id",
+            "in": "path",
+            "description": "ID of the template.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested template.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "templatesGet"
+      },
+      "patch": {
+        "summary": "Update Template",
+        "deprecated": false,
+        "description": "Partially updates a template.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "template_id",
+            "in": "path",
+            "description": "ID of the template.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated template.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "templatesUpdate"
+      },
+      "delete": {
+        "summary": "Delete Template",
+        "deprecated": false,
+        "description": "Deletes a template.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "template_id",
+            "in": "path",
+            "description": "ID of the template.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted template.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "templatesDelete"
+      }
+    },
     "/organizations/{organization_id}/recipients": {
       "get": {
         "summary": "List Recipients",
@@ -2456,6 +2774,143 @@
           }
         },
         "operationId": "campaignGroupsPost"
+      }
+    },
+    "/organizations/{organization_id}/campaigns/{campaign_id}/templates": {
+      "get": {
+        "summary": "List Templates by Campaign",
+        "deprecated": false,
+        "description": "Lists templates belonging to a single campaign.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Templates in the campaign.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Template"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "campaignTemplatesGetAll"
+      },
+      "post": {
+        "summary": "Create Template in Campaign",
+        "deprecated": false,
+        "description": "Creates a new template within a campaign.",
+        "tags": [
+          "Templates"
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "ID of the organization.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created template.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "campaignTemplatesPost"
       }
     },
     "/organizations/{organization_id}/campaigns/{campaign_id}/recipients": {
@@ -3980,6 +4435,84 @@
         "type": "object",
         "properties": {
           "name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Template": {
+        "type": "object",
+        "description": "Reusable HTML content for a campaign email. Subject/name for the send itself live on Campaign - a template only carries the body markup.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the template."
+          },
+          "entity": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "html_body": {
+            "type": "string",
+            "description": "HTML markup of the email body."
+          },
+          "campaign_id": {
+            "type": "string",
+            "description": "ID of the campaign the template belongs to."
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TemplateCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "html_body": {
+            "type": "string"
+          },
+          "campaign_id": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "TemplateUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "html_body": {
             "type": "string"
           },
           "normalized_name": {

@@ -7,5 +7,6 @@ export * from "./AddressController";
 export * from "./ContactDetailsController";
 export * from "./IdentityController";
 export * from "./CampaignController";
+export * from "./TemplateController";
 export * from "./GroupController";
 export * from "./RecipientController";
