@@ -23,6 +23,8 @@ npm start
 
 The API is a single long-lived Node process (not serverless): [Hono](https://hono.dev) serves HTTP, [Drizzle ORM](https://orm.drizzle.team) talks to Postgres, and [BullMQ](https://docs.bullmq.io) (backed by Redis) runs background jobs in the same process as the HTTP server. `index.ts` wires all three up: it connects to the DB, starts the BullMQ workers, then starts the Hono server.
 
+> See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams of these flows (request layering, auth, data model, and both background job pipelines).
+
 ### Layers
 
 Each resource (campaign, identity, template, ...) is implemented as a vertical slice through four layers, each with one job:
