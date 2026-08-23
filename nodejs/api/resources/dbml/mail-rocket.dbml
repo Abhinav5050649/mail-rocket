@@ -23,6 +23,7 @@ Enum identity_type {
 
 Enum identity_status {
   created
+  pending
   active
 }
 
@@ -101,7 +102,8 @@ Table identity {
   type identity_type [not null, note: 'Whether this identity is a domain or an email address.']
   identity varchar [not null, note: 'The domain name or email address being identified.']
   organization_id varchar [ref: > organization.id]
-  status identity_status [default: 'created']
+  status identity_status [default: 'pending']
+  verification_records jsonb [note: 'DNS records (TXT + DKIM CNAMEs) SES returned for a domain identity; null for email identities.']
   created_at timestamp
   updated_at timestamp
   description varchar

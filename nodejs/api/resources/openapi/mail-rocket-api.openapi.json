@@ -4658,9 +4658,33 @@
             "type": "string",
             "enum": [
               "created",
+              "pending",
               "active"
             ],
-            "description": "Lifecycle status of the identity."
+            "description": "Lifecycle status of the identity. `pending` = SES verification in flight."
+          },
+          "verification_records": {
+            "type": "array",
+            "nullable": true,
+            "description": "DNS records to add so SES can confirm a domain identity (1 TXT ownership record + 3 CNAME DKIM records). Null for email identities.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "TXT",
+                    "CNAME"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -4690,9 +4714,10 @@
             "type": "string",
             "enum": [
               "created",
+              "pending",
               "active"
             ],
-            "description": "Lifecycle status of the identity. Defaults to \"created\" if omitted."
+            "description": "Lifecycle status of the identity. Defaults to \"pending\" if omitted - creation always triggers SES verification."
           }
         }
       },
@@ -4718,6 +4743,7 @@
             "type": "string",
             "enum": [
               "created",
+              "pending",
               "active"
             ],
             "description": "Lifecycle status of the identity."
