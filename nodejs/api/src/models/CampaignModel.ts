@@ -1,9 +1,15 @@
 import { pgTable, pgEnum, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
 import { userTable } from "./UserModel";
+import { identityTable } from "./IdentityModel";
 
-/** Lifecycle status of a campaign. */
-export const campaignStatusEnum = pgEnum("campaign_status", ["draft", "active"]);
+/**
+ * Lifecycle status of a campaign's scheduled send:
+ * `draft` (no send scheduled) -> `scheduled` (a dispatch job is queued for
+ * `start_time`) -> `sending` (the dispatch job fired and chunk jobs are in
+ * flight) -> `sent` | `send_failed` (every chunk has settled).
+ */
+export const campaignStatusEnum = pgEnum("campaign_status", ["draft", "scheduled", "sending", "sent", "send_failed"]);
 
 /** TS union type for a campaign's `status` column. */
 export type CampaignStatus = (typeof campaignStatusEnum.enumValues)[number];
@@ -36,6 +42,10 @@ export const campaignTable = pgTable("campaign", {
     normalized_name: varchar("normalized_name"),
     /** Lifecycle status of the campaign. */
     status: campaignStatusEnum("status").default("draft"),
+    /** ID of the identity (domain/email) this campaign sends from via SES. */
+    identity_id: varchar("identity_id").references(() => identityTable.id),
+    /** Reason the send ended in `send_failed`, set by the finalize job. */
+    send_failure_reason: varchar("send_failure_reason"),
 }, (table) => [
     // Backs `getByOrganization`, which filters on organization_id.
     index("campaign_organization_id_idx").on(table.organization_id),

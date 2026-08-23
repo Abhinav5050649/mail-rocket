@@ -6,13 +6,14 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# --- Runtime stage: the bundle, plus the @node-rs/bcrypt native binding ---
-# (esbuild can't inline a native addon, so it's left external and copied in
-# directly instead of pulling the whole node_modules tree back in)
+# --- Runtime stage: the bundle, plus a production-only install of the
+# packages esbuild left external (native addons and packages that load
+# assets from disk at runtime, which bundling breaks) ---
 FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 COPY --from=build /app/dist/index.mjs ./index.mjs
-COPY --from=build /app/node_modules/@node-rs ./node_modules/@node-rs
 EXPOSE 3000
 CMD ["node", "index.mjs"]

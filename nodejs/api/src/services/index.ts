@@ -10,3 +10,4 @@ export * from "./CampaignService";
 export * from "./TemplateService";
 export * from "./GroupService";
 export * from "./RecipientService";
+export * from "./SendCampaignService";
