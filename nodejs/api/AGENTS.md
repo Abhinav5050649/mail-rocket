@@ -1,6 +1,6 @@
-# CLAUDE.md - nodejs/api
+# AGENTS.md - nodejs/api
 
-Instructions for Claude Code working in this directory. Tool-agnostic instructions also live in [AGENTS.md](AGENTS.md) - this file mirrors its structure but adds Claude-specific rules and points at Claude Skills.
+Instructions for any AI coding agent other than Claude Code (Codex, Cursor, etc.) working in this directory. Claude Code reads [CLAUDE.md](CLAUDE.md) instead, which mirrors this file's structure with Claude-specific rules and Skill references layered on top.
 
 ## Overview
 
@@ -15,23 +15,20 @@ Read both before any non-trivial change, and keep them updated if a change alter
 
 ## Instructions
 
-1) NEVER read .env files
-2) Code should be clean, simple and easy to understand
-3) Each and every line of code should be well-documented
-
-Also:
-
+- **Never read or print the `.env` file's contents.** Use `example.env` as the reference for what variables exist.
 - Follow the existing layering strictly: `routes -> controllers -> services -> models`, never skipped, never reached-around (see README's Architecture section and the `api-request-response-flow` skill).
 - Match the logging pattern used by every controller/service method (the `api-logging` skill) - don't invent a different style.
 - Schema changes go through Drizzle: edit `src/models/*.ts`, run `npm run db:generate`, commit the resulting migration under `drizzle/` - never hand-edit a migration file (the `api-data-model` skill).
 - After any endpoint or schema change, update `resources/dbml/mail-rocket.dbml` and `resources/openapi/mail-rocket-api.openapi.json` so they stay the source of truth alongside the code.
 - There is no test suite or linter configured yet - match the style of the file you're editing, and at minimum confirm `npm run dev` boots cleanly if you touched bootstrap/middleware/queues.
+- Code should stay clean and simple; don't add abstractions, config, or error handling for cases that can't happen.
 
 ## Skills
 
-Use the `Skill` tool to load the matching skill before editing that part of the codebase (defined under `.claude/skills/`, also mirrored tool-agnostically under `.agents/skills/` for non-Claude agents):
+Domain knowledge for this codebase is packaged as skills, not restated here - load the one matching what you're touching:
 
-- `api-data-model` - `src/models/*`, Drizzle queries, migrations, schema conventions.
-- `api-logging` - the pino Start/Request/Response/End pattern used in every controller and service method.
-- `api-request-response-flow` - `src/routes`, `src/controllers`, `src/services`, the four-layer request flow, error/pagination conventions.
-- `skill-creator` - only for authoring or editing Claude Skills themselves, not project code.
+- `api-data-model` - `src/models/*`, Drizzle queries/migrations, schema conventions.
+- `api-logging` - the logging pattern used in every controller/service method.
+- `api-request-response-flow` - `src/routes`, `src/controllers`, `src/services`, the layering, error/pagination conventions.
+
+Available under `.agents/skills/`, mirrored for Claude Code under `.claude/skills/`.
