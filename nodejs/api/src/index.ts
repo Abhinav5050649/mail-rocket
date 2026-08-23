@@ -8,5 +8,6 @@ export * from "./controllers";
 export * from "./libs";
 export * from "./middleware";
 export * from "./models";
+export * from "./queues";
 export * from "./routes";
 export * from "./services";

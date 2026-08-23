@@ -23,12 +23,22 @@ Enum identity_type {
 
 Enum identity_status {
   created
+  pending
   active
 }
 
 Enum campaign_status {
   draft
-  active
+  scheduled
+  sending
+  sent
+  send_failed
+}
+
+Enum campaign_recipient_send_status {
+  pending
+  sent
+  failed
 }
 
 Table organization {
@@ -92,7 +102,8 @@ Table identity {
   type identity_type [not null, note: 'Whether this identity is a domain or an email address.']
   identity varchar [not null, note: 'The domain name or email address being identified.']
   organization_id varchar [ref: > organization.id]
-  status identity_status [default: 'created']
+  status identity_status [default: 'pending']
+  verification_records jsonb [note: 'DNS records (TXT + DKIM CNAMEs) SES returned for a domain identity; null for email identities.']
   created_at timestamp
   updated_at timestamp
   description varchar
@@ -161,6 +172,8 @@ Table campaign {
   organizer_id varchar [ref: > "user".id]
   normalized_name varchar
   status campaign_status [default: 'draft']
+  identity_id varchar [ref: > identity.id, note: 'Sending identity (SES From address) for this campaign.']
+  send_failure_reason varchar [note: 'Set by the finalize job when a send ends in send_failed.']
 
   indexes {
     organization_id [name: 'campaign_organization_id_idx']
@@ -235,4 +248,31 @@ Table recipients {
   }
 
   Note: 'A person targeted by a campaign/group.'
+}
+
+Table campaign_recipient {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.campaign_recipient']
+  campaign_id varchar [ref: > campaign.id]
+  recipient_id varchar [ref: > recipients.id]
+  send_status campaign_recipient_send_status [default: 'pending']
+  sent_at timestamp
+  organization_id varchar [ref: > organization.id]
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    campaign_id [name: 'campaign_recipient_campaign_id_idx']
+    recipient_id [name: 'campaign_recipient_recipient_id_idx']
+    (campaign_id, send_status) [name: 'campaign_recipient_campaign_id_send_status_idx']
+  }
+
+  Note: '''
+    Tracks one recipient's send outcome within one campaign's send. Created
+    by the dispatch job (one row per recipient, per send) rather than by
+    users - kept separate from `recipients` so a recipient row stays freely
+    reusable across campaigns instead of carrying send state for whichever
+    campaign sent to it most recently.
+  '''
 }

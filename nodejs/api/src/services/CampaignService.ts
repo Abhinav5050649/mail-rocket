@@ -1,6 +1,14 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { campaignTable, type CampaignStatus } from "../models";
+// Imported directly from CampaignDispatch (not the `../queues` barrel) to
+// avoid a circular import: the barrel also re-exports CampaignWorkers.ts,
+// which imports SendCampaignService from the services barrel - which would
+// pull in this very file again mid-initialization.
+import { scheduleCampaignDispatch, cancelCampaignDispatch } from "../queues/CampaignDispatch";
+
+/** Campaign statuses whose `start_time` can still be (re)scheduled. */
+const SCHEDULABLE_STATUSES: (CampaignStatus | null)[] = ["draft", "scheduled", null];
 
 /** Fields accepted when creating a new campaign row. */
 export interface CreateCampaignInput {
@@ -14,6 +22,7 @@ export interface CreateCampaignInput {
     normalized_name?: string;
     description?: string;
     status?: CampaignStatus;
+    identity_id?: string;
 }
 
 /** Fields accepted when partially updating an existing campaign row. */
@@ -22,10 +31,12 @@ export interface UpdateCampaignInput {
     subject?: string;
     logo_key?: string;
     logo_bucket?: string;
-    start_time?: Date;
+    start_time?: Date | null;
     normalized_name?: string;
     description?: string;
     status?: CampaignStatus;
+    identity_id?: string;
+    send_failure_reason?: string;
 }
 
 /**
@@ -49,12 +60,25 @@ export class CampaignService {
         logger.debug({ data }, `Request:`);
 
         try {
-            const [campaign] = await db.insert(campaignTable).values(data).returning();
+            // Wrapped in a transaction so that if scheduling fails (e.g. no
+            // identity_id yet), the insert rolls back too, rather than
+            // leaving behind a campaign row the caller was told didn't get created.
+            const campaign = await db.transaction(async (tx) => {
+                const [inserted] = await tx.insert(campaignTable).values(data).returning();
 
-            logger.debug({ campaignId: campaign!.id }, `Response:`);
+                if (inserted!.start_time) {
+                    await scheduleCampaignDispatch(inserted!);
+                    const [scheduled] = await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, inserted!.id)).returning();
+                    return scheduled!;
+                }
+
+                return inserted!;
+            });
+
+            logger.debug({ campaignId: campaign.id }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
-            return campaign!;
+            return campaign;
         } catch (error) {
             logger.error({ err: error, data }, `Exception in ${this.constructor.name}.${this.create.name}: Failed to create campaign`);
             throw error;
@@ -135,7 +159,32 @@ export class CampaignService {
         logger.debug({ campaignId, data }, `Request:`);
 
         try {
-            const [campaign] = await db.update(campaignTable).set(data).where(eq(campaignTable.id, campaignId)).returning();
+            // Scheduling only reacts to `start_time` being explicitly
+            // touched (present in `data`, even as `null` to clear it), and
+            // only while the campaign's status *before* this update was
+            // still schedulable - once a send has started/finished, editing
+            // start_time updates the column for record-keeping only, and
+            // must never re-trigger a second full send.
+            const campaign = await db.transaction(async (tx) => {
+                const [before] = await tx.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
+                if (!before) return null;
+
+                const [updated] = await tx.update(campaignTable).set(data).where(eq(campaignTable.id, campaignId)).returning();
+
+                if ("start_time" in data && SCHEDULABLE_STATUSES.includes(before.status)) {
+                    if (updated!.start_time) {
+                        await scheduleCampaignDispatch(updated!);
+                        const [scheduled] = await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, campaignId)).returning();
+                        return scheduled!;
+                    } else {
+                        await cancelCampaignDispatch(campaignId);
+                        const [drafted] = await tx.update(campaignTable).set({ status: "draft" }).where(eq(campaignTable.id, campaignId)).returning();
+                        return drafted!;
+                    }
+                }
+
+                return updated!;
+            });
 
             if (!campaign) {
                 logger.warn({ campaignId }, `${this.constructor.name}.${this.update.name}: Campaign not found`);

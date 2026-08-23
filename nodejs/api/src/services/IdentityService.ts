@@ -1,6 +1,8 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
-import { identityTable, type IdentityType, type IdentityStatus } from "../models";
+import { VerifyEmailIdentityCommand, VerifyDomainIdentityCommand, VerifyDomainDkimCommand } from "@aws-sdk/client-ses";
+import { db, logger, sesClient, ValidationError, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
+import { identityTable, type IdentityType, type IdentityStatus, type IdentityVerificationRecord } from "../models";
+import { scheduleIdentityVerificationCheck } from "../queues/IdentityVerificationScheduler";
 
 /** Fields accepted when creating a new identity row. */
 export interface CreateIdentityInput {
@@ -30,18 +32,66 @@ export interface UpdateIdentityInput {
 export class IdentityService {
 
     /**
-     * Creates a new identity row.
+     * Registers an identity with SES so verification begins:
+     * - `email`: sends SES's verification email; there's nothing to hand back.
+     * - `domain`: starts domain + DKIM verification and returns the DNS
+     *   records (1 TXT ownership record + 3 CNAME DKIM records) the caller
+     *   must add to their DNS for SES to confirm the domain.
+     *
+     * @param type - Kind of identity being registered.
+     * @param identity - The email address or domain name.
+     * @returns The DNS records to hand back for a `domain` identity, or
+     * `undefined` for an `email` identity (nothing to add to DNS).
+     * @throws {ValidationError} If `type` isn't `email` or `domain`.
+     * @throws Re-throws any error the SES SDK call throws.
+     */
+    private async verifyWithSes(type: IdentityType, identity: string): Promise<IdentityVerificationRecord[] | undefined> {
+        if (type === "email") {
+            await sesClient.send(new VerifyEmailIdentityCommand({ EmailAddress: identity }));
+            return undefined;
+        }
+
+        if (type === "domain") {
+            const [domainResult, dkimResult] = await Promise.all([
+                sesClient.send(new VerifyDomainIdentityCommand({ Domain: identity })),
+                sesClient.send(new VerifyDomainDkimCommand({ Domain: identity })),
+            ]);
+
+            return [
+                { type: "TXT", name: `_amazonses.${identity}`, value: domainResult.VerificationToken! },
+                ...(dkimResult.DkimTokens ?? []).map((token) => ({
+                    type: "CNAME" as const,
+                    name: `${token}._domainkey.${identity}`,
+                    value: `${token}.dkim.amazonses.com`,
+                })),
+            ];
+        }
+
+        throw new ValidationError(`Unsupported identity type: ${type}`);
+    }
+
+    /**
+     * Creates a new identity row. Registers the email/domain with SES first
+     * so a failed SES call never leaves behind an orphaned row, then
+     * schedules a background check (see `IdentityVerificationWorker`) that
+     * flips `status` to `active` once SES confirms verification.
      *
      * @param data - Fields for the new identity.
      * @returns The created identity row.
-     * @throws Re-throws any error from the underlying query, after logging it.
+     * @throws Re-throws any error from the SES call or the underlying query, after logging it.
      */
     async create(data: CreateIdentityInput) {
         logger.info(`Start method: ${this.constructor.name}.${this.create.name}`);
         logger.debug({ data }, `Request:`);
 
         try {
-            const [identity] = await db.insert(identityTable).values(data).returning();
+            const verification_records = await this.verifyWithSes(data.type, data.identity);
+
+            const [identity] = await db.insert(identityTable)
+                .values({ ...data, status: data.status ?? "pending", verification_records })
+                .returning();
+
+            await scheduleIdentityVerificationCheck(identity!.id);
 
             logger.debug({ identityId: identity!.id }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.create.name}`);

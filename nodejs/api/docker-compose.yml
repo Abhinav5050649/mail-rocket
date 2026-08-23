@@ -16,6 +16,21 @@ services:
       retries: 5
     restart: always
 
+  redis:
+    image: redis:7-alpine
+    # AOF persistence so a scheduled (delayed) campaign-send job survives a container restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
   api:
     build: .
     ports:
@@ -24,10 +39,14 @@ services:
       - .env
     environment:
       DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mail-rocket}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: always
 
 volumes:
   pgdata:
+  redisdata:

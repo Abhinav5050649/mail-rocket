@@ -2,9 +2,11 @@ import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { config } from "./config";
-import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB } from "./src";
+import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB, startCampaignWorkers, startIdentityVerificationWorker } from "./src";
 
 await connectDB();
+startCampaignWorkers();
+startIdentityVerificationWorker();
 
 const app = new Hono();
 

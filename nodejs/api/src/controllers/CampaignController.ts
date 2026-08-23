@@ -5,6 +5,25 @@ import { CampaignService } from "../services";
 import type { CampaignStatus } from "../models";
 
 /**
+ * JSON bodies carry `start_time` as a string; Drizzle's timestamp column
+ * needs a real `Date`. Mutates `body.start_time` in place, and only when the
+ * key is actually present, so callers that don't touch `start_time` leave no
+ * trace of it on the object (`CampaignService.update` uses `"start_time" in
+ * data` to decide whether to touch scheduling).
+ *
+ * @throws {HTTPException} 400 if `start_time` is present but not a valid date string.
+ */
+const coerceStartTime = (body: Record<string, unknown>): void => {
+    if (!("start_time" in body) || body.start_time === null) return;
+
+    const date = new Date(body.start_time as string);
+    if (isNaN(date.getTime())) {
+        throw new HTTPException(400, { message: "Invalid start_time" });
+    }
+    body.start_time = date;
+};
+
+/**
  * HTTP layer for campaign-related endpoints. Translates Hono `Context`
  * objects into `CampaignService` calls and maps the results to HTTP
  * responses/errors. Campaigns are nested under an organization:
@@ -69,6 +88,7 @@ export class CampaignController {
         }
 
         const body = await c.req.json();
+        coerceStartTime(body);
 
         logger.debug({ organizationId, body }, `Request:`);
 
@@ -133,6 +153,7 @@ export class CampaignController {
         }
 
         const body = await c.req.json();
+        coerceStartTime(body);
 
         logger.debug({ campaignId, body }, `Request:`);
 
