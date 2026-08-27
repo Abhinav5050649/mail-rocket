@@ -15,13 +15,13 @@ Companion to the [Architecture](../README.md#architecture) section of the README
 
 ## 1. System overview
 
-A single long-lived Node process serves HTTP and runs the BullMQ workers side by side, sharing one Postgres pool and one Redis connection.
+A single long-lived Bun process serves HTTP and runs the BullMQ workers side by side, sharing one Postgres pool and one Redis connection.
 
 ```mermaid
 flowchart LR
     Client(["Client"])
 
-    subgraph Proc["Node process — index.ts"]
+    subgraph Proc["Bun process — index.ts"]
         direction TB
         API["Hono app<br/>routes . controllers . services"]
         W1["Campaign workers<br/>dispatch . send-chunk . finalize"]
@@ -46,7 +46,7 @@ flowchart LR
 
 **Notes**
 
-- `connectDB()` runs `select 1` before `serve()` starts — an unreachable database stops the process instead of surfacing as request-time errors.
+- `connectDB()` runs `select 1` before `Bun.serve()` starts — an unreachable database stops the process instead of surfacing as request-time errors.
 - `startCampaignWorkers()` / `startIdentityVerificationWorker()` are called directly from the root `index.ts`, reusing the same pg pool and Redis connection as the HTTP layer rather than a separate deployable.
 - The pooled TCP client is a deliberate fit for a long-lived process — the pool is created once at boot and shared across every request instead of being opened per call.
 

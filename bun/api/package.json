@@ -3,26 +3,22 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "tsx watch index.ts",
-    "start": "node --experimental-strip-types index.ts",
+    "dev": "bun --watch index.ts",
+    "start": "bun index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "build": "esbuild index.ts --bundle --minify --platform=node --target=node24 --format=esm --external:@node-rs/bcrypt --external:bullmq --external:ioredis --external:@aws-sdk/client-ses --banner:js=\"import{createRequire}from 'module';const require=createRequire(import.meta.url);\" --outfile=dist/index.mjs"
+    "build": "bun build index.ts --bundle --minify --target=bun --external bullmq --external ioredis --external @aws-sdk/client-ses --outfile dist/index.js"
   },
   "devDependencies": {
-    "@types/node": "latest",
+    "@types/bun": "latest",
     "@types/pg": "^8.11.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.0",
-    "esbuild": "^0.28.1",
-    "tsx": "^4.19.4",
     "typescript": "^5"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.1116.0",
-    "@hono/node-server": "^1.13.8",
-    "@node-rs/bcrypt": "^1.10.8",
     "bullmq": "^6.2.0",
     "drizzle-orm": "^0.44.0",
     "hono": "^4.12.23",
