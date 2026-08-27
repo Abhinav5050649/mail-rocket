@@ -1,9 +1,9 @@
 ---
 name: api-logging
-description: Use when writing, reviewing, or debugging logging in the mail-rocket Node.js API (nodejs/api) - pino logger setup, request/error middleware, and the Start/Request/Response/End logging pattern used in every controller and service method. Trigger whenever adding or editing a controller/service method, or touching log level/transport config.
+description: Use when writing, reviewing, or debugging logging in the mail-rocket API (bun/api) - pino logger setup, request/error middleware, and the Start/Request/Response/End logging pattern used in every controller and service method. Trigger whenever adding or editing a controller/service method, or touching log level/transport config.
 ---
 
-# Logging in nodejs/api
+# Logging in bun/api
 
 ## Setup
 

@@ -1,9 +1,9 @@
 ---
 name: api-request-response-flow
-description: Use when adding a new endpoint, tracing how a request moves through the mail-rocket Node.js API (nodejs/api), or wiring a route - covers the Hono app bootstrap, the Route -> Controller -> Service -> Model layering, HTTPException error conventions, and limit/offset pagination. Trigger whenever creating/modifying files under src/routes, src/controllers, or src/services.
+description: Use when adding a new endpoint, tracing how a request moves through the mail-rocket API (bun/api), or wiring a route - covers the Hono app bootstrap, the Route -> Controller -> Service -> Model layering, HTTPException error conventions, and limit/offset pagination. Trigger whenever creating/modifying files under src/routes, src/controllers, or src/services.
 ---
 
-# Request/response flow in nodejs/api
+# Request/response flow in bun/api
 
 ## Bootstrap (entry point)
 
@@ -11,7 +11,7 @@ description: Use when adding a new endpoint, tracing how a request moves through
 
 1. `await connectDB()` - fails fast on boot if Postgres is unreachable.
 2. `new Hono()`, then `app.use('*', requestLogger)`, `app.onError(errorHandler)`, `app.route('/', appRoute)`.
-3. Starts `@hono/node-server`'s `serve()` unconditionally - the process is a single long-lived server (run directly for local dev, or built with `npm run build` and run in Docker on EC2 for deployment; see the repo README's Deployment section). No Lambda/dual-runtime branching.
+3. Starts the Hono app with `Bun.serve()` unconditionally - the process is a single long-lived server (run directly for local dev, or built with `bun run build` and run in Docker on EC2 for deployment; see the repo README's Deployment section). No Lambda/dual-runtime branching.
 
 `src/index.ts` is just the barrel (`export * from "./controllers" | "./libs" | "./middleware" | "./models" | "./routes" | "./services"`), not app logic.
 

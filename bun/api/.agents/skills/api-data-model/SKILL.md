@@ -1,9 +1,9 @@
 ---
 name: api-data-model
-description: Use when adding or modifying a database table/column, writing a Drizzle query, or reasoning about how data is stored in the mail-rocket Node.js API (nodejs/api) - covers the self-hosted Postgres + Drizzle ORM setup, common schema conventions, enums, relations/multi-tenancy, indexes, and migrations. Trigger whenever creating/editing files under src/models, writing db.select/insert/update/delete, or touching resources/dbml or drizzle/.
+description: Use when adding or modifying a database table/column, writing a Drizzle query, or reasoning about how data is stored in the mail-rocket API (bun/api) - covers the self-hosted Postgres + Drizzle ORM setup, common schema conventions, enums, relations/multi-tenancy, indexes, and migrations. Trigger whenever creating/editing files under src/models, writing db.select/insert/update/delete, or touching resources/dbml or drizzle/.
 ---
 
-# Data storage & model in nodejs/api
+# Data storage & model in bun/api
 
 ## Storage
 

@@ -3,25 +3,25 @@
 To install dependencies:
 
 ```bash
-npm install
+bun install
 ```
 
 To run in dev (watches for changes):
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 To build and run the production bundle:
 
 ```bash
-npm run build
-npm start
+bun run build
+bun start
 ```
 
 ## Architecture
 
-The API is a single long-lived Node process (not serverless): [Hono](https://hono.dev) serves HTTP, [Drizzle ORM](https://orm.drizzle.team) talks to Postgres, and [BullMQ](https://docs.bullmq.io) (backed by Redis) runs background jobs in the same process as the HTTP server. `index.ts` wires all three up: it connects to the DB, starts the BullMQ workers, then starts the Hono server.
+The API is a single long-lived [Bun](https://bun.sh) process (not serverless): [Hono](https://hono.dev) serves HTTP via `Bun.serve`, [Drizzle ORM](https://orm.drizzle.team) talks to Postgres, and [BullMQ](https://docs.bullmq.io) (backed by Redis) runs background jobs in the same process as the HTTP server. `index.ts` wires all three up: it connects to the DB, starts the BullMQ workers, then starts the Hono server.
 
 > See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams of these flows (request layering, auth, data model, and both background job pipelines).
 
@@ -38,7 +38,7 @@ models/        Drizzle table schemas (source of truth for the DB shape) plus the
 
 A request flows top-to-bottom through these layers and never skips one: `routes/CampaignRoute.ts` → `controllers/CampaignController.ts` → `services/CampaignService.ts` → `models/CampaignModel.ts`. Each layer directory has a barrel `index.ts` that re-exports everything in it, so callers import from `../services`, `../models`, etc. rather than reaching into individual files. Services are plain classes with no framework dependency, instantiated once per process and shared across requests (routes construct one `XService`/`XController` pair at module load and bind it into the route table - see the top of any `*Route.ts` file).
 
-`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), JWT signing/verification (`jwt.ts`), password hashing (`password.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
+`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), JWT signing/verification (`jwt.ts`), password hashing via `Bun.password` (`password.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
 
 ### Request lifecycle
 
@@ -80,14 +80,14 @@ Queue-definition files (`*Queues.ts`) intentionally import no services, so both 
 Schema is defined with [Drizzle ORM](https://orm.drizzle.team) in `src/models/*.ts`. SQL migration files are generated from that schema into `drizzle/` - commit them, don't hand-edit.
 
 ```bash
-npm run db:generate  # after changing a schema file, generate a new migration
-npm run db:migrate   # apply pending migrations to DB_URL
-npm run db:studio    # browse data in Drizzle Studio
+bun run db:generate  # after changing a schema file, generate a new migration
+bun run db:migrate   # apply pending migrations to DB_URL
+bun run db:studio    # browse data in Drizzle Studio
 ```
 
 ## Deployment (Docker on EC2)
 
-The API runs as a plain long-lived Node process, packaged as a Docker image - no serverless infra involved. Postgres is self-hosted too: `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), started alongside `api`.
+The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), started alongside `api`.
 
 ```bash
 docker compose up --build -d   # build the image, start the postgres + api containers
@@ -97,6 +97,6 @@ docker compose down            # stop both (add -v to also wipe the postgres vol
 
 `docker-compose.yml` reads secrets from a `.env` file (see `example.env`) via `env_file` - it is not committed and must exist on the EC2 instance before starting the containers. The `postgres` container is configured from the `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` vars in that same `.env`; the `api` service's `DB_URL` is derived from those same vars to point at the `postgres` container over the Docker network (overriding whatever `DB_URL` is set to for local dev).
 
-Migrations aren't run automatically. The `postgres` container publishes its port to `127.0.0.1:5432` on the host only (not public), so after the containers are up, run `npm run db:migrate` directly on the EC2 instance with `DB_URL=postgres://<user>:<password>@localhost:5432/<db>` (matching the `POSTGRES_*` values in `.env`).
+Migrations aren't run automatically. The `postgres` container publishes its port to `127.0.0.1:5432` on the host only (not public), so after the containers are up, run `bun run db:migrate` directly on the EC2 instance with `DB_URL=postgres://<user>:<password>@localhost:5432/<db>` (matching the `POSTGRES_*` values in `.env`).
 
 To deploy a change: SSH into the instance, `git pull`, then `docker compose up --build -d` again.
