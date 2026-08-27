@@ -40,6 +40,11 @@ services:
     environment:
       DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mail-rocket}
       REDIS_URL: redis://redis:6379
+    volumes:
+      # Bind mount (not a named volume) so logs/app.log lands on the host at
+      # bun/api/logs/ and survives `docker compose down` - a named volume
+      # would too, but a plain `-v` on that command would delete it.
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
