@@ -9,7 +9,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "build": "bun build index.ts --bundle --minify --target=bun --external bullmq --external ioredis --external @aws-sdk/client-ses --external pino --external pino-roll --outfile dist/index.js",
-    "test": "bun test tests/controllers",
+    "test": "bun test tests/controllers tests/libs",
     "test:send-flows": "bun test tests/services",
     "test:all": "bun test tests"
   },

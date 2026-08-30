@@ -24,11 +24,16 @@ const { SendCampaignService } = await import("../../src/services/SendCampaignSer
 
 const campaign = {
     id: "campaign-1",
+    name: "Fall Launch",
     organization_id: "org-1",
     identity_id: "identity-1",
+    organizer_id: null,
     subject: "Big Announcement",
+    start_time: new Date("2026-01-01"),
     status: "sending",
 };
+
+const organization = { id: "org-1", name: "Acme Inc" };
 
 const emailIdentity = { id: "identity-1", type: "email", identity: "sender@example.com", status: "active" };
 const domainIdentity = { id: "identity-2", type: "domain", identity: "example.com", status: "active" };
@@ -103,14 +108,21 @@ describe("SendCampaignService", () => {
     });
 
     describe("sendChunk", () => {
+        // Every non-early-throw path re-fetches, in order: campaign, identity,
+        // organization (skipped if no organization_id), organizer (skipped if
+        // no organizer_id), template, then the campaign_recipient join rows.
+        // `campaign` here has organization_id but no organizer_id, so tests
+        // queue exactly one organization select between identity and template.
+
         it("sends to every pending recipient via SES and marks each as sent", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign])) // CampaignService.getById
                 .mockImplementationOnce(() => chain([emailIdentity])) // IdentityService.getById
+                .mockImplementationOnce(() => chain([organization])) // OrganizationService.getById
                 .mockImplementationOnce(() => chain([template])) // getCurrentTemplateForCampaign
                 .mockImplementationOnce(() => chain([ // campaign_recipient join rows
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com" },
-                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com" },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupName: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1", "cr-2"]);
@@ -123,9 +135,10 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "sent", email: "one@example.com" },
+                    { campaignRecipientId: "cr-1", sendStatus: "sent", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);
@@ -138,9 +151,10 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: null, firstName: "Ada", lastName: "Lovelace", groupName: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);
@@ -153,10 +167,11 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "bounces@example.com" },
-                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com" },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "bounces@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupName: null },
                 ]));
             mockSesSend
                 .mockImplementationOnce(async () => { throw new Error("SES rejected the recipient"); })
@@ -166,6 +181,45 @@ describe("SendCampaignService", () => {
 
             expect(mockSesSend).toHaveBeenCalledTimes(2);
             expect(mockDb.update).toHaveBeenCalledTimes(2);
+        });
+
+        it("substitutes {{recipient_first_name}} in the subject and body sent to SES", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([{ ...campaign, subject: "Hi {{recipient_first_name}}" }]))
+                .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hello {{recipient_first_name}} from {{organization_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            expect(mockSesSend).toHaveBeenCalledTimes(1);
+            const command = (mockSesSend.mock.calls[0] as any)[0];
+            expect(command.input.Message.Subject.Data).toBe("Hi Ada");
+            expect(command.input.Message.Body.Html.Data).toBe("<p>Hello Ada from Acme Inc</p>");
+            expect(mockDb.update).toHaveBeenCalledTimes(1);
+        });
+
+        it("skips a recipient without calling SES when a placeholder can't be resolved for them", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([campaign]))
+                .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hi {{recipient_first_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([
+                    // No first_name on record for this recipient.
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: null, lastName: "Lovelace", groupName: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            expect(mockSesSend).not.toHaveBeenCalled();
+            expect(mockDb.update).toHaveBeenCalledTimes(1);
+            const setCall = mockDb.update.mock.results[0]!.value.set.mock.calls[0]![0];
+            expect(setCall.send_status).toBe("failed");
+            expect(setCall.description).toContain("recipient_first_name");
         });
 
         it("throws when the campaign can't be found", async () => {
@@ -192,6 +246,7 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([]));
 
             await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("has no template");
