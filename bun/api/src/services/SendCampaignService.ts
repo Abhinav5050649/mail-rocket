@@ -1,12 +1,16 @@
 import { SendEmailCommand } from "@aws-sdk/client-ses";
 import { count, desc, eq, inArray } from "drizzle-orm";
-import { db, logger, sesClient } from "../libs";
-import { recipientsTable, templateTable, campaignRecipientTable } from "../models";
+import { db, logger, sesClient, renderTemplate, type TemplateVariableContext } from "../libs";
+import { recipientsTable, templateTable, campaignRecipientTable, groupTable } from "../models";
 import { CampaignService } from "./CampaignService";
 import { IdentityService } from "./IdentityService";
+import { OrganizationService } from "./OrganizationService";
+import { UserService } from "./UserService";
 
 const campaignService = new CampaignService();
 const identityService = new IdentityService();
+const organizationService = new OrganizationService();
+const userService = new UserService();
 
 /**
  * Business logic for the campaign send pipeline (dispatch -> send-chunk ->
@@ -148,6 +152,14 @@ export class SendCampaignService {
      * aborting the rest of the chunk; a systemic failure (bad credentials,
      * network down) is allowed to propagate so BullMQ retries the whole job.
      *
+     * The subject and template body may contain `{{variable_name}}`
+     * placeholders (see `src/libs/templateVariables.ts` and
+     * `docs/TEMPLATE_VARIABLES.md`). Each is resolved per-recipient; if any
+     * placeholder can't be resolved for a given recipient (unknown name, or
+     * we simply don't have that value for them), that recipient is marked
+     * `failed` with the missing variable names recorded in `description` and
+     * no email is sent to them - the rest of the chunk is unaffected.
+     *
      * @param campaignId - id of the campaign being sent.
      * @param campaignRecipientIds - ids of the `campaign_recipient` rows in this chunk.
      * @throws If the campaign, its identity, or its template can no longer be found, or the identity is a `domain` type (not yet supported as a From address).
@@ -164,6 +176,10 @@ export class SendCampaignService {
         if (!identity) throw new Error(`Identity ${campaign.identity_id} for campaign ${campaignId} not found`);
         if (identity.type !== "email") throw new Error(`Identity ${identity.id} is type '${identity.type}'; only 'email' sending identities are supported`);
 
+        // Resolved once per chunk - shared by every recipient's template context below.
+        const organization = campaign.organization_id ? await organizationService.getById(campaign.organization_id) : null;
+        const organizer = campaign.organizer_id ? await userService.getById(campaign.organizer_id) : null;
+
         const template = await this.getCurrentTemplateForCampaign(campaignId);
         if (!template) throw new Error(`Campaign ${campaignId} has no template`);
 
@@ -171,8 +187,12 @@ export class SendCampaignService {
             campaignRecipientId: campaignRecipientTable.id,
             sendStatus: campaignRecipientTable.send_status,
             email: recipientsTable.email_id,
+            firstName: recipientsTable.first_name,
+            lastName: recipientsTable.last_name,
+            groupName: groupTable.name,
         }).from(campaignRecipientTable)
             .innerJoin(recipientsTable, eq(campaignRecipientTable.recipient_id, recipientsTable.id))
+            .leftJoin(groupTable, eq(recipientsTable.group_id, groupTable.id))
             .where(inArray(campaignRecipientTable.id, campaignRecipientIds));
 
         for (const row of rows) {
@@ -182,13 +202,34 @@ export class SendCampaignService {
                 continue;
             }
 
+            const context: TemplateVariableContext = {
+                recipient: { first_name: row.firstName, last_name: row.lastName, email_id: row.email },
+                group: row.groupName !== null && row.groupName !== undefined ? { name: row.groupName } : null,
+                campaign: { name: campaign.name, start_time: campaign.start_time },
+                organization: organization ? { name: organization.name } : null,
+                organizer: organizer ? { first_name: organizer.first_name, last_name: organizer.last_name, email: organizer.email } : null,
+                sender: { email: identity.identity },
+            };
+
+            const subject = renderTemplate(campaign.subject ?? "", context);
+            const body = renderTemplate(template.html_body ?? "", context);
+            const missing = [...new Set([...subject.missing, ...body.missing])];
+
+            if (missing.length > 0) {
+                logger.warn({ campaignId, campaignRecipientId: row.campaignRecipientId, missing }, `${this.constructor.name}.${this.sendChunk.name}: Skipping recipient - unresolved template variables`);
+                await db.update(campaignRecipientTable)
+                    .set({ send_status: "failed", description: `Missing template variables: ${missing.join(", ")}` })
+                    .where(eq(campaignRecipientTable.id, row.campaignRecipientId));
+                continue;
+            }
+
             try {
                 await sesClient.send(new SendEmailCommand({
                     Source: identity.identity,
                     Destination: { ToAddresses: [row.email] },
                     Message: {
-                        Subject: { Data: campaign.subject ?? "" },
-                        Body: { Html: { Data: template.html_body ?? "" } },
+                        Subject: { Data: subject.rendered },
+                        Body: { Html: { Data: body.rendered } },
                     },
                 }));
                 await db.update(campaignRecipientTable).set({ send_status: "sent", sent_at: new Date() }).where(eq(campaignRecipientTable.id, row.campaignRecipientId));

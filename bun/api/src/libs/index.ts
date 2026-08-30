@@ -8,3 +8,4 @@ export * from "./redis";
 export * from "./ses";
 export * from "./chunk";
 export * from "./errors";
+export * from "./templateVariables";
