@@ -25,6 +25,8 @@ The API is a single long-lived [Bun](https://bun.sh) process (not serverless): [
 
 > See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams of these flows (request layering, auth, data model, and both background job pipelines).
 
+> See [requirements.md](requirements.md) for the AWS IAM permissions and trust relationships the SES integration needs.
+
 ### Layers
 
 Each resource (campaign, identity, template, ...) is implemented as a vertical slice through four layers, each with one job:
@@ -94,6 +96,8 @@ docker compose up --build -d   # build the image, start the postgres + api conta
 docker compose logs -f api     # follow logs
 docker compose down            # stop both (add -v to also wipe the postgres volume)
 ```
+
+See [requirements.md](requirements.md) before provisioning AWS credentials for the instance - it lists the IAM permissions the SES integration needs and the trust relationships involved (including the EC2 instance-role alternative to static keys).
 
 `docker-compose.yml` reads secrets from a `.env` file (see `example.env`) via `env_file` - it is not committed and must exist on the EC2 instance before starting the containers. The `postgres` container is configured from the `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` vars in that same `.env`; the `api` service's `DB_URL` is derived from those same vars to point at the `postgres` container over the Docker network (overriding whatever `DB_URL` is set to for local dev).
 

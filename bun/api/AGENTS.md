@@ -10,6 +10,7 @@ mail-rocket's backend: a single long-lived [Bun](https://bun.sh) process that se
 
 - [README.md](README.md) - setup, commands, and the full "Architecture" section (layering, request lifecycle, multi-tenancy, background job pipelines, database, deployment).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - the same flows as diagrams (system overview, request flow, auth, data model, identity verification, campaign send pipeline).
+- [requirements.md](requirements.md) - AWS IAM permissions and trust relationships the SES integration needs.
 
 Read both before any non-trivial change, and keep them updated if a change alters a flow they describe.
 
