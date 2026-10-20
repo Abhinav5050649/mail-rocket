@@ -31,7 +31,7 @@ const campaign = {
     status: "sending",
 };
 
-const organization = { id: "org-1", name: "Acme Inc" };
+const organization = { id: "org-1", name: "Acme Inc", timezone: "UTC" };
 
 const emailIdentity = { id: "identity-1", type: "email", identity: "sender@example.com", status: "active" };
 const domainIdentity = { id: "identity-2", type: "domain", identity: "example.com", status: "active" };

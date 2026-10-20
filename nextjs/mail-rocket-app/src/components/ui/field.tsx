@@ -64,13 +64,17 @@ export interface SelectOption {
   value: string;
 }
 
+/**
+ * A native select. `className` sizes the wrapper (so the chevron stays at the
+ * select's own right edge); `size="sm"` gives the 32px toolbar height.
+ */
 export const Select = React.forwardRef<
   HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement> & { options: SelectOption[] }
->(function Select({ className, options, ...props }, ref) {
+  Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size"> & { options: SelectOption[]; size?: "sm" | "md" }
+>(function Select({ className, options, size = "md", ...props }, ref) {
   return (
-    <div className="relative">
-      <select ref={ref} {...props} className={cx(control, "h-9 appearance-none pr-8", className)}>
+    <div className={cx("relative w-full", className)}>
+      <select ref={ref} {...props} className={cx(control, size === "sm" ? "h-8" : "h-9", "appearance-none pr-8")}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

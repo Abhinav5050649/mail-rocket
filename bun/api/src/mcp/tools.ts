@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import { keyCreateSchema, keyPatchSchema, resolveClaims, ValidationError, type Action, type Subject } from "../libs";
+import { isValidTimeZone, keyCreateSchema, keyPatchSchema, resolveClaims, ValidationError, type Action, type Subject } from "../libs";
 import type { Principal } from "../middleware/authenticate";
 import {
     AddressService,
@@ -230,9 +230,15 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     defineTool({
         name: "update_organization",
         title: "Update organization",
-        description: "Partially updates the organization's profile.",
+        description: "Partially updates the organization's profile, including the IANA time zone every date is shown and {{campaign_start_date}} is rendered in.",
         claim: { action: "update", subject: "Organization" },
-        inputSchema: { name: z.string().optional(), normalized_name: z.string().optional(), description },
+        inputSchema: {
+            name: z.string().optional(),
+            normalized_name: z.string().optional(),
+            timezone: z.string().refine(isValidTimeZone, "Unknown time zone; use an IANA name such as Europe/London or UTC").optional()
+                .describe("IANA time zone, e.g. Europe/London. Scheduled sends keep their exact moment when it changes."),
+            description,
+        },
         annotations: UPDATE,
         handler: async (args) => found(await organizationService.update(args), "Organization"),
     }),

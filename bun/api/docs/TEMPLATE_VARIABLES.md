@@ -19,7 +19,7 @@ file is a description of that registry, kept in sync with it.
 | `{{recipient_email}}` | Recipient's email address | `recipients.email_id` |
 | `{{group_name}}` | Name of the group the recipient belongs to | `group.name` |
 | `{{campaign_name}}` | Name of the campaign | `campaign.name` |
-| `{{campaign_start_date}}` | Campaign's scheduled/actual start date | `campaign.start_time` |
+| `{{campaign_start_date}}` | Campaign's scheduled/actual start date, as the calendar date in the organization's time zone | `campaign.start_time` |
 | `{{organization_name}}` | Name of the organization running this instance (set via `PATCH /organization`) | `organization.name` (the single row) |
 | `{{sender_email}}` | The verified SES identity the campaign sends from | `identity.identity` |
 

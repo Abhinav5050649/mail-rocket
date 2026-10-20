@@ -17,6 +17,8 @@ interface BaseFields {
 export interface Organization extends BaseFields {
   name: string | null;
   normalized_name: string | null;
+  /** IANA time zone every date is shown and every start time entered in. */
+  timezone: string;
 }
 
 /**

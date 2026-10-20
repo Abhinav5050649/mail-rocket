@@ -4,6 +4,7 @@ import * as React from "react";
 import { Code02 } from "@untitledui/icons";
 import { Menu } from "@/components/ui/overlay";
 import { TEMPLATE_VARIABLES } from "@/lib/constants/templateVariables";
+import { getDisplayTimeZone } from "@/lib/format";
 import { cx } from "@/utils/cx";
 
 /**
@@ -17,7 +18,8 @@ const SAMPLE_VALUES: Record<string, string> = {
   recipient_email: "priya@example.com",
   group_name: "Newsletter subscribers",
   campaign_name: "Your campaign",
-  campaign_start_date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+  // Filled in at render time: today's date in the organization's time zone.
+  campaign_start_date: "",
   organization_name: "Your organization",
   sender_email: "hello@example.com",
 };
@@ -28,6 +30,8 @@ const VARIABLE_PATTERN = /\{\{\s*([a-z_]+)\s*\}\}/g;
 function fillSamples(html: string, organizationName?: string | null) {
   return html.replace(VARIABLE_PATTERN, (match, token: string) => {
     if (token === "organization_name" && organizationName) return organizationName;
+    // Same call the send pipeline makes, so the sample reads like the real thing.
+    if (token === "campaign_start_date") return new Date().toLocaleDateString(undefined, { timeZone: getDisplayTimeZone() });
     return SAMPLE_VALUES[token] ?? match;
   });
 }

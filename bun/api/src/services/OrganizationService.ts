@@ -6,6 +6,8 @@ import { organizationTable } from "../models";
 export interface UpdateOrganizationInput {
     name?: string;
     normalized_name?: string;
+    /** IANA time zone name; validated by the caller (`assertValidTimeZoneField`). */
+    timezone?: string;
     description?: string;
 }
 

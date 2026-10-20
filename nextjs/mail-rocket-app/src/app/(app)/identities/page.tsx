@@ -61,7 +61,8 @@ export default function IdentitiesPage() {
         />
         <Select
           aria-label="Filter by type"
-          className="h-8 w-40"
+          size="sm"
+          className="w-48"
           value={type ?? ""}
           onChange={(event) => setFilter("type", event.target.value || undefined)}
           options={[

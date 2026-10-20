@@ -11,7 +11,8 @@ import { FormActions, SettingsSection } from "@/components/ui/page";
 import { FormError, Notice } from "@/components/ui/feedback";
 import { campaignSchema, type CampaignFormValues } from "@/lib/validation/campaignSchema";
 import { useGetIdentitiesQuery } from "@/features/identities";
-import { formatRelative, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { formatRelative, formatZoneName, fromDateTimeLocal, getDisplayTimeZone, toDateTimeLocal } from "@/lib/format";
+import { browserTimeZone, offsetLabel } from "@/lib/timezone";
 import type { CampaignInput } from "@/features/campaigns";
 import type { Campaign } from "@/types/resources";
 
@@ -30,8 +31,6 @@ interface CampaignFormProps {
 /** Statuses whose start time can still change; once a send starts the schedule is fixed. */
 const SCHEDULABLE = new Set(["draft", "scheduled"]);
 
-/** The viewer's time zone, named so a start time is never ambiguous. */
-const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /**
  * Campaign fields in three settings rows: the message, when and from whom
@@ -101,7 +100,8 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
             <>
               Setting a start time schedules the send. Leave it empty to keep the campaign a draft.
               <br />
-              Times are in {timeZone()}.
+              Times are in the organization&apos;s time zone, {getDisplayTimeZone()} ({offsetLabel(getDisplayTimeZone())}).
+              {browserTimeZone() !== getDisplayTimeZone() && <> Your computer is on {browserTimeZone()}.</>}
             </>
           }
         >
@@ -132,7 +132,7 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
                 !canReschedule
                   ? "This campaign has already started sending, so its start time is fixed."
                   : startTime && fromDateTimeLocal(startTime)
-                    ? `Sends ${formatRelative(fromDateTimeLocal(startTime)!)}.`
+                    ? `Sends ${formatRelative(fromDateTimeLocal(startTime)!)} (${formatZoneName(new Date(fromDateTimeLocal(startTime)!))}).`
                     : undefined
               }
             >

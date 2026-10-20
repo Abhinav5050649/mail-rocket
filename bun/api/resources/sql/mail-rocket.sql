@@ -44,6 +44,7 @@ CREATE TABLE "organization" (
     "entity"          varchar DEFAULT 'mail_rocket.organization',    -- Object type and domain it belongs to
     "name"            varchar,
     "normalized_name" varchar,                                       -- Lowercased name, for case-insensitive lookups
+    "timezone"        varchar DEFAULT 'UTC' NOT NULL,                -- IANA time zone dates are shown/entered/rendered in
     "created_at"      timestamp,
     "updated_at"      timestamp,
     "description"     varchar                                        -- Extra information about the record

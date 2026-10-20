@@ -11,7 +11,7 @@ import { FormActions, PageHeader, SettingsSection } from "@/components/ui/page";
 import { FormError, Notice } from "@/components/ui/feedback";
 import { PRESETS, PRESET_DESCRIPTIONS } from "@/lib/auth/abilities";
 import { keyCreateSchema, type KeyCreateFormValues } from "@/lib/validation/authSchema";
-import { capitalize } from "@/lib/format";
+import { capitalize, fromDateTimeLocal, getDisplayTimeZone } from "@/lib/format";
 import { useCreateKeyMutation, type ApiKeyCreated } from "@/features/keys";
 import { cx } from "@/utils/cx";
 
@@ -59,8 +59,8 @@ export default function NewKeyPage() {
           const result = await createKey({
             name: values.name,
             preset: values.preset,
-            // A date input yields `YYYY-MM-DD`; the key expires at the end of that day, local time.
-            expires_at: values.expires_on ? new Date(`${values.expires_on}T23:59:59`).toISOString() : null,
+            // A date input yields `YYYY-MM-DD`; the key expires at the end of that day in the organization's time zone.
+            expires_at: values.expires_on ? new Date(new Date(fromDateTimeLocal(`${values.expires_on}T23:59`)!).getTime() + 59_999).toISOString() : null,
           });
           if (result.data) setCreated(result.data);
         })}
@@ -70,7 +70,7 @@ export default function NewKeyPage() {
             <Field label="Name" error={errors.name?.message}>
               {(props) => <Input {...props} {...register("name")} placeholder="e.g. ops laptop, ci, claude" />}
             </Field>
-            <Field label="Expires on" optional hint="Leave empty for a key that never expires.">
+            <Field label="Expires on" optional hint={`Expires at the end of that day, ${getDisplayTimeZone()} time. Leave empty for a key that never expires.`}>
               {(props) => <Input {...props} {...register("expires_on")} type="date" className="tabular max-w-52" />}
             </Field>
           </div>

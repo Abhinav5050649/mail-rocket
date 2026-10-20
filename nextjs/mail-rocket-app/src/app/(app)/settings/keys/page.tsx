@@ -109,7 +109,8 @@ export default function KeysPage() {
               cell: (key) => (
                 <Select
                   aria-label={`Preset for ${key.name}`}
-                  className="h-8 w-32"
+                  size="sm"
+                  className="w-32"
                   options={key.preset ? PRESET_OPTIONS : [{ label: "Custom", value: "" }, ...PRESET_OPTIONS]}
                   value={key.preset ?? ""}
                   // The server refuses a key changing its own claims; mirror that here.

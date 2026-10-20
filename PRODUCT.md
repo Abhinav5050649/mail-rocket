@@ -30,6 +30,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 - Templates, groups and recipients can be linked to a campaign; recipients can belong to a group.
 - Template variables: recipient first/last/full name and email, group name, campaign name and start date, organization name, sender email. A recipient missing a value is skipped at send time.
 - Lists paginate by limit/offset with no total count; `/overview` gives counts.
+- The organization has one IANA time zone (default UTC). Every date is shown in it, start times are entered in it, and `{{campaign_start_date}}` is rendered in it. Timestamps are absolute instants, so changing the zone never moves a scheduled send.
 
 ## Capabilities and Constraints
 

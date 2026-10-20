@@ -37,6 +37,18 @@ describe("OrganizationController", () => {
             await expectHttpException(controller.update(ctx), 404, "Organization not found");
         });
 
+        it("400s on an unknown time zone without touching the row", async () => {
+            const ctx = createMockContext({ body: { timezone: "Mars/Olympus_Mons" } });
+            await expect(controller.update(ctx)).rejects.toThrow("Unknown time zone");
+            expect(organizationService.update).not.toHaveBeenCalled();
+        });
+
+        it("accepts a valid IANA time zone", async () => {
+            const ctx = createMockContext({ body: { timezone: "Asia/Kolkata" } });
+            await controller.update(ctx);
+            expect(organizationService.update).toHaveBeenCalledWith({ timezone: "Asia/Kolkata" });
+        });
+
         it("updates and returns the organization", async () => {
             const ctx = createMockContext({ body: { name: "New" } });
             const result: any = await controller.update(ctx);

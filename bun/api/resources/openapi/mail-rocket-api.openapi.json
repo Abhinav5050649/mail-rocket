@@ -157,6 +157,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "`timezone` is not a known IANA time zone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "organizationUpdate"
@@ -3810,6 +3820,12 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Europe/London",
+            "description": "IANA time zone. Dates are shown and start times entered in it, and {{campaign_start_date}} is rendered in it. Changing it never moves a scheduled send: start_time is an absolute instant.",
+            "default": "UTC"
           }
         }
       },
@@ -3824,6 +3840,11 @@
           },
           "description": {
             "type": "string"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Europe/London",
+            "description": "IANA time zone. Dates are shown and start times entered in it, and {{campaign_start_date}} is rendered in it. Changing it never moves a scheduled send: start_time is an absolute instant."
           }
         }
       },

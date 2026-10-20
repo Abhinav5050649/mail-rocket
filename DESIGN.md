@@ -42,6 +42,7 @@ IBM Plex Sans (400/500/600) for everything. IBM Plex Mono has one job: API keys,
 
 - Every screen: one h1, a grey sentence about the data (not the interface), at most one primary action.
 - Zeros print as zeros; missing values are a grey em dash.
+- Dates always go through `src/lib/format.ts`, which formats in the organization's time zone (set by the shell's `TimeZoneGate` before any page renders). Never call `toLocaleString` or build local `Date`s for display or for datetime inputs; use `toDateTimeLocal`/`fromDateTimeLocal` and `dayKey`.
 - Destructive actions are the last settings row, outlined in the negative colour, with the consequence in words and a dialog that names the object.
 - Controls a key can't use are hidden (`Can`, `useAbility`), and read-only forms are disabled, not removed.
 - Motion is feedback only: 150ms colour/transform transitions, overlay fade/zoom, and a pulse on the live "Sending" dot.

@@ -16,7 +16,10 @@ import { useSignoutMutation } from "@/features/auth";
 import { useGetOrganizationQuery } from "@/features/organizations";
 import { apiSlice } from "@/lib/redux/api/apiSlice";
 import { useAppDispatch } from "@/lib/redux/hooks";
-import { capitalize } from "@/lib/format";
+import { capitalize, setDisplayTimeZone } from "@/lib/format";
+import { browserTimeZone } from "@/lib/timezone";
+import { Skeleton } from "@/components/ui/feedback";
+import { useNow } from "@/hooks/useNow";
 import { cx } from "@/utils/cx";
 
 /**
@@ -55,7 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="flex-1 bg-sheet lg:mr-2 lg:mb-2 lg:rounded-sheet lg:border lg:border-border">
-          <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16 sm:px-6 lg:px-8 lg:pt-7">{children}</div>
+          <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16 sm:px-6 lg:px-8 lg:pt-7">
+            <TimeZoneGate>{children}</TimeZoneGate>
+          </div>
         </main>
       </div>
 
@@ -118,19 +123,50 @@ function SidebarContent() {
   );
 }
 
-/** The organization this instance belongs to - the scope of everything on screen. */
+/**
+ * Renders the page only once the organization's time zone is known, and sets
+ * it as the zone every date formatter uses. Keyed on the zone, so changing it
+ * in settings re-renders every page in the new zone. A key that can't read
+ * the organization sees dates in its browser's zone.
+ */
+function TimeZoneGate({ children }: { children: React.ReactNode }) {
+  const { ability, isLoading: claimsLoading } = useAbility();
+  const canRead = ability.can("read", "Organization");
+  const { data: organization, isLoading } = useGetOrganizationQuery(undefined, { skip: claimsLoading || !canRead });
+
+  if (claimsLoading || (canRead && isLoading)) {
+    return (
+      <div className="flex flex-col gap-3" aria-busy>
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+    );
+  }
+
+  const timeZone = organization?.timezone ?? browserTimeZone();
+  setDisplayTimeZone(timeZone);
+  return <React.Fragment key={timeZone}>{children}</React.Fragment>;
+}
+
+/** The organization this instance belongs to - the scope of everything on screen - with its local time. */
 function OrganizationScope() {
   const { ability } = useAbility();
   const canRead = ability.can("read", "Organization");
   const { data: organization } = useGetOrganizationQuery(undefined, { skip: !canRead });
+  const now = useNow();
   if (!organization?.name) return null;
 
   return (
     <Link
       href="/settings"
-      className="hidden h-8 items-center gap-2 truncate rounded-control px-2 text-sm text-muted transition-colors hover:bg-active/60 hover:text-text sm:flex"
+      title={`Dates are shown in ${organization.timezone}`}
+      className="hidden h-8 min-w-0 items-center gap-2 rounded-control px-2 text-sm text-muted transition-colors hover:bg-active/60 hover:text-text sm:flex"
     >
-      {organization.name}
+      <span className="truncate">{organization.name}</span>
+      <span className="tabular shrink-0 text-faint">
+        {new Intl.DateTimeFormat("en-GB", { timeZone: organization.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now)}{" "}
+        {new Intl.DateTimeFormat("en-US", { timeZone: organization.timezone, timeZoneName: "short" }).formatToParts(now).find((part) => part.type === "timeZoneName")?.value}
+      </span>
     </Link>
   );
 }

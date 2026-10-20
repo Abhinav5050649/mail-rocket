@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { assertValidTimeZoneField, logger } from "../libs";
 import { OrganizationService } from "../services";
 
 /**
@@ -43,11 +43,14 @@ export class OrganizationController {
      * @param c - Hono request context; expects a JSON body with the fields to update.
      * @returns JSON response with the updated organization.
      * @throws {HTTPException} 404 if the organization hasn't been seeded (boot didn't complete).
+     * @throws {ValidationError} 400 if `timezone` is not a known IANA time zone.
      */
     update = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
 
         const body = await c.req.json();
+        // A typo'd zone would silently shift every date shown and rendered, so reject it.
+        assertValidTimeZoneField(body);
 
         logger.debug({ body }, `Request:`);
 

@@ -11,7 +11,7 @@ import { Can } from "@/components/auth/Can";
 import { useAbility } from "@/hooks/useAbility";
 import { useGetOverviewQuery, type Overview, type RecentCampaign } from "@/features/overview";
 import { useGetIdentitiesQuery } from "@/features/identities";
-import { formatCount, formatDateTime, formatRelative, formatTime, formatWeekday, plural } from "@/lib/format";
+import { dayKey, formatCount, formatDateTime, formatRelative, formatTime, formatWeekday, plural } from "@/lib/format";
 import type { Campaign, CampaignStatus } from "@/types/resources";
 import { cx } from "@/utils/cx";
 
@@ -258,34 +258,42 @@ function SetupChecklist({ overview }: { overview: Overview }) {
   );
 }
 
-const DAY_MS = 86_400_000;
-
-/** Midnight at the start of `date`'s local day. */
-const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+/**
+ * The next 14 calendar days in the organization's time zone, as UTC-noon
+ * dates (safe for weekday and day-of-month reads with no zone of their own)
+ * plus the `dayKey` each instant is grouped by.
+ */
+function nextFourteenDays() {
+  const [year, month, day] = dayKey(new Date()).split("-").map(Number) as [number, number, number];
+  return Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1, day + index, 12));
+    return { date, key: date.toISOString().slice(0, 10) };
+  });
+}
 
 /**
  * The next 14 days as a strip of day cells, each marked with the scheduled
- * sends that fall on it. Only the sends the overview returned are drawn.
+ * sends that fall on it in the organization's time zone. Only the sends the
+ * overview returned are drawn.
  */
 function ScheduleStrip({ upcoming }: { upcoming: Campaign[] }) {
-  const today = startOfDay(new Date());
-  const days = Array.from({ length: 14 }, (_, index) => new Date(today.getTime() + index * DAY_MS));
-  const countFor = (day: Date) =>
-    upcoming.filter((campaign) => campaign.start_time && startOfDay(new Date(campaign.start_time)).getTime() === day.getTime()).length;
+  const days = nextFourteenDays();
+  const countFor = (key: string) => upcoming.filter((campaign) => campaign.start_time && dayKey(new Date(campaign.start_time)) === key).length;
+  const label = (date: Date) => date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
   return (
     <div className="-mx-1 grid grid-cols-7 gap-y-1 sm:grid-cols-14" aria-label="Scheduled sends over the next 14 days">
-      {days.map((day, index) => {
-        const count = countFor(day);
-        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+      {days.map(({ date, key }, index) => {
+        const count = countFor(key);
+        const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
         return (
           <div
-            key={day.toISOString()}
-            title={count ? `${count} send${count > 1 ? "s" : ""} on ${day.toDateString()}` : day.toDateString()}
+            key={key}
+            title={count ? `${count} send${count > 1 ? "s" : ""} on ${label(date)}` : label(date)}
             className={cx("mx-px flex flex-col items-center gap-1 rounded-control py-1.5", index === 0 && "bg-raised", isWeekend && index !== 0 && "bg-raised/50")}
           >
-            <span className="text-[11px] leading-3 text-muted">{index === 0 ? "Today" : day.toLocaleDateString("en-GB", { weekday: "short" })}</span>
-            <span className={cx("tabular text-sm", count ? "font-semibold text-accent-ink" : "text-text")}>{day.getDate()}</span>
+            <span className="text-[11px] leading-3 text-muted">{index === 0 ? "Today" : date.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</span>
+            <span className={cx("tabular text-sm", count ? "font-semibold text-accent-ink" : "text-text")}>{date.getUTCDate()}</span>
             <span className="flex h-1.5 gap-0.5">
               {Array.from({ length: Math.min(count, 3) }, (_, dot) => (
                 <span key={dot} className="size-1.5 rounded-full bg-accent" />

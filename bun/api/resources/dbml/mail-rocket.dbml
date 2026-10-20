@@ -39,6 +39,7 @@ Table organization {
   entity varchar [default: 'mail_rocket.organization', note: 'Denotes the type of object and the domain it belongs to.']
   name varchar
   normalized_name varchar
+  timezone varchar [not null, default: 'UTC', note: 'IANA time zone: dates are shown, start times entered and {{campaign_start_date}} rendered in it']
   created_at timestamp
   updated_at timestamp
   description varchar [note: 'Extra information about the record.']

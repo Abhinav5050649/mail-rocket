@@ -11,6 +11,8 @@
  * sync with `TEMPLATE_VARIABLES` below.
  */
 
+import { DEFAULT_TIME_ZONE } from "./timeZones";
+
 /** Data available when resolving template variables for one recipient's send. */
 export interface TemplateVariableContext {
     recipient: {
@@ -29,6 +31,8 @@ export interface TemplateVariableContext {
     /** The organization running this instance (its single `organization` row). */
     organization: {
         name: string | null;
+        /** IANA time zone dates are rendered in. */
+        timezone: string;
     } | null;
     /** The SES sending identity the campaign sends from. */
     sender: {
@@ -57,7 +61,8 @@ export const TEMPLATE_VARIABLES: Record<string, VariableResolver> = {
     recipient_email: (ctx) => ctx.recipient.email_id,
     group_name: (ctx) => ctx.group?.name,
     campaign_name: (ctx) => ctx.campaign.name,
-    campaign_start_date: (ctx) => ctx.campaign.start_time?.toLocaleDateString() ?? null,
+    // The calendar date in the organization's time zone: a 23:30 UTC send is "tomorrow" in Asia/Kolkata.
+    campaign_start_date: (ctx) => ctx.campaign.start_time?.toLocaleDateString(undefined, { timeZone: ctx.organization?.timezone ?? DEFAULT_TIME_ZONE }) ?? null,
     organization_name: (ctx) => ctx.organization?.name,
     sender_email: (ctx) => ctx.sender.email,
 };

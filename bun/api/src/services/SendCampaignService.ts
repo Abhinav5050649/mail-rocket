@@ -202,7 +202,7 @@ export class SendCampaignService {
                 recipient: { first_name: row.firstName, last_name: row.lastName, email_id: row.email },
                 group: row.groupName !== null && row.groupName !== undefined ? { name: row.groupName } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
-                organization: organization ? { name: organization.name } : null,
+                organization: organization ? { name: organization.name, timezone: organization.timezone } : null,
                 sender: { email: identity.identity },
             };
 

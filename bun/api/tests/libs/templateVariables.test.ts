@@ -11,7 +11,7 @@ const fullContext: TemplateVariableContext = {
     recipient: { first_name: "Ada", last_name: "Lovelace", email_id: "ada@example.com" },
     group: { name: "VIP Customers" },
     campaign: { name: "Fall Launch", start_time: new Date("2026-03-01T00:00:00Z") },
-    organization: { name: "Acme Inc" },
+    organization: { name: "Acme Inc", timezone: "UTC" },
     sender: { email: "sender@acme.test" },
 };
 
@@ -61,7 +61,7 @@ describe("renderTemplate", () => {
     });
 
     it("reports organization_name missing when the organization has no name yet", () => {
-        const unnamedOrganization: TemplateVariableContext = { ...fullContext, organization: { name: null } };
+        const unnamedOrganization: TemplateVariableContext = { ...fullContext, organization: { name: null, timezone: "UTC" } };
 
         const { missing } = renderTemplate("{{organization_name}}", unnamedOrganization);
 
@@ -99,5 +99,18 @@ describe("renderTemplate", () => {
         const { rendered } = renderTemplate("Hi {{ recipient_first_name }}", fullContext);
 
         expect(rendered).toBe("Hi Ada");
+    });
+
+    it("renders {{campaign_start_date}} as the calendar date in the organization's time zone", () => {
+        // 00:00 UTC on 1 March is still 28 February in Los Angeles.
+        const start = new Date("2026-03-01T00:00:00Z");
+        const inLosAngeles = renderTemplate("{{campaign_start_date}}", {
+            ...fullContext,
+            organization: { name: "Acme Inc", timezone: "America/Los_Angeles" },
+        });
+        const inUtc = renderTemplate("{{campaign_start_date}}", fullContext);
+
+        expect(inLosAngeles.rendered).toBe(start.toLocaleDateString(undefined, { timeZone: "America/Los_Angeles" }));
+        expect(inLosAngeles.rendered).not.toBe(inUtc.rendered);
     });
 });
