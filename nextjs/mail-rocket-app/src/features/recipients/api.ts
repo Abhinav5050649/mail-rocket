@@ -10,41 +10,41 @@ function scopeTags(row: Recipient | undefined) {
   ];
 }
 
-/** Reachable org-wide, campaign-nested, and campaign+group-nested - see templates/api.ts for the scoped-tag rationale. */
+/** Reachable top-level, campaign-nested, and campaign+group-nested - see templates/api.ts for the scoped-tag rationale. */
 export const recipientsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getRecipients: builder.query<Recipient[], { organizationId: string } & PageArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/recipients`,
+    getRecipients: builder.query<Recipient[], PageArgs>({
+      query: (args) => ({
+        url: `/recipients`,
         params: args,
       }),
       providesTags: (result) => listTags("Recipient", result),
     }),
-    getCampaignRecipients: builder.query<Recipient[], { organizationId: string; campaignId: string } & PageArgs>({
-      query: ({ organizationId, campaignId, ...args }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/recipients`,
+    getCampaignRecipients: builder.query<Recipient[], { campaignId: string } & PageArgs>({
+      query: ({ campaignId, ...args }) => ({
+        url: `/campaigns/${campaignId}/recipients`,
         params: args,
       }),
       providesTags: (result, _e, { campaignId }) => listTags("Recipient", result, [`CAMPAIGN_${campaignId}`]),
     }),
     getGroupRecipients: builder.query<
       Recipient[],
-      { organizationId: string; campaignId: string; groupId: string } & PageArgs
+      { campaignId: string; groupId: string } & PageArgs
     >({
-      query: ({ organizationId, campaignId, groupId, ...args }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/groups/${groupId}/recipients`,
+      query: ({ campaignId, groupId, ...args }) => ({
+        url: `/campaigns/${campaignId}/groups/${groupId}/recipients`,
         params: args,
       }),
       providesTags: (result, _e, { campaignId, groupId }) =>
         listTags("Recipient", result, [`CAMPAIGN_${campaignId}`, `GROUP_${groupId}`]),
     }),
-    getRecipient: builder.query<Recipient, { organizationId: string; recipientId: string }>({
-      query: ({ organizationId, recipientId }) => `/organizations/${organizationId}/recipients/${recipientId}`,
+    getRecipient: builder.query<Recipient, { recipientId: string }>({
+      query: ({ recipientId }) => `/recipients/${recipientId}`,
       providesTags: (_r, _e, { recipientId }) => itemTag("Recipient", recipientId),
     }),
-    createRecipient: builder.mutation<Recipient, { organizationId: string } & RecipientInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/recipients`,
+    createRecipient: builder.mutation<Recipient, RecipientInput>({
+      query: (body) => ({
+        url: `/recipients`,
         method: "POST",
         body,
       }),
@@ -52,10 +52,10 @@ export const recipientsApi = apiSlice.injectEndpoints({
     }),
     updateRecipient: builder.mutation<
       Recipient,
-      { organizationId: string; recipientId: string } & Partial<RecipientInput>
+      { recipientId: string } & Partial<RecipientInput>
     >({
-      query: ({ organizationId, recipientId, ...body }) => ({
-        url: `/organizations/${organizationId}/recipients/${recipientId}`,
+      query: ({ recipientId, ...body }) => ({
+        url: `/recipients/${recipientId}`,
         method: "PATCH",
         body,
       }),
@@ -63,10 +63,10 @@ export const recipientsApi = apiSlice.injectEndpoints({
     }),
     deleteRecipient: builder.mutation<
       void,
-      { organizationId: string; recipientId: string; campaignId?: string; groupId?: string }
+      { recipientId: string; campaignId?: string; groupId?: string }
     >({
-      query: ({ organizationId, recipientId }) => ({
-        url: `/organizations/${organizationId}/recipients/${recipientId}`,
+      query: ({ recipientId }) => ({
+        url: `/recipients/${recipientId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { recipientId, campaignId, groupId }) => [

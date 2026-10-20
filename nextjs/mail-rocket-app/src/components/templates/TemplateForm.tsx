@@ -22,7 +22,6 @@ export type TemplateFormValues = z.infer<typeof templateSchema>;
 
 interface TemplateFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Template;
   defaultCampaignId?: string;
   onSubmit: (values: TemplateFormValues) => void;
@@ -31,8 +30,8 @@ interface TemplateFormProps {
   onCancel?: () => void;
 }
 
-export function TemplateForm({ mode, organizationId, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: TemplateFormProps) {
-  const { data: campaigns } = useGetCampaignsQuery({ organizationId, limit: 100 });
+export function TemplateForm({ mode, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: TemplateFormProps) {
+  const { data: campaigns } = useGetCampaignsQuery({ limit: 100 });
 
   const {
     control,

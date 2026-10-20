@@ -1,18 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionToken } from "@/lib/auth/session";
+import { getSessionKey } from "@/lib/auth/session";
 import { bunApiFetch } from "@/lib/auth/bunApi";
 
 /**
- * Generic reverse proxy for every resource route (organizations, campaigns,
- * templates, ...). A single catch-all avoids duplicating forwarding logic
+ * Generic reverse proxy for every resource route (organization, keys,
+ * campaigns, templates, ...). A single catch-all avoids duplicating forwarding logic
  * across 9+ resource-specific handlers - only /api/auth/* gets dedicated
  * files, since those uniquely need to set/clear the session cookie.
  */
 type Params = { path: string[] };
 
 async function forward(request: NextRequest, { params }: { params: Promise<Params> }) {
-  const token = await getSessionToken();
-  if (!token) {
+  const key = await getSessionKey();
+  if (!key) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -22,7 +22,7 @@ async function forward(request: NextRequest, { params }: { params: Promise<Param
 
   const backendRes = await bunApiFetch(`/${path.join("/")}${search}`, {
     method: request.method,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${key}` },
     body: hasBody ? await request.text() : undefined,
   });
 

@@ -8,9 +8,9 @@ function getBunApiUrl(): string {
 }
 
 /**
- * Calls bun/api server-to-server. Used by the auth Route Handlers (signup/
- * signin need no forwarded token yet) and by the catch-all proxy (which adds
- * an Authorization header itself). Errors are bun/api's own `{error}` JSON,
+ * Calls bun/api server-to-server. Used by the auth Route Handlers (which
+ * forward the pasted or stored API key themselves) and by the catch-all
+ * proxy (which adds the session key as an Authorization header). Errors are bun/api's own `{error}` JSON,
  * passed through untouched by the caller.
  */
 export async function bunApiFetch(path: string, init?: RequestInit): Promise<Response> {

@@ -5,21 +5,21 @@ import type { ContactDetails, ContactDetailsInput } from "./model";
 
 export const contactDetailsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getContactDetailsList: builder.query<ContactDetails[], { organizationId: string } & PageArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/contact-details`,
+    getContactDetailsList: builder.query<ContactDetails[], PageArgs>({
+      query: (args) => ({
+        url: `/contact-details`,
         params: args,
       }),
       providesTags: (result) => listTags("ContactDetails", result),
     }),
-    getContactDetails: builder.query<ContactDetails, { organizationId: string; contactDetailsId: string }>({
-      query: ({ organizationId, contactDetailsId }) =>
-        `/organizations/${organizationId}/contact-details/${contactDetailsId}`,
+    getContactDetails: builder.query<ContactDetails, { contactDetailsId: string }>({
+      query: ({ contactDetailsId }) =>
+        `/contact-details/${contactDetailsId}`,
       providesTags: (_r, _e, { contactDetailsId }) => itemTag("ContactDetails", contactDetailsId),
     }),
-    createContactDetails: builder.mutation<ContactDetails, { organizationId: string } & ContactDetailsInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/contact-details`,
+    createContactDetails: builder.mutation<ContactDetails, ContactDetailsInput>({
+      query: (body) => ({
+        url: `/contact-details`,
         method: "POST",
         body,
       }),
@@ -27,18 +27,18 @@ export const contactDetailsApi = apiSlice.injectEndpoints({
     }),
     updateContactDetails: builder.mutation<
       ContactDetails,
-      { organizationId: string; contactDetailsId: string } & Partial<ContactDetailsInput>
+      { contactDetailsId: string } & Partial<ContactDetailsInput>
     >({
-      query: ({ organizationId, contactDetailsId, ...body }) => ({
-        url: `/organizations/${organizationId}/contact-details/${contactDetailsId}`,
+      query: ({ contactDetailsId, ...body }) => ({
+        url: `/contact-details/${contactDetailsId}`,
         method: "PATCH",
         body,
       }),
       invalidatesTags: (_r, _e, { contactDetailsId }) => itemTag("ContactDetails", contactDetailsId),
     }),
-    deleteContactDetails: builder.mutation<void, { organizationId: string; contactDetailsId: string }>({
-      query: ({ organizationId, contactDetailsId }) => ({
-        url: `/organizations/${organizationId}/contact-details/${contactDetailsId}`,
+    deleteContactDetails: builder.mutation<void, { contactDetailsId: string }>({
+      query: ({ contactDetailsId }) => ({
+        url: `/contact-details/${contactDetailsId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { contactDetailsId }) => [

@@ -18,7 +18,6 @@ const organizationSchema = z.object({
 export type OrganizationFormValues = z.infer<typeof organizationSchema>;
 
 interface OrganizationFormProps {
-  mode: "create" | "edit";
   initialData?: Organization;
   onSubmit: (values: OrganizationFormValues) => void;
   isSubmitting: boolean;
@@ -26,7 +25,7 @@ interface OrganizationFormProps {
   onCancel?: () => void;
 }
 
-export function OrganizationForm({ mode, initialData, onSubmit, isSubmitting, error, onCancel }: OrganizationFormProps) {
+export function OrganizationForm({ initialData, onSubmit, isSubmitting, error, onCancel }: OrganizationFormProps) {
   const {
     control,
     handleSubmit,
@@ -50,7 +49,7 @@ export function OrganizationForm({ mode, initialData, onSubmit, isSubmitting, er
       <Controller control={control} name="description" render={({ field }) => <TextArea {...field} label="Description" rows={3} />} />
       <div className="flex gap-3">
         <Button type="submit" isLoading={isSubmitting}>
-          {mode === "create" ? "Create organization" : "Save changes"}
+          Save changes
         </Button>
         {onCancel && (
           <Button type="button" color="link-gray" onClick={onCancel}>

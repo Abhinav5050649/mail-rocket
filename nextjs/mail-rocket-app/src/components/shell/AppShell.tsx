@@ -2,23 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { MailRocketLogo } from "@/components/foundations/logo/untitledui-logo";
 import { MobileNavigationHeader } from "@/components/application/app-navigation/base-components/mobile-header";
 import { NavList } from "@/components/application/app-navigation/base-components/nav-list";
-import { OrgSwitcher } from "./OrgSwitcher";
 import { UserMenu } from "./UserMenu";
 import { ThemeToggle } from "./ThemeToggle";
-import { buildOrgNavItems } from "@/lib/nav/orgNavItems";
+import { NAV_ITEMS } from "@/lib/nav/navItems";
 import { cx } from "@/utils/cx";
 
 const SIDEBAR_WIDTH = 272;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const params = useParams<{ orgId?: string }>();
   const pathname = usePathname();
-  const orgId = params?.orgId;
-  const items = orgId ? buildOrgNavItems(orgId) : [];
 
   const sidebarContent = (
     <aside
@@ -26,17 +22,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="flex h-full w-full max-w-full flex-col justify-between overflow-auto border-secondary bg-primary pt-4 md:border-r lg:w-(--width) lg:pt-5"
     >
       <div className="flex flex-col gap-4 px-4 lg:px-5">
-        <Link href="/orgs">
+        <Link href="/">
           <MailRocketLogo />
         </Link>
-        {orgId && <OrgSwitcher />}
       </div>
 
-      {orgId ? (
-        <NavList activeUrl={pathname ?? undefined} items={items} className="flex-1" />
-      ) : (
-        <div className="flex-1" />
-      )}
+      <NavList activeUrl={pathname ?? undefined} items={NAV_ITEMS} className="flex-1" />
 
       <div className="mt-auto flex flex-col gap-3 border-t border-secondary px-4 py-4 lg:py-5">
         <div className="flex items-center justify-between">

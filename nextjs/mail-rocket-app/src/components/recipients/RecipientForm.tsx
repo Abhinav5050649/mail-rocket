@@ -24,7 +24,6 @@ export type RecipientFormValues = z.infer<typeof recipientSchema>;
 
 interface RecipientFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Recipient;
   defaultCampaignId?: string;
   defaultGroupId?: string;
@@ -36,7 +35,6 @@ interface RecipientFormProps {
 
 export function RecipientForm({
   mode,
-  organizationId,
   initialData,
   defaultCampaignId,
   defaultGroupId,
@@ -45,8 +43,8 @@ export function RecipientForm({
   error,
   onCancel,
 }: RecipientFormProps) {
-  const { data: campaigns } = useGetCampaignsQuery({ organizationId, limit: 100 });
-  const { data: groups } = useGetGroupsQuery({ organizationId, limit: 100 });
+  const { data: campaigns } = useGetCampaignsQuery({ limit: 100 });
+  const { data: groups } = useGetGroupsQuery({ limit: 100 });
 
   const {
     control,

@@ -2,7 +2,6 @@ export type { Identity, IdentityType, IdentityStatus, IdentityVerificationRecord
 import type { IdentityStatus, IdentityType, PageArgs } from "@/types/resources";
 
 export interface IdentityListArgs extends PageArgs {
-  organizationId: string;
   type?: IdentityType;
   status?: IdentityStatus;
 }

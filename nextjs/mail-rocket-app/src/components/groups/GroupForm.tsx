@@ -20,7 +20,6 @@ export type GroupFormValues = z.infer<typeof groupSchema>;
 
 interface GroupFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Group;
   defaultCampaignId?: string;
   onSubmit: (values: GroupFormValues) => void;
@@ -29,8 +28,8 @@ interface GroupFormProps {
   onCancel?: () => void;
 }
 
-export function GroupForm({ mode, organizationId, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: GroupFormProps) {
-  const { data: campaigns } = useGetCampaignsQuery({ organizationId, limit: 100 });
+export function GroupForm({ mode, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: GroupFormProps) {
+  const { data: campaigns } = useGetCampaignsQuery({ limit: 100 });
 
   const {
     control,

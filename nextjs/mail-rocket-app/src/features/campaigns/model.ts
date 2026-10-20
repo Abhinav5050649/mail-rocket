@@ -2,7 +2,6 @@ export type { Campaign, CampaignStatus } from "@/types/resources";
 import type { CampaignStatus, PageArgs } from "@/types/resources";
 
 export interface CampaignListArgs extends PageArgs {
-  organizationId: string;
   status?: CampaignStatus;
 }
 

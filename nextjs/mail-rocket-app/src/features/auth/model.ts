@@ -1,13 +1,6 @@
-export type { User } from "@/types/resources";
-
-export interface SignupRequest {
-  email: string;
-  password: string;
-  first_name?: string;
-  last_name?: string;
-}
+export type { ApiKey } from "@/types/resources";
 
 export interface SigninRequest {
-  email: string;
-  password: string;
+  /** A mail-rocket API key (`mr_...`). */
+  key: string;
 }

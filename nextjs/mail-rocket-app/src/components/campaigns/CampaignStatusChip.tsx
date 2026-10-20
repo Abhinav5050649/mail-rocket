@@ -6,13 +6,13 @@ const COLOR: Record<CampaignStatus, "gray" | "sky" | "warning" | "success" | "er
   scheduled: "sky",
   sending: "warning",
   sent: "success",
-  send_failed: "error",
+  failed: "error",
 };
 
 export function CampaignStatusChip({ status }: { status: CampaignStatus }) {
   return (
     <Badge size="sm" color={COLOR[status]} className="capitalize">
-      {status.replace("_", " ")}
+      {status}
     </Badge>
   );
 }

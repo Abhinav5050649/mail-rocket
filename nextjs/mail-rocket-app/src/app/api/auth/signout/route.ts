@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 /**
- * bun/api has no logout/blacklist endpoint - JWTs are stateless and "logout"
- * is purely client-side discard, so this just clears the cookie.
+ * Signing out only forgets the key in this browser - it clears the cookie
+ * but does not revoke the key, which keeps working anywhere else it's used.
+ * Revoke it from Settings -> API keys to stop it working everywhere.
  */
 export async function POST() {
   const store = await cookies();

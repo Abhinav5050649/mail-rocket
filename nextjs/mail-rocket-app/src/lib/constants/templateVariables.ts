@@ -13,10 +13,6 @@ export const TEMPLATE_VARIABLES = [
   { token: "group_name", description: "Name of the recipient's group" },
   { token: "campaign_name", description: "Name of the campaign" },
   { token: "campaign_start_date", description: "Campaign start date" },
-  { token: "organization_name", description: "Sending organization's name" },
-  { token: "organizer_first_name", description: "Campaign organizer's first name" },
-  { token: "organizer_last_name", description: "Campaign organizer's last name" },
-  { token: "organizer_full_name", description: "Campaign organizer's full name" },
-  { token: "organizer_email", description: "Campaign organizer's email" },
+  { token: "organization_name", description: "Organization name (Settings)" },
   { token: "sender_email", description: "Sending email address" },
 ] as const;

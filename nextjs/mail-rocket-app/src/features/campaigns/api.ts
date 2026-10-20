@@ -7,25 +7,25 @@ import type { Campaign, CampaignInput, CampaignListArgs } from "./model";
  * tags every row + a LIST sentinel, get-by-id tags its own id, create
  * invalidates LIST, update/delete invalidate their own id (+ LIST on
  * delete). The other resource features (templates, groups, recipients,
- * identities, addresses, contact details, membership, organizations) repeat
+ * identities, addresses, contact details, keys) repeat
  * this shape.
  */
 export const campaignsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getCampaigns: builder.query<Campaign[], CampaignListArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/campaigns`,
+      query: (args) => ({
+        url: `/campaigns`,
         params: args,
       }),
       providesTags: (result) => listTags("Campaign", result),
     }),
-    getCampaign: builder.query<Campaign, { organizationId: string; campaignId: string }>({
-      query: ({ organizationId, campaignId }) => `/organizations/${organizationId}/campaigns/${campaignId}`,
+    getCampaign: builder.query<Campaign, { campaignId: string }>({
+      query: ({ campaignId }) => `/campaigns/${campaignId}`,
       providesTags: (_r, _e, { campaignId }) => itemTag("Campaign", campaignId),
     }),
-    createCampaign: builder.mutation<Campaign, { organizationId: string } & CampaignInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/campaigns`,
+    createCampaign: builder.mutation<Campaign, CampaignInput>({
+      query: (body) => ({
+        url: `/campaigns`,
         method: "POST",
         body,
       }),
@@ -33,18 +33,18 @@ export const campaignsApi = apiSlice.injectEndpoints({
     }),
     updateCampaign: builder.mutation<
       Campaign,
-      { organizationId: string; campaignId: string } & Partial<CampaignInput>
+      { campaignId: string } & Partial<CampaignInput>
     >({
-      query: ({ organizationId, campaignId, ...body }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}`,
+      query: ({ campaignId, ...body }) => ({
+        url: `/campaigns/${campaignId}`,
         method: "PATCH",
         body,
       }),
       invalidatesTags: (_r, _e, { campaignId }) => itemTag("Campaign", campaignId),
     }),
-    deleteCampaign: builder.mutation<void, { organizationId: string; campaignId: string }>({
-      query: ({ organizationId, campaignId }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}`,
+    deleteCampaign: builder.mutation<void, { campaignId: string }>({
+      query: ({ campaignId }) => ({
+        url: `/campaigns/${campaignId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { campaignId }) => [

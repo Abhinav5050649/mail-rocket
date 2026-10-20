@@ -5,19 +5,19 @@ import type { Identity, IdentityInput, IdentityListArgs } from "./model";
 export const identitiesApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getIdentities: builder.query<Identity[], IdentityListArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/identities`,
+      query: (args) => ({
+        url: `/identities`,
         params: args,
       }),
       providesTags: (result) => listTags("Identity", result),
     }),
-    getIdentity: builder.query<Identity, { organizationId: string; identityId: string }>({
-      query: ({ organizationId, identityId }) => `/organizations/${organizationId}/identities/${identityId}`,
+    getIdentity: builder.query<Identity, { identityId: string }>({
+      query: ({ identityId }) => `/identities/${identityId}`,
       providesTags: (_r, _e, { identityId }) => itemTag("Identity", identityId),
     }),
-    createIdentity: builder.mutation<Identity, { organizationId: string } & IdentityInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/identities`,
+    createIdentity: builder.mutation<Identity, IdentityInput>({
+      query: (body) => ({
+        url: `/identities`,
         method: "POST",
         body,
       }),
@@ -25,18 +25,18 @@ export const identitiesApi = apiSlice.injectEndpoints({
     }),
     updateIdentity: builder.mutation<
       Identity,
-      { organizationId: string; identityId: string } & Partial<IdentityInput>
+      { identityId: string } & Partial<IdentityInput>
     >({
-      query: ({ organizationId, identityId, ...body }) => ({
-        url: `/organizations/${organizationId}/identities/${identityId}`,
+      query: ({ identityId, ...body }) => ({
+        url: `/identities/${identityId}`,
         method: "PATCH",
         body,
       }),
       invalidatesTags: (_r, _e, { identityId }) => itemTag("Identity", identityId),
     }),
-    deleteIdentity: builder.mutation<void, { organizationId: string; identityId: string }>({
-      query: ({ organizationId, identityId }) => ({
-        url: `/organizations/${organizationId}/identities/${identityId}`,
+    deleteIdentity: builder.mutation<void, { identityId: string }>({
+      query: ({ identityId }) => ({
+        url: `/identities/${identityId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { identityId }) => [

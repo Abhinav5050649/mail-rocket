@@ -1,7 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { apiSlice } from "./api/apiSlice";
-import { organizationsReducer } from "@/features/organizations/slice";
-import { membershipReducer } from "@/features/membership/slice";
+import { keysReducer } from "@/features/keys/slice";
 import { campaignsReducer } from "@/features/campaigns/slice";
 import { templatesReducer } from "@/features/templates/slice";
 import { groupsReducer } from "@/features/groups/slice";
@@ -14,8 +13,7 @@ export function makeStore() {
   return configureStore({
     reducer: {
       [apiSlice.reducerPath]: apiSlice.reducer,
-      organizations: organizationsReducer,
-      membership: membershipReducer,
+      keys: keysReducer,
       campaigns: campaignsReducer,
       templates: templatesReducer,
       groups: groupsReducer,

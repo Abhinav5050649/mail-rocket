@@ -9,5 +9,5 @@ export const selectCampaignDialog = (state: RootState) => state.campaigns.dialog
 export const selectCampaignStatusFilter = createSelector(selectCampaignFilters, (filters) => filters.status);
 
 /** Reads a single campaign straight out of the RTK Query cache without issuing a new request, for components that only need it if it's already loaded (e.g. the delete confirmation dialog). */
-export const selectCachedCampaign = (organizationId: string, campaignId: string) => (state: RootState) =>
-  campaignsApi.endpoints.getCampaign.select({ organizationId, campaignId })(state).data;
+export const selectCachedCampaign = (campaignId: string) => (state: RootState) =>
+  campaignsApi.endpoints.getCampaign.select({ campaignId })(state).data;

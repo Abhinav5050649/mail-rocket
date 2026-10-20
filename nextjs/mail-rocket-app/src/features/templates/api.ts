@@ -4,33 +4,33 @@ import type { PageArgs } from "@/types/resources";
 import type { Template, TemplateInput } from "./model";
 
 /**
- * Templates are reachable both org-wide (`getTemplates`) and campaign-nested
+ * Templates are reachable both top-level (`getTemplates`) and campaign-nested
  * (`getCampaignTemplates`, a GET/POST-only view onto the same rows). Scoped
  * tag ids (`CAMPAIGN_<id>`) let a mutation refresh both cached views at once.
  */
 export const templatesApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getTemplates: builder.query<Template[], { organizationId: string } & PageArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/templates`,
+    getTemplates: builder.query<Template[], PageArgs>({
+      query: (args) => ({
+        url: `/templates`,
         params: args,
       }),
       providesTags: (result) => listTags("Template", result),
     }),
-    getCampaignTemplates: builder.query<Template[], { organizationId: string; campaignId: string } & PageArgs>({
-      query: ({ organizationId, campaignId, ...args }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/templates`,
+    getCampaignTemplates: builder.query<Template[], { campaignId: string } & PageArgs>({
+      query: ({ campaignId, ...args }) => ({
+        url: `/campaigns/${campaignId}/templates`,
         params: args,
       }),
       providesTags: (result, _e, { campaignId }) => listTags("Template", result, [`CAMPAIGN_${campaignId}`]),
     }),
-    getTemplate: builder.query<Template, { organizationId: string; templateId: string }>({
-      query: ({ organizationId, templateId }) => `/organizations/${organizationId}/templates/${templateId}`,
+    getTemplate: builder.query<Template, { templateId: string }>({
+      query: ({ templateId }) => `/templates/${templateId}`,
       providesTags: (_r, _e, { templateId }) => itemTag("Template", templateId),
     }),
-    createTemplate: builder.mutation<Template, { organizationId: string } & TemplateInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/templates`,
+    createTemplate: builder.mutation<Template, TemplateInput>({
+      query: (body) => ({
+        url: `/templates`,
         method: "POST",
         body,
       }),
@@ -41,10 +41,10 @@ export const templatesApi = apiSlice.injectEndpoints({
     }),
     createCampaignTemplate: builder.mutation<
       Template,
-      { organizationId: string; campaignId: string } & TemplateInput
+      { campaignId: string } & TemplateInput
     >({
-      query: ({ organizationId, campaignId, ...body }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/templates`,
+      query: ({ campaignId, ...body }) => ({
+        url: `/campaigns/${campaignId}/templates`,
         method: "POST",
         body,
       }),
@@ -55,10 +55,10 @@ export const templatesApi = apiSlice.injectEndpoints({
     }),
     updateTemplate: builder.mutation<
       Template,
-      { organizationId: string; templateId: string } & Partial<TemplateInput>
+      { templateId: string } & Partial<TemplateInput>
     >({
-      query: ({ organizationId, templateId, ...body }) => ({
-        url: `/organizations/${organizationId}/templates/${templateId}`,
+      query: ({ templateId, ...body }) => ({
+        url: `/templates/${templateId}`,
         method: "PATCH",
         body,
       }),
@@ -67,9 +67,9 @@ export const templatesApi = apiSlice.injectEndpoints({
         ...(result?.campaign_id ? [{ type: "Template" as const, id: `CAMPAIGN_${result.campaign_id}` }] : []),
       ],
     }),
-    deleteTemplate: builder.mutation<void, { organizationId: string; templateId: string; campaignId?: string }>({
-      query: ({ organizationId, templateId }) => ({
-        url: `/organizations/${organizationId}/templates/${templateId}`,
+    deleteTemplate: builder.mutation<void, { templateId: string; campaignId?: string }>({
+      query: ({ templateId }) => ({
+        url: `/templates/${templateId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { templateId, campaignId }) => [

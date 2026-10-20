@@ -15,7 +15,6 @@ import type { SerializedError } from "@reduxjs/toolkit";
 
 interface CampaignFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Campaign;
   onSubmit: (values: CampaignFormValues) => void;
   isSubmitting: boolean;
@@ -24,8 +23,8 @@ interface CampaignFormProps {
 }
 
 /** Local "branch store": react-hook-form state only, committed to the global RTK Query cache on submit. */
-export function CampaignForm({ mode, organizationId, initialData, onSubmit, isSubmitting, error, onCancel }: CampaignFormProps) {
-  const { data: identities } = useGetIdentitiesQuery({ organizationId, status: "active", limit: 100 });
+export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error, onCancel }: CampaignFormProps) {
+  const { data: identities } = useGetIdentitiesQuery({ status: "active", limit: 100 });
 
   const {
     control,

@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/constants";
 
-const AUTH_PATHS = ["/login", "/signup"];
+const AUTH_PATHS = ["/login"];
 
 /**
- * Presence-only session check (not a JWT signature/expiry verification -
- * that's bun/api's job on every proxied request). apiSlice's baseQuery
+ * Presence-only session check (not an API key validity check - that's
+ * bun/api's job on every proxied request). apiSlice's baseQuery
  * treats any proxied 401 as the real safety net; this just avoids rendering
  * the app shell for obviously-unauthenticated requests.
  */
@@ -22,7 +22,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (hasSession && isAuthPath) {
-    return NextResponse.redirect(new URL("/orgs", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
