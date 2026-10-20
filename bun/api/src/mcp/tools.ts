@@ -184,6 +184,7 @@ const recipientFields = {
     last_name: z.string().optional(),
     email_id: z.string().optional().describe("Recipient's email address."),
     normalized_name: z.string().optional(),
+    group_ids: z.array(z.string().min(1)).optional().describe("Groups the recipient is in. On update this replaces their groups; omit it to leave them unchanged."),
     description,
 };
 
@@ -390,11 +391,11 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     defineTool({
         name: "list_recipients",
         title: "List recipients",
-        description: "Lists recipients - all of them, one campaign's, or one group's (group_id wins if both are given).",
+        description: "Lists recipients - all of them, one campaign's audience (linked directly or through its groups), or one group's members (group_id wins if both are given). Each row carries its group_ids.",
         claim: { action: "read", subject: "Recipient" },
         inputSchema: {
-            campaign_id: z.string().optional().describe("Only this campaign's recipients."),
-            group_id: z.string().optional().describe("Only this group's recipients."),
+            campaign_id: z.string().optional().describe("Only this campaign's audience: recipients linked to it plus members of its groups."),
+            group_id: z.string().optional().describe("Only this group's members."),
             ...page,
         },
         annotations: READ,
@@ -406,17 +407,34 @@ export const MCP_TOOLS: McpToolDefinition[] = [
     defineTool({
         name: "create_recipient",
         title: "Create recipient",
-        description: "Adds a recipient, optionally to a campaign and/or a group.",
+        description: "Adds a recipient, optionally linked to a campaign and in any number of groups.",
         claim: { action: "create", subject: "Recipient" },
         inputSchema: {
             ...recipientFields,
-            campaign_id: z.string().optional().describe("Campaign the recipient is targeted by."),
-            group_id: z.string().optional().describe("Group the recipient belongs to."),
+            campaign_id: z.string().optional().describe("Campaign the recipient is targeted by directly."),
         },
         annotations: CREATE,
         handler: async (args) => recipientService.create(args),
     }),
     ...getUpdateDelete({ subject: "Recipient", name: "recipient", label: "Recipient", service: recipientService, updateShape: recipientFields }),
+    defineTool({
+        name: "add_recipient_to_group",
+        title: "Add recipient to group",
+        description: "Adds an existing recipient to a group. They keep their other groups; adding someone already in the group does nothing.",
+        claim: { action: "update", subject: "Group" },
+        inputSchema: { group_id: id("group"), recipient_id: id("recipient") },
+        annotations: UPDATE,
+        handler: async ({ group_id, recipient_id }) => found(await recipientService.addToGroup(group_id, recipient_id), "Group or recipient"),
+    }),
+    defineTool({
+        name: "remove_recipient_from_group",
+        title: "Remove recipient from group",
+        description: "Removes a recipient from one group. The recipient and their other groups are kept.",
+        claim: { action: "update", subject: "Group" },
+        inputSchema: { group_id: id("group"), recipient_id: id("recipient") },
+        annotations: UPDATE,
+        handler: async ({ group_id, recipient_id }) => found(await recipientService.removeFromGroup(group_id, recipient_id), "Group membership"),
+    }),
 
     // --- API keys -----------------------------------------------------------
     defineTool({

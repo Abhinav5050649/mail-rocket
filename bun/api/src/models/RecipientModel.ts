@@ -1,8 +1,11 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { campaignTable } from "./CampaignModel";
-import { groupTable } from "./GroupModel";
 
-/** Drizzle schema for `recipients`: a person targeted by a campaign/group. */
+/**
+ * Drizzle schema for `recipients`: a person a campaign can send to. A
+ * recipient is linked to at most one campaign directly, and to any number of
+ * groups through `group_recipient`.
+ */
 export const recipientsTable = pgTable("recipients", {
     /** UUID to uniquely identify recipient. */
     id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -16,8 +19,6 @@ export const recipientsTable = pgTable("recipients", {
     normalized_name: varchar("normalized_name"),
     /** Email ID of recipient. */
     email_id: varchar("email_id"),
-    /** ID of group the recipient belongs to. */
-    group_id: varchar("group_id").references(() => groupTable.id),
     /** ID of campaign the recipient is associated with. */
     campaign_id: varchar("campaign_id").references(() => campaignTable.id),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
@@ -25,8 +26,7 @@ export const recipientsTable = pgTable("recipients", {
     /** Field to store additional metadata about record. */
     description: varchar("description"),
 }, (table) => [
-    // Backs `getByGroup` and `getByCampaign`.
-    index("recipients_group_id_idx").on(table.group_id),
+    // Backs `getByCampaign`. Group membership lives in `group_recipient`.
     index("recipients_campaign_id_idx").on(table.campaign_id),
 ]);
 

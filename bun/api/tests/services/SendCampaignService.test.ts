@@ -117,8 +117,8 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([organization])) // OrganizationService.get
                 .mockImplementationOnce(() => chain([template])) // getCurrentTemplateForCampaign
                 .mockImplementationOnce(() => chain([ // campaign_recipient join rows
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
-                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1", "cr-2"]);
@@ -134,7 +134,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "sent", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "sent", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);
@@ -150,7 +150,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: null, firstName: "Ada", lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: null, firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);
@@ -166,8 +166,8 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([template]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "bounces@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
-                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "bounces@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                    { campaignRecipientId: "cr-2", sendStatus: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
                 ]));
             mockSesSend
                 .mockImplementationOnce(async () => { throw new Error("SES rejected the recipient"); })
@@ -186,7 +186,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([organization]))
                 .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hello {{recipient_first_name}} from {{organization_name}}</p>" }]))
                 .mockImplementationOnce(() => chain([
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);
@@ -206,7 +206,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hi {{recipient_first_name}}</p>" }]))
                 .mockImplementationOnce(() => chain([
                     // No first_name on record for this recipient.
-                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: null, lastName: "Lovelace", groupName: null },
+                    { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: null, lastName: "Lovelace", groupNames: null },
                 ]));
 
             await service.sendChunk("campaign-1", ["cr-1"]);

@@ -143,7 +143,8 @@ erDiagram
     IDENTITY ||--o{ CAMPAIGN : "sends as (From)"
     CAMPAIGN ||--o{ TEMPLATE : revisions
     CAMPAIGN ||--o{ GROUP : "recipient lists"
-    GROUP ||--o{ RECIPIENTS : contains
+    GROUP ||--o{ GROUP_RECIPIENT : members
+    RECIPIENTS ||--o{ GROUP_RECIPIENT : "in groups"
     CAMPAIGN ||--o{ RECIPIENTS : targets
     CAMPAIGN ||--o{ CAMPAIGN_RECIPIENT : "one send"
     RECIPIENTS ||--o{ CAMPAIGN_RECIPIENT : "per-send outcome"
@@ -166,6 +167,8 @@ erDiagram
 
 **Notes**
 
+- Group membership is many-to-many through `group_recipient`: a recipient can be in any number of groups, and deleting either side removes the membership (cascade).
+- A campaign's audience is its directly linked recipients plus every member of its linked groups, each once (`campaignAudience` in `RecipientService`). That set is what dispatch writes into `campaign_recipient`.
 - `campaign_recipient` is an audit trail, not a mutation: a send creates one row per recipient per send; the underlying `recipients` row is never touched, so the same recipient stays reusable across future campaigns.
 - Templates are revisions, not slots: a campaign can hold several `template` rows; `SendCampaignService` picks "the" one to send by `updated_at desc` — there's no `is_final` flag today.
 - Every row id is an app-generated UUID string (`varchar`, not Postgres's native `uuid` type), kept consistent so FK columns match without a cast.

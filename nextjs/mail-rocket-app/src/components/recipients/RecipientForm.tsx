@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FormActions, SettingsSection } from "@/components/ui/page";
 import { FormError } from "@/components/ui/feedback";
 import { useCampaignNames, useGroupNames } from "@/hooks/useLookups";
+import { GroupPicker } from "./GroupPicker";
 import type { Recipient } from "@/types/resources";
 
 const recipientSchema = z.object({
@@ -17,7 +18,7 @@ const recipientSchema = z.object({
   last_name: z.string().optional(),
   email_id: z.string().trim().min(1, "Email is required").pipe(z.email("Enter a valid email address")),
   campaign_id: z.string().optional(),
-  group_id: z.string().optional(),
+  group_ids: z.array(z.string()),
 });
 export type RecipientFormValues = z.infer<typeof recipientSchema>;
 
@@ -25,6 +26,7 @@ interface RecipientFormProps {
   mode: "create" | "edit";
   initialData?: Recipient;
   defaultCampaignId?: string;
+  /** Pre-selects this group for a new recipient. */
   defaultGroupId?: string;
   onSubmit: (values: RecipientFormValues) => void;
   isSubmitting: boolean;
@@ -34,7 +36,7 @@ interface RecipientFormProps {
 }
 
 export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGroupId, onSubmit, isSubmitting, error, onCancel, readOnly }: RecipientFormProps) {
-  const { campaigns } = useCampaignNames();
+  const { campaigns, campaignName } = useCampaignNames();
   const { groups } = useGroupNames();
   const {
     control,
@@ -48,12 +50,11 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
       last_name: initialData?.last_name ?? "",
       email_id: initialData?.email_id ?? "",
       campaign_id: initialData?.campaign_id ?? defaultCampaignId ?? "",
-      group_id: initialData?.group_id ?? defaultGroupId ?? "",
+      group_ids: initialData?.group_ids ?? (defaultGroupId ? [defaultGroupId] : []),
     },
   });
 
   const campaignOptions = [{ label: "Not linked", value: "" }, ...(campaigns?.map((campaign) => ({ label: campaign.name ?? "Untitled campaign", value: campaign.id })) ?? [])];
-  const groupOptions = [{ label: "No group", value: "" }, ...(groups?.map((group) => ({ label: group.name ?? "Untitled group", value: group.id })) ?? [])];
 
   const submit = (values: RecipientFormValues) =>
     onSubmit({
@@ -81,21 +82,28 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
             </div>
           </div>
         </SettingsSection>
-        <SettingsSection title="Sending" description="Which campaign reaches this person, and through which group.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Campaign" optional>
-              {(props) => (
+        <SettingsSection
+          title="Groups"
+          description={
+            <>
+              A recipient can be in any number of groups. A campaign sends to everyone in its groups, each person once.{" "}
+              {"{{group_name}}"} lists all of their groups.
+            </>
+          }
+        >
+          <Controller
+            control={control}
+            name="group_ids"
+            render={({ field }) => <GroupPicker groups={groups} value={field.value} onChange={field.onChange} campaignName={campaignName} disabled={readOnly} />}
+          />
+        </SettingsSection>
+        <SettingsSection title="Campaign" description="Link the person to one campaign directly, whatever their groups.">
+          <Field label="Campaign" optional>
+            {(props) => (
               // Controlled, so the stored value shows once its options arrive.
-              <Controller control={control} name="campaign_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={campaignOptions} />} />
+              <Controller control={control} name="campaign_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={campaignOptions} className="max-w-sm" />} />
             )}
-            </Field>
-            <Field label="Group" optional>
-              {(props) => (
-              // Controlled, so the stored value shows once its options arrive.
-              <Controller control={control} name="group_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={groupOptions} />} />
-            )}
-            </Field>
-          </div>
+          </Field>
         </SettingsSection>
       </fieldset>
       {!readOnly && (

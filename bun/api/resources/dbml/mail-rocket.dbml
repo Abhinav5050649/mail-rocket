@@ -188,18 +188,33 @@ Table recipients {
   last_name varchar
   normalized_name varchar
   email_id varchar
-  group_id varchar [ref: > "group".id]
-  campaign_id varchar [ref: > campaign.id]
+  campaign_id varchar [ref: > campaign.id, note: 'Linked directly; also reached through groups linked to a campaign']
   created_at timestamp
   updated_at timestamp
   description varchar
 
   indexes {
-    group_id [name: 'recipients_group_id_idx']
     campaign_id [name: 'recipients_campaign_id_idx']
   }
 
-  Note: 'A person targeted by a campaign/group.'
+  Note: 'A person a campaign can send to. In any number of groups via group_recipient.'
+}
+
+Table group_recipient {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.group_recipient']
+  group_id varchar [not null, ref: > "group".id, note: 'ON DELETE CASCADE']
+  recipient_id varchar [not null, ref: > recipients.id, note: 'ON DELETE CASCADE']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    (group_id, recipient_id) [unique, name: 'group_recipient_group_id_recipient_id_unique']
+    recipient_id [name: 'group_recipient_recipient_id_idx']
+  }
+
+  Note: 'Which recipients are in which groups (many-to-many).'
 }
 
 Table campaign_recipient {

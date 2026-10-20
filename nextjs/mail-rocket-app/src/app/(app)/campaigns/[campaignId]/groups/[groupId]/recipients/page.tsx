@@ -16,7 +16,7 @@ import type { Recipient } from "@/types/resources";
 export default function CampaignGroupRecipientsPage({ params }: { params: Promise<{ campaignId: string; groupId: string }> }) {
   const { campaignId, groupId } = use(params);
   const { data: group } = useGetGroupQuery({ groupId });
-  const { data: recipients, isLoading, error, refetch } = useGetGroupRecipientsQuery({ campaignId, groupId, limit: 50 });
+  const { data: recipients, isLoading, error, refetch } = useGetGroupRecipientsQuery({ groupId, limit: 50 });
 
   const action = (
     <div className="flex items-center gap-3">

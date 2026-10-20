@@ -17,7 +17,7 @@ file is a description of that registry, kept in sync with it.
 | `{{recipient_last_name}}` | Recipient's last name | `recipients.last_name` |
 | `{{recipient_full_name}}` | First + last name, joined with a space (whichever parts exist) | `recipients.first_name` / `.last_name` |
 | `{{recipient_email}}` | Recipient's email address | `recipients.email_id` |
-| `{{group_name}}` | Name of the group the recipient belongs to | `group.name` |
+| `{{group_name}}` | Names of every group the recipient is in, alphabetical and comma-separated (e.g. "Newsletter subscribers, VIP customers") | `group.name` via `group_recipient` |
 | `{{campaign_name}}` | Name of the campaign | `campaign.name` |
 | `{{campaign_start_date}}` | Campaign's scheduled/actual start date, as the calendar date in the organization's time zone | `campaign.start_time` |
 | `{{organization_name}}` | Name of the organization running this instance (set via `PATCH /organization`) | `organization.name` (the single row) |

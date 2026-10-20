@@ -15,6 +15,27 @@
       "when": 1792519634198,
       "tag": "0001_organization_timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792520436064,
+      "tag": "0002_group_recipient",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792520436324,
+      "tag": "0003_copy_recipient_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792520444977,
+      "tag": "0004_drop_recipient_group_id",
+      "breakpoints": true
     }
   ]
 }

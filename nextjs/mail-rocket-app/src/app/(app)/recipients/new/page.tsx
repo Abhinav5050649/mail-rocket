@@ -11,11 +11,18 @@ export default function NewRecipientPage() {
   const campaignId = searchParams.get("campaignId") ?? undefined;
   const groupId = searchParams.get("groupId") ?? undefined;
   const [createRecipient, { isLoading, error }] = useCreateRecipientMutation();
-  const back = campaignId && groupId ? `/campaigns/${campaignId}/groups/${groupId}/recipients` : campaignId ? `/campaigns/${campaignId}/recipients` : "/recipients";
+  const back =
+    campaignId && groupId
+      ? `/campaigns/${campaignId}/groups/${groupId}/recipients`
+      : campaignId
+        ? `/campaigns/${campaignId}/recipients`
+        : groupId
+          ? `/groups/${groupId}`
+          : "/recipients";
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : "Recipients" }} title="Add recipient" />
+      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : groupId ? "Group" : "Recipients" }} title="Add recipient" />
       <RecipientForm
         mode="create"
         defaultCampaignId={campaignId}
@@ -24,7 +31,7 @@ export default function NewRecipientPage() {
         error={error}
         onCancel={() => router.push(back)}
         onSubmit={async (values) => {
-          const result = await createRecipient({ ...values, campaign_id: values.campaign_id || undefined, group_id: values.group_id || undefined });
+          const result = await createRecipient({ ...values, campaign_id: values.campaign_id || undefined });
           if (result.data) router.push(`/recipients/${result.data.id}`);
         }}
       />

@@ -2056,6 +2056,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "A group id doesn't exist, `group_ids` is malformed, or the retired `group_id` was sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "recipientsPost"
@@ -2611,7 +2621,7 @@
       "get": {
         "summary": "List Recipients by Campaign",
         "deprecated": false,
-        "description": "Lists recipients belonging to a single campaign. Requires the `read Recipient` claim.",
+        "description": "Lists the campaign's audience: recipients linked to it directly plus members of the groups linked to it, each once. This is who a send goes to. Requires the `read Recipient` claim.",
         "tags": [
           "Recipients"
         ],
@@ -3776,6 +3786,254 @@
         },
         "operationId": "overviewGet"
       }
+    },
+    "/groups/{group_id}/recipients": {
+      "get": {
+        "summary": "List Group Members",
+        "deprecated": false,
+        "description": "Lists the recipients in a group. Requires the `read Recipient` claim.",
+        "tags": [
+          "Recipients"
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recipients in the group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Recipient"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "groupMembersList"
+      },
+      "post": {
+        "summary": "Add Recipient to Group",
+        "operationId": "groupMembersAdd",
+        "tags": [
+          "Recipients"
+        ],
+        "description": "Adds an existing recipient to the group; they keep their other groups. Adding someone already in the group is a no-op. Requires the `update Group` claim.",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipient_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "recipient_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The recipient with updated group_ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`recipient_id` is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The group or recipient doesn't exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/groups/{group_id}/recipients/{recipient_id}": {
+      "delete": {
+        "summary": "Remove Recipient from Group",
+        "operationId": "groupMembersRemove",
+        "tags": [
+          "Recipients"
+        ],
+        "description": "Removes the recipient from this group only; the recipient and their other groups are kept. Requires the `update Group` claim.",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient_id",
+            "in": "path",
+            "required": true,
+            "description": "ID of the recipient.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recipient with updated group_ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipient"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The recipient isn't in this group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4330,9 +4588,6 @@
             "type": "string",
             "format": "email"
           },
-          "group_id": {
-            "type": "string"
-          },
           "campaign_id": {
             "type": "string"
           },
@@ -4346,6 +4601,13 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ids of the groups the recipient is in (many-to-many)."
           }
         }
       },
@@ -4365,14 +4627,18 @@
             "type": "string",
             "format": "email"
           },
-          "group_id": {
-            "type": "string"
-          },
           "campaign_id": {
             "type": "string"
           },
           "description": {
             "type": "string"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Groups the recipient joins. Each id must exist (400 otherwise). The retired single `group_id` is rejected with a 400."
           }
         }
       },
@@ -4394,6 +4660,18 @@
           },
           "description": {
             "type": "string"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "When present, replaces the recipient's groups with exactly these. Omit to leave them unchanged."
+          },
+          "campaign_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Campaign the recipient is linked to directly."
           }
         }
       },

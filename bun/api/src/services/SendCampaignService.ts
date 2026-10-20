@@ -1,8 +1,9 @@
 import { SendEmailCommand } from "@aws-sdk/client-ses";
-import { count, desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, logger, sesClient, renderTemplate, type TemplateVariableContext } from "../libs";
-import { recipientsTable, templateTable, campaignRecipientTable, groupTable } from "../models";
+import { recipientsTable, templateTable, campaignRecipientTable, groupTable, groupRecipientTable } from "../models";
 import { CampaignService } from "./CampaignService";
+import { campaignAudience, outerRecipientId } from "./RecipientService";
 import { IdentityService } from "./IdentityService";
 import { OrganizationService } from "./OrganizationService";
 
@@ -21,7 +22,9 @@ const organizationService = new OrganizationService();
 export class SendCampaignService {
 
     /**
-     * Fetches every recipient id belonging to a campaign. Unpaginated,
+     * Fetches every recipient id in a campaign's audience: recipients linked
+     * to it directly plus members of the groups linked to it, each once (see
+     * `campaignAudience`). Unpaginated,
      * unlike other list methods in this codebase - a send must see every
      * recipient, not one page of them.
      *
@@ -34,7 +37,7 @@ export class SendCampaignService {
 
         try {
             const rows = await db.select({ id: recipientsTable.id }).from(recipientsTable)
-                .where(eq(recipientsTable.campaign_id, campaignId));
+                .where(campaignAudience(campaignId));
             const recipientIds = rows.map(row => row.id);
 
             logger.debug({ campaignId, count: recipientIds.length }, `Response:`);
@@ -185,10 +188,15 @@ export class SendCampaignService {
             email: recipientsTable.email_id,
             firstName: recipientsTable.first_name,
             lastName: recipientsTable.last_name,
-            groupName: groupTable.name,
+            // Every group the recipient is in, by name - "{{group_name}}" lists them all.
+            groupNames: sql<string | null>`(
+                select string_agg(${groupTable.name}, ', ' order by ${groupTable.name})
+                from ${groupRecipientTable}
+                inner join ${groupTable} on ${groupTable.id} = ${groupRecipientTable.group_id}
+                where ${groupRecipientTable.recipient_id} = ${outerRecipientId}
+            )`,
         }).from(campaignRecipientTable)
             .innerJoin(recipientsTable, eq(campaignRecipientTable.recipient_id, recipientsTable.id))
-            .leftJoin(groupTable, eq(recipientsTable.group_id, groupTable.id))
             .where(inArray(campaignRecipientTable.id, campaignRecipientIds));
 
         for (const row of rows) {
@@ -200,7 +208,7 @@ export class SendCampaignService {
 
             const context: TemplateVariableContext = {
                 recipient: { first_name: row.firstName, last_name: row.lastName, email_id: row.email },
-                group: row.groupName !== null && row.groupName !== undefined ? { name: row.groupName } : null,
+                group: row.groupNames ? { name: row.groupNames } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
                 organization: organization ? { name: organization.name, timezone: organization.timezone } : null,
                 sender: { email: identity.identity },

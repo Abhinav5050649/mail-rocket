@@ -9,7 +9,7 @@ import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
 import { templateRoute, campaignTemplateRoute } from "./TemplateRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
-import { recipientRoute, campaignRecipientRoute, groupRecipientRoute } from "./RecipientRoute";
+import { recipientRoute, campaignRecipientRoute, groupRecipientRoute, groupMembershipRoute } from "./RecipientRoute";
 import { authenticate } from "../middleware";
 
 /**
@@ -40,6 +40,7 @@ appRoute
     .route('/templates', templateRoute)
     .route('/groups', groupRoute)
     .route('/recipients', recipientRoute)
+    .route('/groups/:group_id/recipients', groupMembershipRoute)
     .route('/campaigns/:campaign_id/templates', campaignTemplateRoute)
     .route('/campaigns/:campaign_id/groups', campaignGroupRoute)
     .route('/campaigns/:campaign_id/recipients', campaignRecipientRoute)

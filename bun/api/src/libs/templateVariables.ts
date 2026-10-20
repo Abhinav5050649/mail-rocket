@@ -20,7 +20,7 @@ export interface TemplateVariableContext {
         last_name: string | null;
         email_id: string | null;
     };
-    /** The recipient's group, if it belongs to one. */
+    /** The recipient's groups; `name` is all their names, comma-separated. Null when in none. */
     group: {
         name: string | null;
     } | null;

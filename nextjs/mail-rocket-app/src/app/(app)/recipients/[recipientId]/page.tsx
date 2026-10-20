@@ -7,6 +7,7 @@ import { DeleteSection } from "@/components/resources/DeleteSection";
 import { PageHeader } from "@/components/ui/page";
 import { ErrorNotice, Skeleton } from "@/components/ui/feedback";
 import { useAbility } from "@/hooks/useAbility";
+import { useGroupNames } from "@/hooks/useLookups";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fullName } from "@/lib/format";
 import {
@@ -24,6 +25,7 @@ export default function RecipientDetailPage({ params }: { params: Promise<{ reci
   const dispatch = useAppDispatch();
   const dialog = useAppSelector(selectRecipientDialog);
   const { ability } = useAbility();
+  const { groupNames } = useGroupNames();
 
   const { data: recipient, isLoading, error, refetch } = useGetRecipientQuery({ recipientId });
   const [updateRecipient, { isLoading: isSaving, error: updateError }] = useUpdateRecipientMutation();
@@ -34,7 +36,16 @@ export default function RecipientDetailPage({ params }: { params: Promise<{ reci
       <PageHeader
         back={{ href: "/recipients", label: "Recipients" }}
         title={recipient ? recipient.email_id : isLoading ? <Skeleton className="h-7 w-64" /> : "Recipient"}
-        description={recipient && (fullName(recipient) ?? "No name on record.")}
+        description={
+          recipient && (
+            <>
+              {[
+                fullName(recipient) ?? "No name on record",
+                recipient.group_ids.length > 0 ? `in ${groupNames(recipient.group_ids) ?? `${recipient.group_ids.length} groups`}` : "in no groups",
+              ].join(" · ")}
+            </>
+          )
+        }
       />
       {error ? (
         <ErrorNotice error={error} what="this recipient" onRetry={refetch} />
@@ -49,20 +60,20 @@ export default function RecipientDetailPage({ params }: { params: Promise<{ reci
             readOnly={!ability.can("update", "Recipient")}
             isSubmitting={isSaving}
             error={updateError}
-            onSubmit={(values) => updateRecipient({ recipientId, ...values, campaign_id: values.campaign_id || undefined, group_id: values.group_id || undefined })}
+            onSubmit={(values) => updateRecipient({ recipientId, ...values, campaign_id: values.campaign_id || undefined })}
           />
           {ability.can("delete", "Recipient") && (
             <div className="mt-8 border-t border-border">
               <DeleteSection
                 noun="recipient"
                 name={recipient.email_id ?? "this recipient"}
-                consequence="Permanently removes this person from every campaign and group."
+                consequence="Permanently removes this person and their group memberships."
                 isOpen={dialog?.type === "delete"}
                 onOpenChange={(open) => dispatch(open ? recipientDeleteDialogOpened(recipientId) : recipientDialogClosed())}
                 isDeleting={isDeleting}
                 error={deleteError}
                 onConfirm={async () => {
-                  const result = await deleteRecipient({ recipientId, campaignId: recipient.campaign_id ?? undefined, groupId: recipient.group_id ?? undefined });
+                  const result = await deleteRecipient({ recipientId });
                   if (!("error" in result)) {
                     dispatch(recipientDialogClosed());
                     router.push("/recipients");

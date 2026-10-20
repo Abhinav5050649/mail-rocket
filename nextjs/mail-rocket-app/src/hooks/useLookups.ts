@@ -34,5 +34,13 @@ export function useIdentityNames() {
 export function useGroupNames() {
   const { ability } = useAbility();
   const { data } = useGetGroupsQuery({ limit: 100 }, { skip: !ability.can("read", "Group") });
-  return { groups: data, groupName: useNameMap(data, (row) => row.name) };
+  const groupName = useNameMap(data, (row) => row.name);
+  /** "Newsletter, VIP" for a recipient's `group_ids`, alphabetical; null when in none. */
+  const groupNames = (ids: string[]) =>
+    ids
+      .map((id) => groupName(id))
+      .filter((name): name is string => !!name)
+      .sort((a, b) => a.localeCompare(b))
+      .join(", ") || null;
+  return { groups: data, groupName, groupNames };
 }

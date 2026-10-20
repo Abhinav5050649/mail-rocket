@@ -27,7 +27,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 
 - Campaign lifecycle: draft → scheduled (has a start time) → sending → sent | failed (with a failure reason).
 - Identities: domain or email; created → pending (SES verification in flight, DNS TXT/CNAME records to add) → active. Only active identities can send.
-- Templates, groups and recipients can be linked to a campaign; recipients can belong to a group.
+- Templates, groups and recipients can be linked to a campaign. A recipient can be in any number of groups (`group_recipient`). A campaign sends to its directly linked recipients plus everyone in its linked groups, each person once; `{{group_name}}` lists all of a recipient's groups.
 - Template variables: recipient first/last/full name and email, group name, campaign name and start date, organization name, sender email. A recipient missing a value is skipped at send time.
 - Lists paginate by limit/offset with no total count; `/overview` gives counts.
 - The organization has one IANA time zone (default UTC). Every date is shown in it, start times are entered in it, and `{{campaign_start_date}}` is rendered in it. Timestamps are absolute instants, so changing the zone never moves a scheduled send.

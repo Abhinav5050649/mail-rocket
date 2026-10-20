@@ -9,3 +9,4 @@ export * from "./TemplateModel";
 export * from "./GroupModel";
 export * from "./RecipientModel";
 export * from "./CampaignRecipientModel";
+export * from "./GroupRecipientModel";

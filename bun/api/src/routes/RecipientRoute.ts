@@ -50,3 +50,18 @@ export const campaignRecipientRoute = new Hono()
 export const groupRecipientRoute = new Hono()
     .get('/', requireAbility('read', 'Recipient'), recipientController.getAllByGroup)
     .post('/', requireAbility('create', 'Recipient'), recipientController.postByGroup)
+
+/**
+ * Routes for `/groups/:group_id/recipients`: a group's members. Membership
+ * is many-to-many, so these add or remove an existing recipient rather than
+ * creating or deleting one. Listing needs `read Recipient`; changing who is
+ * in a group is an edit of the group, so it needs `update Group`.
+ *
+ * - GET    /              - list the group's members.
+ * - POST   /              - add an existing recipient (`{ recipient_id }`).
+ * - DELETE /:recipient_id - remove a recipient from the group.
+ */
+export const groupMembershipRoute = new Hono()
+    .get('/', requireAbility('read', 'Recipient'), recipientController.getAllByGroup)
+    .post('/', requireAbility('update', 'Group'), recipientController.addToGroup)
+    .delete('/:recipient_id', requireAbility('update', 'Group'), recipientController.removeFromGroup)

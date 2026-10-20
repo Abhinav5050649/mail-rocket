@@ -208,21 +208,40 @@ CREATE TABLE "recipients" (
     "last_name"       varchar,
     "normalized_name" varchar,
     "email_id"        varchar,
-    "group_id"        varchar,
     "campaign_id"     varchar,
     "created_at"      timestamp,
     "updated_at"      timestamp,
     "description"     varchar,
-    CONSTRAINT "recipients_group_id_group_id_fk"
-        FOREIGN KEY ("group_id") REFERENCES "public"."group" ("id")
-        ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT "recipients_campaign_id_campaign_id_fk"
         FOREIGN KEY ("campaign_id") REFERENCES "public"."campaign" ("id")
         ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
-CREATE INDEX "recipients_group_id_idx" ON "recipients" USING btree ("group_id");
 CREATE INDEX "recipients_campaign_id_idx" ON "recipients" USING btree ("campaign_id");
+
+
+-- -----------------------------------------------------------------------------
+-- group_recipient - many-to-many: which recipients are in which groups.
+-- Deleting a group or a recipient removes its memberships.
+-- -----------------------------------------------------------------------------
+CREATE TABLE "group_recipient" (
+    "id"           varchar PRIMARY KEY NOT NULL,                     -- UUID
+    "entity"       varchar DEFAULT 'mail_rocket.group_recipient',
+    "group_id"     varchar NOT NULL,
+    "recipient_id" varchar NOT NULL,
+    "created_at"   timestamp,
+    "updated_at"   timestamp,
+    "description"  varchar,
+    CONSTRAINT "group_recipient_group_id_recipient_id_unique" UNIQUE ("group_id", "recipient_id"),
+    CONSTRAINT "group_recipient_group_id_group_id_fk"
+        FOREIGN KEY ("group_id") REFERENCES "public"."group" ("id")
+        ON DELETE CASCADE ON UPDATE NO ACTION,
+    CONSTRAINT "group_recipient_recipient_id_recipients_id_fk"
+        FOREIGN KEY ("recipient_id") REFERENCES "public"."recipients" ("id")
+        ON DELETE CASCADE ON UPDATE NO ACTION
+);
+
+CREATE INDEX "group_recipient_recipient_id_idx" ON "group_recipient" USING btree ("recipient_id");
 
 
 -- -----------------------------------------------------------------------------

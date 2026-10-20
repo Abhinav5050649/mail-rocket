@@ -113,7 +113,8 @@ export interface Recipient extends BaseFields {
   last_name: string | null;
   normalized_name: string | null;
   email_id: string | null;
-  group_id: string | null;
+  /** Every group the recipient is in (many-to-many). */
+  group_ids: string[];
   campaign_id: string | null;
 }
 

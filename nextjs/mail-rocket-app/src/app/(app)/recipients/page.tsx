@@ -15,7 +15,7 @@ import type { Recipient } from "@/types/resources";
 export default function RecipientsPage() {
   const { limit, offset, setOffset } = usePaginationParams();
   const { data: recipients, isLoading, error, refetch } = useGetRecipientsQuery({ limit, offset });
-  const { groupName } = useGroupNames();
+  const { groupNames } = useGroupNames();
   const { campaignName } = useCampaignNames();
 
   const action = (
@@ -40,12 +40,12 @@ export default function RecipientsPage() {
           columns={[
             { header: "Email", cell: (recipient) => recipient.email_id, className: "w-[32%]" },
             { header: "Name", cell: (recipient) => fullName(recipient) ?? <Dash /> },
-            { header: "Group", cell: (recipient) => groupName(recipient.group_id) ?? <Dash />, className: "hidden text-muted lg:table-cell" },
+            { header: "Groups", cell: (recipient) => groupNames(recipient.group_ids) ?? <Dash />, className: "hidden text-muted lg:table-cell" },
             { header: "Campaign", cell: (recipient) => campaignName(recipient.campaign_id) ?? <Dash />, className: "text-muted" },
           ]}
           mobile={{
             title: (recipient) => recipient.email_id,
-            subtitle: (recipient) => [fullName(recipient), groupName(recipient.group_id)].filter(Boolean).join(" · ") || "No name",
+            subtitle: (recipient) => [fullName(recipient), groupNames(recipient.group_ids)].filter(Boolean).join(" · ") || "No name",
           }}
           empty={<EmptyState title="No recipients yet" action={action}>Add the people a campaign sends to. Put them in a group to send to many at once.</EmptyState>}
         />
