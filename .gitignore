@@ -1,0 +1,8 @@
+# Each app keeps its own .gitignore (apps/api, apps/web); this covers the root.
+node_modules/
+.DS_Store
+*.log
+
+# Scratch output from local design tooling.
+.taste-skill/
+.impeccable/
