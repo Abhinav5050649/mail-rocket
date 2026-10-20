@@ -1,7 +1,5 @@
 /** Barrel export for all HTTP controllers. */
-export * from "./AuthController";
-export * from "./UserController";
-export * from "./OrganizationUserController";
+export * from "./ApiKeyController";
 export * from "./OrganizationController";
 export * from "./AddressController";
 export * from "./ContactDetailsController";

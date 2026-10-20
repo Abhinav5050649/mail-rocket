@@ -9,7 +9,7 @@ description: Use when adding a new endpoint, tracing how a request moves through
 
 [index.ts](../../../index.ts) (repo root, not `src/index.ts`):
 
-1. `await connectDB()` - fails fast on boot if Postgres is unreachable.
+1. `await connectDB()` - fails fast on boot if Postgres is unreachable; then `await bootstrap()` (`src/bootstrap.ts`) seeds the single organization row and, if there are no API keys, mints an admin key and prints it to stdout.
 2. `new Hono()`, then `app.use('*', requestLogger)`, `app.onError(errorHandler)`, `app.route('/', appRoute)`.
 3. Starts the Hono app with `Bun.serve()` unconditionally - the process is a single long-lived server (run directly for local dev, or built with `bun run build` and run in Docker on EC2 for deployment; see the repo README's Deployment section). No Lambda/dual-runtime branching.
 
@@ -22,13 +22,13 @@ Route            Controller                  Service                    Model
 (Hono router) -> (HTTP <-> domain glue)   -> (business logic + db)   -> (drizzle pgTable schema)
 ```
 
-- **Route** (`src/routes/*Route.ts`): thin. Instantiates its service(s) and controller once at module scope, then wires HTTP verb + path to bound controller methods. No logic here.
+- **Route** (`src/routes/*Route.ts`): thin. Instantiates its service(s) and controller once at module scope, then wires HTTP verb + path to a `requireAbility(action, subject)` guard and a bound controller method. No logic here.
   ```ts
-  const userService = new UserService();
-  const userController = new UserController(userService);
-  export const userRoute = new Hono()
-      .post('/', userController.post)
-      .get('/:id', userController.get)
+  const campaignService = new CampaignService();
+  const campaignController = new CampaignController(campaignService);
+  export const campaignRoute = new Hono()
+      .get('/', requireAbility('read', 'Campaign'), campaignController.getAll)
+      .post('/', requireAbility('create', 'Campaign'), campaignController.post)
       ...
   ```
   This module-scope singleton is safe because controller methods are arrow-function class properties (bound `this`), reused across every request in the process.
@@ -45,21 +45,29 @@ Route            Controller                  Service                    Model
 
 - **Model** (`src/models/*Model.ts`): pure drizzle schema (`pgTable`) + inferred TS type. No logic, no queries.
 
-Reference chain for a full example: [src/routes/UserRoute.ts](../../../src/routes/UserRoute.ts) -> [src/controllers/UserController.ts](../../../src/controllers/UserController.ts) -> [src/services/UserService.ts](../../../src/services/UserService.ts) -> [src/models/UserModel.ts](../../../src/models/UserModel.ts).
+Reference chain for a full example: [src/routes/CampaignRoute.ts](../../../src/routes/CampaignRoute.ts) -> [src/controllers/CampaignController.ts](../../../src/controllers/CampaignController.ts) -> [src/services/CampaignService.ts](../../../src/services/CampaignService.ts) -> [src/models/CampaignModel.ts](../../../src/models/CampaignModel.ts).
 
 ## Route nesting / mounting
 
-All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. Nesting mirrors the data model's tenancy:
+All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. `appRoute.use('*', authenticate)` puts every route behind an API key - there are no public routes.
 
-- Most resources are scoped under `/organizations/:organization_id/...` because every table (except `user`) carries `organization_id`.
-- `user` itself is standalone at `/users` (identity is organization-independent) - membership is managed separately at `/organizations/:organization_id/users` (`OrganizationUserRoute`), which manipulates `organization_user` join rows, not `user` rows.
-- Campaign children nest one level deeper: `/organizations/:organization_id/campaigns/:campaign_id/groups` and `.../recipients`, plus a further `/groups/:group_id/recipients`.
+- There's no tenancy, so resources live at the top level: `/campaigns`, `/templates`, `/identities`, ...
+- `/organization` (singular) is the single organization profile: `GET`/`PATCH` only.
+- `/keys` manages API keys; `/me` returns the calling key (the only route with no `requireAbility` - any valid key may read itself).
+- Campaign children nest one level deeper: `/campaigns/:campaign_id/groups` and `.../recipients`, plus a further `/groups/:group_id/recipients`.
 
 When adding a new resource, mount it here rather than inventing a separate app-level route table.
 
+## Authorization
+
+- `authenticate` (`src/middleware/authenticate.ts`) sets `c.get('principal')`: `{ keyId, name, claims, ability }`, where `ability` is the CASL ability built from the key's claims.
+- Every route guards itself with `requireAbility(action, subject)` (`src/middleware/authorize.ts`): `read` for GETs, `create`/`update`/`delete` for writes, on the resource's subject from `SUBJECTS` in `src/libs/abilities.ts`. It returns 403 when the claim is missing.
+- Finer-grained rules a claim can't express live in the controller - e.g. `ApiKeyController` refuses to let a key change its own claims or revoke itself (403), and returns a summary shape from `GET /keys` unless the caller can `create Key`.
+- 401 = no/unknown/expired key; 403 = authenticated but not allowed.
+
 ## Error conventions
 
-- Only throw `HTTPException` from **controllers**, for conditions the caller can act on: `400` missing/invalid input, `404` not found. Use `{ message: "..." }` - the message is what reaches the client verbatim.
+- Only throw `HTTPException` from **controllers** (and the auth middleware), for conditions the caller can act on: `400` missing/invalid input, `401` bad key, `403` not allowed, `404` not found. Use `{ message: "..." }` - the message is what reaches the client verbatim.
 - Anything else that throws (DB errors, bugs) is caught by the global `errorHandler` and turned into a generic `500` - don't pre-empt this with your own try/catch in a controller.
 - Services signal "not found" by returning `null`, not by throwing - the controller is what decides that's a 404.
 
@@ -77,5 +85,6 @@ When adding a new resource, mount it here rather than inventing a separate app-l
 2. Add/extend a `*Service` with the CRUD method(s), following `api-logging`'s pattern.
 3. Add/extend the matching `*Controller` method: validate params, call the service, map `null` -> 404, return `c.json`.
 4. Wire the HTTP verb + path in the resource's `*Route.ts`.
-5. Mount new top-level routes in `src/routes/AppRoute.ts`.
-6. Update `resources/dbml/mail-rocket.dbml` and `resources/openapi/mail-rocket-api.openapi.json` if the shape changed.
+5. Guard each route with `requireAbility(action, subject)`; for a new resource add its subject to `src/libs/abilities.ts` (and the presets).
+6. Mount new top-level routes in `src/routes/AppRoute.ts`.
+7. Update `resources/dbml/mail-rocket.dbml` and `resources/openapi/mail-rocket-api.openapi.json` if the shape changed.

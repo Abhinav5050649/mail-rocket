@@ -19,6 +19,26 @@ bun run build
 bun start
 ```
 
+## Access: API keys
+
+mail-rocket is self-hosted and has no users, passwords or tenants. Every request authenticates with an **API key** (`Authorization: Bearer mr_...` or `x-api-key: mr_...`), and the key is the only principal.
+
+- **First boot:** if the database has no keys, `index.ts` mints an `admin` key and prints it to stdout once. It is not written to the logs and can't be recovered, so store it. The same check runs on every boot, so an instance whose last key was revoked mints a new one on the next restart.
+- **CLI:** `bun run key:create --name ops --preset admin [--expires 2027-01-01]` mints a key without a restart.
+- **API:** `POST /keys` with `{ "name": "...", "preset": "editor" }` or an explicit `claims` list. The secret appears once, in that response. `GET /me` returns the calling key.
+
+What a key may do is decided by its **claims**: a list of CASL `{ action, subject }` grants (`src/libs/abilities.ts`) that every route checks via `requireAbility(action, subject)`. Actions are `read`/`create`/`update`/`delete`. Subjects are `Organization`, `Address`, `ContactDetails`, `Identity`, `Campaign`, `Template`, `Group`, `Recipient` and `Key`. Three presets expand to claim lists:
+
+| Preset | Grants |
+| --- | --- |
+| `viewer` | `read` on every subject |
+| `editor` | viewer + `create`/`update`/`delete` on `Campaign`, `Template`, `Group`, `Recipient` (identities stay read-only) |
+| `admin` | editor + `update Organization`, and `create`/`update`/`delete` on `Identity`, `Address`, `ContactDetails`, `Key` |
+
+A key stores the expanded list, not the preset name, so a custom combination is just a different list. A key can't change its own claims or revoke itself.
+
+- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set by clients (the API returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+
 ## Architecture
 
 The API is a single long-lived [Bun](https://bun.sh) process (not serverless): [Hono](https://hono.dev) serves HTTP via `Bun.serve`, [Drizzle ORM](https://orm.drizzle.team) talks to Postgres, and [BullMQ](https://docs.bullmq.io) (backed by Redis) runs background jobs in the same process as the HTTP server. `index.ts` wires all three up: it connects to the DB, starts the BullMQ workers, then starts the Hono server.
@@ -40,7 +60,9 @@ models/        Drizzle table schemas (source of truth for the DB shape) plus the
 
 A request flows top-to-bottom through these layers and never skips one: `routes/CampaignRoute.ts` → `controllers/CampaignController.ts` → `services/CampaignService.ts` → `models/CampaignModel.ts`. Each layer directory has a barrel `index.ts` that re-exports everything in it, so callers import from `../services`, `../models`, etc. rather than reaching into individual files. Services are plain classes with no framework dependency, instantiated once per process and shared across requests (routes construct one `XService`/`XController` pair at module load and bind it into the route table - see the top of any `*Route.ts` file).
 
-`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), JWT signing/verification (`jwt.ts`), password hashing via `Bun.password` (`password.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
+`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), CASL claims, presets and ability construction (`abilities.ts`), API-key generation/hashing and the `/keys` request schemas (`apiKeys.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
+
+`src/bootstrap.ts` runs once at boot, after `connectDB()`. It seeds the single `organization` row and mints the first admin key (see "Access: API keys" above). `src/cli/createKey.ts` backs `bun run key:create`.
 
 ### Request lifecycle
 
@@ -48,19 +70,17 @@ A request flows top-to-bottom through these layers and never skips one: `routes/
 
 1. `requestLogger` - logs method/path/duration for every request.
 2. `jsonOnly` - rejects POST/PUT/PATCH requests that aren't `application/json` before any controller tries to parse a body.
-3. Routing into `appRoute`, which splits into two Hono sub-apps mounted at `/`:
-   - `publicRoute` - just `/auth` (signup/signin - the only way to get a token).
-   - `protectedRoute` - everything else, gated by `authenticate` (verifies the `Authorization: Bearer <jwt>` header and sets `userId` on the context) applied to the whole sub-app before any of its routes are added.
-4. Per-route middleware - most protected routes additionally apply `requireRole(minRole)` (checks the caller's `organization_user.role` for the `:organization_id` in the path meets a minimum of `viewer`/`editor`/`admin`) or `requireSelf` (restricts `/users/:id` self-service endpoints to the caller's own id).
+3. Routing into `appRoute`, which applies `authenticate` to every route. There are no public routes. `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
+4. Per-route middleware - every route except `/me` applies `requireAbility(action, subject)`, which returns 403 unless the key's ability grants that action on that subject.
 5. The matched controller method runs, calls into a service, and returns JSON.
 
 Anything thrown along the way - an `HTTPException` from a controller, a `ValidationError` from a service, or an unexpected error - is caught by the global `errorHandler` (`app.onError`, registered in `index.ts`) and turned into a consistent `{ error: string }` JSON response with an appropriate status code (500 for anything unrecognized, so internals never leak to the client).
 
-### Domain model & multi-tenancy
+### Domain model
 
-Nearly every table is scoped to an `organization`, and the route table nests resources under `/organizations/:organization_id/...` accordingly (see `routes/AppRoute.ts`). `user` is the one exception: a user can belong to many organizations, so membership - and the `viewer`/`editor`/`admin` role it carries - lives on the `organization_user` join table rather than on `user` or `organization` directly. That's what `requireRole` checks on every write/read to a nested resource.
+One instance serves one organization, so there's no tenancy and resources live at the top level (`/campaigns`, `/templates`, ...; see `routes/AppRoute.ts`). `organization` is a single row: the profile of whoever runs the instance. It's seeded at boot, read and updated via `/organization`, and never created or deleted over the API. `address` and `contact_details` link to it as the organization's own postal/contact details. Nothing else carries an `organization_id`. `api_key` is the principal and has no relation to any other table.
 
-Within an organization: `address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`recipient` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
+`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`recipient` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
 
 ### Background jobs (`src/queues/`)
 

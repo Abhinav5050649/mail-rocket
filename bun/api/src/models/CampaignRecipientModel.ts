@@ -1,5 +1,4 @@
 import { pgTable, pgEnum, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
 import { campaignTable } from "./CampaignModel";
 import { recipientsTable } from "./RecipientModel";
 
@@ -30,8 +29,6 @@ export const campaignRecipientTable = pgTable("campaign_recipient", {
     send_status: campaignRecipientSendStatusEnum("send_status").default("pending"),
     /** When the send to this recipient succeeded. */
     sent_at: timestamp("sent_at"),
-    /** ID of organization the campaign belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */

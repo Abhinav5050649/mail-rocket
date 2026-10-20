@@ -8,7 +8,6 @@ export interface CreateContactDetailsInput {
     country_code?: string;
     phone_number?: string;
     organization_id?: string;
-    user_id?: string;
     description?: string;
 }
 
@@ -79,34 +78,6 @@ export class ContactDetailsService {
             return contactDetails;
         } catch (error) {
             logger.error({ err: error, contactDetailsId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get contact details`);
-            throw error;
-        }
-    }
-
-    /**
-     * Lists every contact_details row belonging to a given user, ordered by `id` ascending.
-     *
-     * @param userId - id of the user.
-     * @param options.limit - max number of rows to return.
-     * @param options.offset - number of rows to skip before returning results.
-     * @returns Array of matching contact_details rows (empty if none exist).
-     * @throws Re-throws any error from the underlying query, after logging it.
-     */
-    async getByUser(userId: string, options?: PaginationOptions) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByUser.name}`);
-        logger.debug({ userId, options }, `Request:`);
-
-        try {
-            const contactDetails = await db.select().from(contactDetailsTable).where(eq(contactDetailsTable.user_id, userId)).orderBy(asc(contactDetailsTable.id))
-                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
-                .offset(options?.offset ?? 0);
-
-            logger.debug({ userId, count: contactDetails.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
-
-            return contactDetails;
-        } catch (error) {
-            logger.error({ err: error, userId, options }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get contact details for user`);
             throw error;
         }
     }

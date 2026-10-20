@@ -4,11 +4,11 @@ Instructions for Claude Code working in this directory. Tool-agnostic instructio
 
 ## Overview
 
-mail-rocket's backend: a single long-lived [Bun](https://bun.sh) process that serves HTTP with [Hono](https://hono.dev) and runs background jobs with [BullMQ](https://docs.bullmq.io) (Redis-backed) side by side, talking to a self-hosted Postgres via [Drizzle ORM](https://orm.drizzle.team). It's a multi-tenant email campaign API - organizations manage SES sending identities, templates, recipient groups, and campaigns.
+mail-rocket's backend: a single long-lived [Bun](https://bun.sh) process that serves HTTP with [Hono](https://hono.dev) and runs background jobs with [BullMQ](https://docs.bullmq.io) (Redis-backed) side by side, talking to a self-hosted Postgres via [Drizzle ORM](https://orm.drizzle.team). It's a self-hosted, single-organization email campaign API (SES sending identities, templates, recipient groups, campaigns). There are no users, passwords or tenants: every request authenticates with an API key whose CASL claims decide what it may do (see README's "Access: API keys").
 
 **Do not re-derive architecture from scratch or duplicate it here.** The authoritative docs are:
 
-- [README.md](README.md) - setup, commands, and the full "Architecture" section (layering, request lifecycle, multi-tenancy, background job pipelines, database, deployment).
+- [README.md](README.md) - setup, commands, and the full "Architecture" section (API keys, layering, request lifecycle, domain model, background job pipelines, database, deployment).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - the same flows as diagrams (system overview, request flow, auth, data model, identity verification, campaign send pipeline).
 - [requirements.md](requirements.md) - AWS IAM permissions and trust relationships the SES integration needs.
 

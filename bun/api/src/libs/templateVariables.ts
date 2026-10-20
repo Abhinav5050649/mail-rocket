@@ -26,15 +26,9 @@ export interface TemplateVariableContext {
         name: string | null;
         start_time: Date | null;
     };
-    /** The organization running the campaign. */
+    /** The organization running this instance (its single `organization` row). */
     organization: {
         name: string | null;
-    } | null;
-    /** The user who organized the campaign, if it has one. */
-    organizer: {
-        first_name: string | null;
-        last_name: string | null;
-        email: string | null;
     } | null;
     /** The SES sending identity the campaign sends from. */
     sender: {
@@ -65,10 +59,6 @@ export const TEMPLATE_VARIABLES: Record<string, VariableResolver> = {
     campaign_name: (ctx) => ctx.campaign.name,
     campaign_start_date: (ctx) => ctx.campaign.start_time?.toLocaleDateString() ?? null,
     organization_name: (ctx) => ctx.organization?.name,
-    organizer_first_name: (ctx) => ctx.organizer?.first_name,
-    organizer_last_name: (ctx) => ctx.organizer?.last_name,
-    organizer_full_name: (ctx) => ctx.organizer ? joinName(ctx.organizer.first_name, ctx.organizer.last_name) : null,
-    organizer_email: (ctx) => ctx.organizer?.email,
     sender_email: (ctx) => ctx.sender.email,
 };
 

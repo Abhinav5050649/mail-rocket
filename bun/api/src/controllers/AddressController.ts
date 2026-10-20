@@ -1,40 +1,50 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../libs";
-import { AddressService } from "../services";
+import { AddressService, OrganizationService } from "../services";
 
 /**
  * HTTP layer for address-related endpoints. Translates Hono `Context`
  * objects into `AddressService` calls and maps the results to HTTP
- * responses/errors. Addresses are nested under an organization:
- * `/organizations/:organization_id/addresses`.
+ * responses/errors. Addresses live at `/addresses` and always
+ * belong to the instance's single organization.
  */
 export class AddressController {
-    constructor(private addressService: AddressService) {
+    constructor(private addressService: AddressService, private organizationService: OrganizationService) {
     }
 
     /**
-     * GET /organizations/:organization_id/addresses
-     * Lists addresses belonging to an organization.
+     * Resolves the id of the instance's single organization, which every
+     * address row is linked to.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts an optional `user_id` query param to scope the list to
-     * a single user, an optional `is_primary` query param to filter by the
+     * @returns The organization's id.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded (boot didn't complete).
+     */
+    private organizationId = async () => {
+        const organization = await this.organizationService.get();
+
+        if (!organization) {
+            throw new HTTPException(404, { message: "Organization not found" });
+        }
+
+        return organization.id;
+    }
+
+    /**
+     * GET /addresses
+     * Lists addresses belonging to the organization.
+     *
+     * @param c - Hono request context; accepts an optional `is_primary` query param to filter by the
      * primary-address flag, and optional `limit` (max rows to return) and
      * `offset` (rows to skip before returning results) query params.
      * @returns JSON array of addresses.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
 
-        const organizationId = c.req.param('organization_id');
+        const organizationId = await this.organizationId();
 
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
-        const userId = c.req.query('user_id');
         const isPrimaryParam = c.req.query('is_primary');
         const isPrimary = isPrimaryParam === undefined ? undefined : isPrimaryParam === 'true';
         const limitParam = c.req.query('limit');
@@ -42,11 +52,9 @@ export class AddressController {
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, userId, isPrimary, limit, offset }, `Request:`);
+        logger.debug({ organizationId, isPrimary, limit, offset }, `Request:`);
 
-        const addresses = userId
-            ? await this.addressService.getByUser(userId, { limit, offset })
-            : await this.addressService.getByOrganization(organizationId, { isPrimary, limit, offset });
+        const addresses = await this.addressService.getByOrganization(organizationId, { isPrimary, limit, offset });
 
         logger.debug({ organizationId, count: addresses.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
@@ -55,22 +63,17 @@ export class AddressController {
     }
 
     /**
-     * POST /organizations/:organization_id/addresses
-     * Creates a new address within an organization.
+     * POST /addresses
+     * Creates a new address.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the address fields.
+     * @param c - Hono request context; expects a JSON body with the address fields.
      * @returns JSON response with the created address.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
+        const organizationId = await this.organizationId();
 
         const body = await c.req.json();
 
@@ -85,7 +88,7 @@ export class AddressController {
     }
 
     /**
-     * GET /organizations/:organization_id/addresses/:address_id
+     * GET /addresses/:address_id
      * Fetches a single address by id.
      *
      * @param c - Hono request context; expects an `address_id` route param.
@@ -118,7 +121,7 @@ export class AddressController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/addresses/:address_id
+     * PATCH /addresses/:address_id
      * Partially updates an address.
      *
      * @param c - Hono request context; expects an `address_id` route param
@@ -154,7 +157,7 @@ export class AddressController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/addresses/:address_id
+     * DELETE /addresses/:address_id
      * Deletes an address.
      *
      * @param c - Hono request context; expects an `address_id` route param.

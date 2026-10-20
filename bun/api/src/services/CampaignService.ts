@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { campaignTable, type CampaignStatus } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
@@ -16,9 +16,7 @@ export interface CreateCampaignInput {
     subject?: string;
     logo_key?: string;
     logo_bucket?: string;
-    organization_id?: string;
     start_time?: Date;
-    organizer_id?: string;
     normalized_name?: string;
     description?: string;
     status?: CampaignStatus;
@@ -36,7 +34,7 @@ export interface UpdateCampaignInput {
     description?: string;
     status?: CampaignStatus;
     identity_id?: string;
-    send_failure_reason?: string;
+    failure_reason?: string;
 }
 
 /**
@@ -115,33 +113,32 @@ export class CampaignService {
     }
 
     /**
-     * Lists every campaign belonging to a given organization, ordered by `id` ascending.
+     * Lists every campaign, ordered by `id` ascending.
      *
-     * @param organizationId - id of the organization.
      * @param options.status - optional filter on the `status` column.
      * @param options.limit - max number of rows to return.
      * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching campaign rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, options?: PaginationOptions & { status?: CampaignStatus }) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
-        logger.debug({ organizationId, options }, `Request:`);
+    async getAll(options?: PaginationOptions & { status?: CampaignStatus }) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+        logger.debug({ options }, `Request:`);
 
         try {
-            const conditions = [eq(campaignTable.organization_id, organizationId)];
+            const conditions: SQL[] = [];
             if (options?.status !== undefined) conditions.push(eq(campaignTable.status, options.status));
 
             const campaigns = await db.select().from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
-            logger.debug({ organizationId, count: campaigns.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
+            logger.debug({ count: campaigns.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
             return campaigns;
         } catch (error) {
-            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get campaigns for organization`);
+            logger.error({ err: error, options }, `Exception in ${this.constructor.name}.${this.getAll.name}: Failed to get campaigns`);
             throw error;
         }
     }

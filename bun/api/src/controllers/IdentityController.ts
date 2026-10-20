@@ -1,38 +1,29 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { assertNoSystemFields, logger } from "../libs";
 import { IdentityService } from "../services";
 import type { IdentityType, IdentityStatus } from "../models";
 
 /**
  * HTTP layer for identity-related endpoints. Translates Hono `Context`
  * objects into `IdentityService` calls and maps the results to HTTP
- * responses/errors. Identities are nested under an organization:
- * `/organizations/:organization_id/identities`.
+ * responses/errors. Identities live at `/identities`.
  */
 export class IdentityController {
     constructor(private identityService: IdentityService) {
     }
 
     /**
-     * GET /organizations/:organization_id/identities
-     * Lists identities belonging to an organization.
+     * GET /identities
+     * Lists all identities.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `type` and `status` filters, and optional
+     * @param c - Hono request context; accepts optional `type` and `status` filters, and optional
      * `limit` (max rows to return) and `offset` (rows to skip before
      * returning results) query params.
      * @returns JSON array of identities.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
-
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
 
         const type = c.req.query('type') as IdentityType | undefined;
         const status = c.req.query('status') as IdentityStatus | undefined;
@@ -41,48 +32,42 @@ export class IdentityController {
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, type, status, limit, offset }, `Request:`);
+        logger.debug({ type, status, limit, offset }, `Request:`);
 
-        const identities = await this.identityService.getByOrganization(organizationId, { type, status, limit, offset });
+        const identities = await this.identityService.getAll({ type, status, limit, offset });
 
-        logger.debug({ organizationId, count: identities.length }, `Response:`);
+        logger.debug({ count: identities.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(identities);
     }
 
     /**
-     * POST /organizations/:organization_id/identities
-     * Creates a new identity within an organization.
+     * POST /identities
+     * Creates a new identity.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the identity fields.
+     * @param c - Hono request context; expects a JSON body with the identity fields.
      * @returns JSON response with the created identity.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {ValidationError} 400 if the body sets `status` or `verification_records`.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
         const body = await c.req.json();
+        assertNoSystemFields(body, ["status", "verification_records"], "An identity becomes active once AWS SES verifies it.");
 
-        logger.debug({ organizationId, body }, `Request:`);
+        logger.debug({ body }, `Request:`);
 
-        const identity = await this.identityService.create({ ...body, organization_id: organizationId });
+        const identity = await this.identityService.create(body);
 
-        logger.debug({ organizationId, identity }, `Response:`);
+        logger.debug({ identity }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(identity, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/identities/:identity_id
+     * GET /identities/:identity_id
      * Fetches a single identity by id.
      *
      * @param c - Hono request context; expects an `identity_id` route param.
@@ -115,13 +100,14 @@ export class IdentityController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/identities/:identity_id
+     * PATCH /identities/:identity_id
      * Partially updates an identity.
      *
      * @param c - Hono request context; expects an `identity_id` route
      * param and a JSON body with the fields to update.
      * @returns JSON response with the updated identity.
      * @throws {HTTPException} 400 if the `identity_id` param is missing.
+     * @throws {ValidationError} 400 if the body sets anything but `description`.
      * @throws {HTTPException} 404 if no identity matches the given id.
      */
     update = async (c: Context) => {
@@ -134,6 +120,8 @@ export class IdentityController {
         }
 
         const body = await c.req.json();
+        // Only `description` is editable: changing `type`/`identity` would keep an "active" status for an address SES never verified.
+        assertNoSystemFields(body, ["status", "verification_records", "type", "identity"], "Create a new identity to send from a different address; only description can be updated.");
 
         logger.debug({ identityId, body }, `Request:`);
 
@@ -151,7 +139,7 @@ export class IdentityController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/identities/:identity_id
+     * DELETE /identities/:identity_id
      * Deletes an identity.
      *
      * @param c - Hono request context; expects an `identity_id` route param.

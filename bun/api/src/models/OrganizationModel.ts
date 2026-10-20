@@ -1,8 +1,12 @@
 import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 
 /**
- * Drizzle schema for `organization`: a tenant in Mail Rocket. Every other
- * table scopes its rows to one organization.
+ * Drizzle schema for `organization`: the profile of the organization that
+ * runs this self-hosted instance. There is exactly one row - seeded at boot
+ * by `bootstrap()` and only ever updated afterwards - so it is not a tenant
+ * boundary: nothing else is scoped by it. `address` and `contact_details`
+ * reference it as the organization's own postal/contact details, and
+ * campaigns read its `name` for the `{{organization_name}}` variable.
  *
  * `id`, `created_at`, and `updated_at` have no DB-side default - the
  * migration SQL doesn't define one, so Drizzle generates them client-side

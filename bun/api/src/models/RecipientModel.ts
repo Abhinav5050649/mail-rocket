@@ -1,5 +1,4 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
 import { campaignTable } from "./CampaignModel";
 import { groupTable } from "./GroupModel";
 
@@ -25,13 +24,10 @@ export const recipientsTable = pgTable("recipients", {
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */
     description: varchar("description"),
-    /** ID of organization the recipient belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
 }, (table) => [
-    // Backs `getByGroup`, `getByCampaign`, and `getByOrganization`.
+    // Backs `getByGroup` and `getByCampaign`.
     index("recipients_group_id_idx").on(table.group_id),
     index("recipients_campaign_id_idx").on(table.campaign_id),
-    index("recipients_organization_id_idx").on(table.organization_id),
 ]);
 
 /** TS type for a recipient row, inferred directly from the table schema above. */

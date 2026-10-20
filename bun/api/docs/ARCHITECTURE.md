@@ -32,7 +32,7 @@ flowchart LR
     Redis[("Redis<br/>BullMQ job store")]
     SES[["AWS SES"]]
 
-    Client -- "HTTPS / JSON, Bearer JWT" --> API
+    Client -- "HTTPS / JSON, Bearer API key" --> API
     API -- "drizzle queries" --> PG
     API -- "enqueue jobs" --> Redis
     Redis -- "deliver jobs" --> W1
@@ -57,16 +57,16 @@ Every endpoint follows the same four-layer chain: routes are thin wiring, contro
 ```mermaid
 sequenceDiagram
     participant C as Client
-    participant MW as authenticate / requireRole
+    participant MW as authenticate / requireAbility
     participant Rt as Route (Hono)
     participant Ctl as Controller
     participant Svc as Service
     participant DB as Postgres (Drizzle)
 
-    C->>MW: Request with Authorization: Bearer JWT
-    MW->>MW: verifyAuthToken(token) -> userId
-    MW->>MW: requireRole(minRole) via organization_user
-    alt token missing/invalid or role too low
+    C->>MW: Request with Authorization: Bearer API key
+    MW->>MW: api_key by sha256(key) -> claims -> CASL ability
+    MW->>MW: requireAbility(action, subject)
+    alt key missing/invalid/expired or claim not granted
         MW-->>C: 401 / 403 HTTPException
     else authorized
         MW->>Rt: next()
@@ -93,52 +93,52 @@ sequenceDiagram
 
 ## 3. Auth & access
 
-`/auth` is the only route group that skips authentication. Everything else sits behind two independent checks: who you are, then what you're allowed to do in *this* organization.
+There are no users, no passwords and no public routes. An API key is the only principal, and its CASL claims are the only authority.
 
 ```mermaid
 sequenceDiagram
+    participant Op as Operator
+    participant Boot as bootstrap()
     participant C as Client
-    participant Auth as AuthController/Service
+    participant Auth as authenticate
+    participant Ab as requireAbility
     participant DB as Postgres
-    participant Prot as protectedRoute
-    participant Role as requireRole check
 
     rect rgba(15,110,99,0.08)
-    Note over C,DB: Public - /auth (no token required)
-    C->>Auth: POST /auth/signin (email, password)
-    Auth->>DB: select user by email
-    Auth->>Auth: compare bcrypt hash
-    Auth-->>C: 200 with token
+    Note over Op,DB: First boot (and any boot with zero keys)
+    Boot->>DB: any api_key rows?
+    DB-->>Boot: none
+    Boot->>DB: insert admin key (sha256 hash, claims)
+    Boot-->>Op: secret printed to stdout once
     end
 
     rect rgba(194,65,12,0.08)
-    Note over C,Role: Protected - everything else
-    C->>Prot: GET /organizations/ORG_ID/campaigns, Bearer token
-    Prot->>Prot: authenticate sets userId on context
-    Prot->>Role: requireRole('editor')
-    Role->>DB: getByOrganizationAndUser(orgId, userId)
-    DB-->>Role: organization_user row (role)
-    Role->>Role: rank(role) at least rank('editor') ?
-    Role-->>Prot: next() or 403 Forbidden
+    Note over C,DB: Every request
+    C->>Auth: GET /campaigns, Bearer mr_...
+    Auth->>DB: select api_key where key_hash = sha256(key)
+    DB-->>Auth: row (claims, expires_at)
+    Auth->>Auth: reject unknown/expired (401), parse claims, build CASL ability
+    Auth->>Ab: next()
+    Ab->>Ab: ability.can('read', 'Campaign') ?
+    Ab-->>C: next() or 403 Forbidden
     end
 ```
 
 **Notes**
 
-- Role lives on the join row, not the user: `organization_user.role` (`viewer` < `editor` < `admin`) is per-membership — the same person can be `admin` in one organization and `viewer` in another.
-- `.use('*', authenticate)` is attached to `protectedRoute` before any `.route(...)` is mounted on it, since a matched handler never falls through to middleware registered after it.
-- `requireSelf` guards `/users/:id` profile edits by comparing the route param to `c.get('userId')` — no organization membership needed to edit your own record.
+- Claims are closed `{ action, subject }` pairs. CASL's `manage`/`all` wildcards, conditions, field grants and inverted rules are rejected by `claimsSchema`, and every stored list is re-validated on each request. `viewer`/`editor`/`admin` are presets that expand to a list at write time. The preset name itself is never stored.
+- Authentication is one indexed lookup with no join. The secret is never stored, only its SHA-256 hash and a short display `prefix`.
+- Two self-guards in `ApiKeyController`: a key can't change its own claims or revoke itself. Revocation is a real delete.
+- A zero-key boot always mints an admin key, so "can restart the process" means "can get an admin key". On a self-hosted instance that's the operator. `bun run key:create` is the no-restart alternative.
 
 ## 4. Data model
 
-`organization` is the tenant root. Nearly every table carries `organization_id`; the one exception is `user`, which is many-to-many with `organization` through the `organization_user` join row — which is also where the per-organization `role` lives.
+There's no tenant root. `organization` is the instance's single profile row, and only `address` and `contact_details` reference it. `api_key` stands alone: it's the principal, and resources carry no reference to the key that created them.
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ ORGANIZATION_USER : membership
-    USER ||--o{ ORGANIZATION_USER : "belongs via"
-    ORGANIZATION ||--o{ IDENTITY : owns
-    ORGANIZATION ||--o{ CAMPAIGN : runs
+    ORGANIZATION ||--o{ ADDRESS : "postal details"
+    ORGANIZATION ||--o{ CONTACT_DETAILS : "contact details"
     IDENTITY ||--o{ CAMPAIGN : "sends as (From)"
     CAMPAIGN ||--o{ TEMPLATE : revisions
     CAMPAIGN ||--o{ GROUP : "recipient lists"
@@ -147,15 +147,16 @@ erDiagram
     CAMPAIGN ||--o{ CAMPAIGN_RECIPIENT : "one send"
     RECIPIENTS ||--o{ CAMPAIGN_RECIPIENT : "per-send outcome"
 
-    ORGANIZATION_USER {
-        enum role "viewer, editor, admin"
+    API_KEY {
+        jsonb claims "CASL action/subject pairs"
+        varchar key_hash "sha256, unique"
     }
     IDENTITY {
         enum type "domain, email"
         enum status "created, pending, active"
     }
     CAMPAIGN {
-        enum status "draft, scheduled, sending, sent, send_failed"
+        enum status "draft, scheduled, sending, sent, failed"
     }
     CAMPAIGN_RECIPIENT {
         enum send_status "pending, sent, failed"
@@ -234,7 +235,7 @@ flowchart TD
 
     H --> I{"any recipient<br/>send_status = sent ?"}
     I -- yes --> J["campaign.status = sent"]
-    I -- no --> K["campaign.status = send_failed"]
+    I -- no --> K["campaign.status = failed"]
 ```
 
 **Notes**
@@ -243,5 +244,5 @@ flowchart TD
 - A stuck chunk can't block the campaign: chunk jobs carry `ignoreDependencyOnFailure`, so a chunk that exhausts all 5 retries still lets the finalize parent run rather than hanging the whole send.
 - Chunk jobs re-fetch everything fresh: `sendChunk` re-reads the campaign, identity, and template by id rather than trusting the job payload, and skips recipients already marked `sent`, so a BullMQ retry of a partially-sent chunk is safe.
 - Subject/body support `{{variable_name}}` placeholders (recipient name, organization, group, etc.), resolved per recipient - see [TEMPLATE_VARIABLES.md](TEMPLATE_VARIABLES.md). A recipient with an unresolved placeholder is marked `failed` and skipped rather than sent broken content.
-- Partial delivery isn't total failure: `finalizeCampaign` only marks `send_failed` when *zero* recipients succeeded — routine per-recipient bounces don't flip the whole campaign's status; `campaign_recipient.send_status` is the accurate per-recipient record.
+- Partial delivery isn't total failure: `finalizeCampaign` only marks `failed` when *zero* recipients succeeded — routine per-recipient bounces don't flip the whole campaign's status; `campaign_recipient.send_status` is the accurate per-recipient record.
 - Queue-orchestration stays out of the service layer: `CampaignWorkers.ts` owns the `FlowProducer` wiring; `SendCampaignService` never imports from `src/queues/`, so it stays callable and testable independent of BullMQ.

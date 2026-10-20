@@ -1,5 +1,4 @@
-import { pgTable, pgEnum, varchar, timestamp, index, jsonb } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
+import { pgTable, pgEnum, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
 
 /** Kind of sending identity: a whole domain or a single email address. */
 export const identityTypeEnum = pgEnum("identity_type", ["domain", "email"]);
@@ -20,7 +19,7 @@ export interface IdentityVerificationRecord {
     value: string;
 }
 
-/** Drizzle schema for `identity`: a domain or email address an organization sends from. */
+/** Drizzle schema for `identity`: a domain or email address campaigns send from. */
 export const identityTable = pgTable("identity", {
     /** UUID to uniquely identify identity. */
     id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -30,8 +29,6 @@ export const identityTable = pgTable("identity", {
     type: identityTypeEnum("type").notNull(),
     /** The domain name or email address being identified. */
     identity: varchar("identity").notNull(),
-    /** ID of organization the identity belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
     /** Lifecycle status of the identity. */
     status: identityStatusEnum("status").default("pending"),
     /** DNS records (TXT + DKIM CNAMEs) SES returned for a domain identity; null for email identities. */
@@ -40,10 +37,7 @@ export const identityTable = pgTable("identity", {
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */
     description: varchar("description"),
-}, (table) => [
-    // Backs `getByOrganization`, which filters on organization_id.
-    index("identity_organization_id_idx").on(table.organization_id),
-]);
+});
 
 /** TS type for an identity row, inferred directly from the table schema above. */
 export type IIdentity = typeof identityTable.$inferSelect;

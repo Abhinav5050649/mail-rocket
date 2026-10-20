@@ -7,11 +7,11 @@ describe("GroupController", () => {
     let groupService: GroupService;
     let controller: GroupController;
 
-    const group = { id: "group-1", organization_id: "org-1", campaign_id: "campaign-1", name: "VIP" };
+    const group = { id: "group-1", campaign_id: "campaign-1", name: "VIP" };
 
     beforeEach(() => {
         groupService = {
-            getByOrganization: mock(async () => [group]),
+            getAll: mock(async () => [group]),
             create: mock(async () => group),
             getByCampaign: mock(async () => [group]),
             getById: mock(async () => group),
@@ -23,29 +23,19 @@ describe("GroupController", () => {
     });
 
     describe("getAll", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {} });
-            await expectHttpException(controller.getAll(ctx), 400, "organizationId");
-        });
-
-        it("lists groups for the organization", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, query: { limit: "10", offset: "0" } });
+        it("lists groups", async () => {
+            const ctx = createMockContext({ query: { limit: "10", offset: "0" } });
             const result: any = await controller.getAll(ctx);
-            expect(groupService.getByOrganization).toHaveBeenCalledWith("org-1", { limit: 10, offset: 0 });
+            expect(groupService.getAll).toHaveBeenCalledWith({ limit: 10, offset: 0 });
             expect(result.body).toEqual([group]);
         });
     });
 
     describe("post", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {}, body: {} });
-            await expectHttpException(controller.post(ctx), 400, "organizationId");
-        });
-
-        it("creates a group scoped to the organization", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: { name: "VIP" } });
+        it("creates a group", async () => {
+            const ctx = createMockContext({ body: { name: "VIP" } });
             const result: any = await controller.post(ctx);
-            expect(groupService.create).toHaveBeenCalledWith({ name: "VIP", organization_id: "org-1" });
+            expect(groupService.create).toHaveBeenCalledWith({ name: "VIP" });
             expect(result.status).toBe(201);
             expect(result.body).toEqual(group);
         });
@@ -67,14 +57,14 @@ describe("GroupController", () => {
 
     describe("postByCampaign", () => {
         it("400s when a route param is missing", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: {} });
+            const ctx = createMockContext({ body: {} });
             await expectHttpException(controller.postByCampaign(ctx), 400, "campaignId");
         });
 
-        it("creates a group scoped to the organization and campaign", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1", campaign_id: "campaign-1" }, body: { name: "VIP" } });
+        it("creates a group scoped to the campaign", async () => {
+            const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body: { name: "VIP" } });
             const result: any = await controller.postByCampaign(ctx);
-            expect(groupService.create).toHaveBeenCalledWith({ name: "VIP", organization_id: "org-1", campaign_id: "campaign-1" });
+            expect(groupService.create).toHaveBeenCalledWith({ name: "VIP", campaign_id: "campaign-1" });
             expect(result.status).toBe(201);
         });
     });

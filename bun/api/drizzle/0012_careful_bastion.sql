@@ -1,1 +1,0 @@
-ALTER TYPE "public"."organization_user_role" ADD VALUE 'owner';

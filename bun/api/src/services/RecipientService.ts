@@ -10,7 +10,6 @@ export interface CreateRecipientInput {
     email_id?: string;
     group_id?: string;
     campaign_id?: string;
-    organization_id?: string;
     description?: string;
 }
 
@@ -115,29 +114,28 @@ export class RecipientService {
     }
 
     /**
-     * Lists every recipient belonging to a given organization, ordered by `id` ascending.
+     * Lists every recipient, ordered by `id` ascending.
      *
-     * @param organizationId - id of the organization.
      * @param options.limit - max number of rows to return.
      * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching recipient rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
-        logger.debug({ organizationId, options }, `Request:`);
+    async getAll(options?: PaginationOptions) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+        logger.debug({ options }, `Request:`);
 
         try {
-            const recipients = await db.select().from(recipientsTable).where(eq(recipientsTable.organization_id, organizationId)).orderBy(asc(recipientsTable.id))
+            const recipients = await db.select().from(recipientsTable).orderBy(asc(recipientsTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
-            logger.debug({ organizationId, count: recipients.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
+            logger.debug({ count: recipients.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
             return recipients;
         } catch (error) {
-            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get recipients for organization`);
+            logger.error({ err: error, options }, `Exception in ${this.constructor.name}.${this.getAll.name}: Failed to get recipients`);
             throw error;
         }
     }

@@ -11,3 +11,4 @@ export * from "./models";
 export * from "./queues";
 export * from "./routes";
 export * from "./services";
+export * from "./bootstrap";

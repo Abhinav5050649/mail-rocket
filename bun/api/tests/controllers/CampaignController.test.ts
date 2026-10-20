@@ -1,17 +1,18 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { CampaignController } from "../../src/controllers";
 import type { CampaignService } from "../../src/services";
+import { ValidationError } from "../../src/libs";
 import { createMockContext, expectHttpException } from "../helpers/mockContext";
 
 describe("CampaignController", () => {
     let campaignService: CampaignService;
     let controller: CampaignController;
 
-    const campaign = { id: "campaign-1", organization_id: "org-1", name: "Launch", status: "draft", start_time: null };
+    const campaign = { id: "campaign-1", name: "Launch", status: "draft", start_time: null };
 
     beforeEach(() => {
         campaignService = {
-            getByOrganization: mock(async () => [campaign]),
+            getAll: mock(async () => [campaign]),
             create: mock(async () => campaign),
             getById: mock(async () => campaign),
             update: mock(async () => campaign),
@@ -22,37 +23,34 @@ describe("CampaignController", () => {
     });
 
     describe("getAll", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {} });
-            await expectHttpException(controller.getAll(ctx), 400, "organizationId");
-        });
-
         it("passes the status filter and pagination through to the service", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, query: { status: "scheduled", limit: "5", offset: "0" } });
+            const ctx = createMockContext({ query: { status: "scheduled", limit: "5", offset: "0" } });
             const result: any = await controller.getAll(ctx);
 
-            expect(campaignService.getByOrganization).toHaveBeenCalledWith("org-1", { status: "scheduled", limit: 5, offset: 0 });
+            expect(campaignService.getAll).toHaveBeenCalledWith({ status: "scheduled", limit: 5, offset: 0 });
             expect(result.body).toEqual([campaign]);
         });
     });
 
     describe("post", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {}, body: {} });
-            await expectHttpException(controller.post(ctx), 400, "organizationId");
+        it("400s when the body sets status, which the send pipeline owns", async () => {
+            const ctx = createMockContext({ body: { name: "Launch", status: "scheduled" } });
+            await expect(controller.post(ctx)).rejects.toThrow(ValidationError);
+            await expect(controller.post(createMockContext({ body: { status: "scheduled" } }))).rejects.toThrow("start_time");
+            expect(campaignService.create).not.toHaveBeenCalled();
         });
 
-        it("creates a campaign scoped to the organization", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: { name: "Launch" } });
+        it("creates a campaign", async () => {
+            const ctx = createMockContext({ body: { name: "Launch" } });
             const result: any = await controller.post(ctx);
 
-            expect(campaignService.create).toHaveBeenCalledWith({ name: "Launch", organization_id: "org-1" });
+            expect(campaignService.create).toHaveBeenCalledWith({ name: "Launch" });
             expect(result.status).toBe(201);
             expect(result.body).toEqual(campaign);
         });
 
         it("coerces a valid start_time string into a Date before creating", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: { name: "Launch", start_time: "2026-09-01T12:00:00.000Z" } });
+            const ctx = createMockContext({ body: { name: "Launch", start_time: "2026-09-01T12:00:00.000Z" } });
             await controller.post(ctx);
 
             const createArg = (campaignService.create as any).mock.calls[0][0];
@@ -61,7 +59,7 @@ describe("CampaignController", () => {
         });
 
         it("400s when start_time is not a valid date string", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: { name: "Launch", start_time: "not-a-date" } });
+            const ctx = createMockContext({ body: { name: "Launch", start_time: "not-a-date" } });
             await expectHttpException(controller.post(ctx), 400, "Invalid start_time");
         });
     });
@@ -87,6 +85,14 @@ describe("CampaignController", () => {
     });
 
     describe("update", () => {
+        it("400s when the body sets status or failure_reason", async () => {
+            for (const body of [{ status: "sent" }, { failure_reason: "x" }]) {
+                const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body });
+                await expect(controller.update(ctx)).rejects.toThrow(ValidationError);
+            }
+            expect(campaignService.update).not.toHaveBeenCalled();
+        });
+
         it("400s when the campaign_id param is missing", async () => {
             const ctx = createMockContext({ params: {}, body: {} });
             await expectHttpException(controller.update(ctx), 400, "campaignId");

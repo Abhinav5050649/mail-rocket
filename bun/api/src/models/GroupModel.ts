@@ -1,6 +1,4 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
-import { userTable } from "./UserModel";
 import { campaignTable } from "./CampaignModel";
 
 /** Drizzle schema for `group`: a recipient list within a campaign. */
@@ -17,16 +15,11 @@ export const groupTable = pgTable("group", {
     name: varchar("name"),
     /** ID of campaign the group belongs to. */
     campaign_id: varchar("campaign_id").references(() => campaignTable.id),
-    /** ID of organization the group belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
-    /** ID of user who created the group. */
-    creator_id: varchar("creator_id").references(() => userTable.id),
     /** Normalized name of group. */
     normalized_name: varchar("normalized_name"),
 }, (table) => [
-    // Backs `getByCampaign` and `getByOrganization`.
+    // Backs `getByCampaign`.
     index("group_campaign_id_idx").on(table.campaign_id),
-    index("group_organization_id_idx").on(table.organization_id),
 ]);
 
 /** TS type for a group row, inferred directly from the table schema above. */

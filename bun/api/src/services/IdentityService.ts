@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 import { VerifyEmailIdentityCommand, VerifyDomainIdentityCommand, VerifyDomainDkimCommand } from "@aws-sdk/client-ses";
 import { db, logger, sesClient, ValidationError, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
 import { identityTable, type IdentityType, type IdentityStatus, type IdentityVerificationRecord } from "../models";
@@ -8,7 +8,6 @@ import { scheduleIdentityVerificationCheck } from "../queues/IdentityVerificatio
 export interface CreateIdentityInput {
     type: IdentityType;
     identity: string;
-    organization_id?: string;
     status?: IdentityStatus;
     description?: string;
 }
@@ -22,8 +21,8 @@ export interface UpdateIdentityInput {
 }
 
 /**
- * Data-access layer for `identity` rows (domains/email addresses an
- * organization sends from). Wraps `identityTable` (Drizzle) and adds
+ * Data-access layer for `identity` rows (domains/email addresses
+ * campaigns send from). Wraps `identityTable` (Drizzle) and adds
  * structured logging around every operation: `info` logs marking method
  * start/end, `debug` logs of the request params and response payload,
  * `warn` if no matching row is found, and `error` (with the full stack via
@@ -133,9 +132,8 @@ export class IdentityService {
     }
 
     /**
-     * Lists every identity belonging to a given organization, ordered by `id` ascending.
+     * Lists every identity, ordered by `id` ascending.
      *
-     * @param organizationId - id of the organization.
      * @param options.type - optional filter on the `type` column.
      * @param options.status - optional filter on the `status` column.
      * @param options.limit - max number of rows to return.
@@ -143,12 +141,12 @@ export class IdentityService {
      * @returns Array of matching identity rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, options?: PaginationOptions & { type?: IdentityType; status?: IdentityStatus }) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
-        logger.debug({ organizationId, options }, `Request:`);
+    async getAll(options?: PaginationOptions & { type?: IdentityType; status?: IdentityStatus }) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+        logger.debug({ options }, `Request:`);
 
         try {
-            const conditions = [eq(identityTable.organization_id, organizationId)];
+            const conditions: SQL[] = [];
             if (options?.type !== undefined) conditions.push(eq(identityTable.type, options.type));
             if (options?.status !== undefined) conditions.push(eq(identityTable.status, options.status));
 
@@ -156,12 +154,12 @@ export class IdentityService {
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
-            logger.debug({ organizationId, count: identities.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
+            logger.debug({ count: identities.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
             return identities;
         } catch (error) {
-            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get identities for organization`);
+            logger.error({ err: error, options }, `Exception in ${this.constructor.name}.${this.getAll.name}: Failed to get identities`);
             throw error;
         }
     }

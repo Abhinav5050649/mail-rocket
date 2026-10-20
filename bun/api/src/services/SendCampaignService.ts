@@ -5,12 +5,10 @@ import { recipientsTable, templateTable, campaignRecipientTable, groupTable } fr
 import { CampaignService } from "./CampaignService";
 import { IdentityService } from "./IdentityService";
 import { OrganizationService } from "./OrganizationService";
-import { UserService } from "./UserService";
 
 const campaignService = new CampaignService();
 const identityService = new IdentityService();
 const organizationService = new OrganizationService();
-const userService = new UserService();
 
 /**
  * Business logic for the campaign send pipeline (dispatch -> send-chunk ->
@@ -90,11 +88,10 @@ export class SendCampaignService {
      * same recipient stays freely reusable across campaigns.
      *
      * @param campaignId - id of the campaign being sent.
-     * @param organizationId - id of the organization the campaign belongs to.
      * @param recipientIds - ids of the recipients to include in this send.
      * @returns The created `campaign_recipient` rows' ids, in the same order as `recipientIds`.
      */
-    async createCampaignRecipientManifest(campaignId: string, organizationId: string | null, recipientIds: string[]): Promise<string[]> {
+    async createCampaignRecipientManifest(campaignId: string, recipientIds: string[]): Promise<string[]> {
         logger.info(`Start method: ${this.constructor.name}.${this.createCampaignRecipientManifest.name}`);
         logger.debug({ campaignId, count: recipientIds.length }, `Request:`);
 
@@ -103,7 +100,6 @@ export class SendCampaignService {
                 recipientIds.map(recipientId => ({
                     campaign_id: campaignId,
                     recipient_id: recipientId,
-                    organization_id: organizationId,
                 }))
             ).returning({ id: campaignRecipientTable.id });
             const manifestIds = rows.map(row => row.id);
@@ -135,11 +131,11 @@ export class SendCampaignService {
      * @param campaignId - id of the campaign.
      * @param reason - human-readable reason the send failed.
      */
-    async markCampaignSendFailed(campaignId: string, reason: string): Promise<void> {
-        logger.info(`Start method: ${this.constructor.name}.${this.markCampaignSendFailed.name}`);
-        logger.warn({ campaignId, reason }, `${this.constructor.name}.${this.markCampaignSendFailed.name}: Marking campaign send as failed`);
-        await campaignService.update(campaignId, { status: "send_failed", send_failure_reason: reason });
-        logger.info(`End method: ${this.constructor.name}.${this.markCampaignSendFailed.name}`);
+    async markCampaignFailed(campaignId: string, reason: string): Promise<void> {
+        logger.info(`Start method: ${this.constructor.name}.${this.markCampaignFailed.name}`);
+        logger.warn({ campaignId, reason }, `${this.constructor.name}.${this.markCampaignFailed.name}: Marking campaign send as failed`);
+        await campaignService.update(campaignId, { status: "failed", failure_reason: reason });
+        logger.info(`End method: ${this.constructor.name}.${this.markCampaignFailed.name}`);
     }
 
     /**
@@ -177,8 +173,8 @@ export class SendCampaignService {
         if (identity.type !== "email") throw new Error(`Identity ${identity.id} is type '${identity.type}'; only 'email' sending identities are supported`);
 
         // Resolved once per chunk - shared by every recipient's template context below.
-        const organization = campaign.organization_id ? await organizationService.getById(campaign.organization_id) : null;
-        const organizer = campaign.organizer_id ? await userService.getById(campaign.organizer_id) : null;
+        // The instance's single organization profile, for `{{organization_name}}`.
+        const organization = await organizationService.get();
 
         const template = await this.getCurrentTemplateForCampaign(campaignId);
         if (!template) throw new Error(`Campaign ${campaignId} has no template`);
@@ -207,7 +203,6 @@ export class SendCampaignService {
                 group: row.groupName !== null && row.groupName !== undefined ? { name: row.groupName } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
                 organization: organization ? { name: organization.name } : null,
-                organizer: organizer ? { first_name: organizer.first_name, last_name: organizer.last_name, email: organizer.email } : null,
                 sender: { email: identity.identity },
             };
 
@@ -244,7 +239,7 @@ export class SendCampaignService {
 
     /**
      * Recomputes a campaign's final status once every chunk of its send has
-     * settled: `sent` if at least one recipient succeeded, `send_failed`
+     * settled: `sent` if at least one recipient succeeded, `failed`
      * only on total failure. Partial delivery failures (bounces etc.) are
      * routine at scale and shouldn't flip a whole campaign to a failed
      * state - the per-recipient `campaign_recipient.send_status` trail
@@ -266,7 +261,7 @@ export class SendCampaignService {
         if (sentCount > 0) {
             await campaignService.update(campaignId, { status: "sent" });
         } else {
-            await this.markCampaignSendFailed(campaignId, "No recipients were successfully sent to");
+            await this.markCampaignFailed(campaignId, "No recipients were successfully sent to");
         }
 
         logger.debug({ campaignId, counts }, `Response:`);

@@ -25,9 +25,7 @@ const { SendCampaignService } = await import("../../src/services/SendCampaignSer
 const campaign = {
     id: "campaign-1",
     name: "Fall Launch",
-    organization_id: "org-1",
     identity_id: "identity-1",
-    organizer_id: null,
     subject: "Big Announcement",
     start_time: new Date("2026-01-01"),
     status: "sending",
@@ -43,7 +41,6 @@ const template = {
     name: "Announcement",
     html_body: "<p>Hello!</p>",
     campaign_id: "campaign-1",
-    organization_id: "org-1",
     normalized_name: null,
     created_at: new Date("2026-01-01"),
     updated_at: null,
@@ -101,7 +98,7 @@ describe("SendCampaignService", () => {
         it("creates one campaign_recipient row per recipient and returns their ids", async () => {
             mockDb.insert.mockImplementationOnce(() => chain([{ id: "cr-1" }, { id: "cr-2" }]));
 
-            const ids = await service.createCampaignRecipientManifest("campaign-1", "org-1", ["recipient-1", "recipient-2"]);
+            const ids = await service.createCampaignRecipientManifest("campaign-1", ["recipient-1", "recipient-2"]);
 
             expect(ids).toEqual(["cr-1", "cr-2"]);
         });
@@ -109,16 +106,15 @@ describe("SendCampaignService", () => {
 
     describe("sendChunk", () => {
         // Every non-early-throw path re-fetches, in order: campaign, identity,
-        // organization (skipped if no organization_id), organizer (skipped if
-        // no organizer_id), template, then the campaign_recipient join rows.
-        // `campaign` here has organization_id but no organizer_id, so tests
-        // queue exactly one organization select between identity and template.
+        // the instance's single organization, template, then the
+        // campaign_recipient join rows - so tests queue exactly one
+        // organization select between identity and template.
 
         it("sends to every pending recipient via SES and marks each as sent", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign])) // CampaignService.getById
                 .mockImplementationOnce(() => chain([emailIdentity])) // IdentityService.getById
-                .mockImplementationOnce(() => chain([organization])) // OrganizationService.getById
+                .mockImplementationOnce(() => chain([organization])) // OrganizationService.get
                 .mockImplementationOnce(() => chain([template])) // getCurrentTemplateForCampaign
                 .mockImplementationOnce(() => chain([ // campaign_recipient join rows
                     { campaignRecipientId: "cr-1", sendStatus: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupName: null },
@@ -268,7 +264,7 @@ describe("SendCampaignService", () => {
             expect(mockDb.update).toHaveBeenCalledTimes(1);
         });
 
-        it("marks the campaign send_failed when nobody was successfully sent to", async () => {
+        it("marks the campaign failed when nobody was successfully sent to", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([{ status: "failed", count: 2 }]))
                 .mockImplementationOnce(() => chain([campaign]));

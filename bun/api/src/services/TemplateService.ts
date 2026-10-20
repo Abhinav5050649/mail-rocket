@@ -7,7 +7,6 @@ export interface CreateTemplateInput {
     name?: string;
     html_body?: string;
     campaign_id?: string;
-    organization_id?: string;
     normalized_name?: string;
     description?: string;
 }
@@ -112,29 +111,28 @@ export class TemplateService {
     }
 
     /**
-     * Lists every template belonging to a given organization, ordered by `id` ascending.
+     * Lists every template, ordered by `id` ascending.
      *
-     * @param organizationId - id of the organization.
      * @param options.limit - max number of rows to return.
      * @param options.offset - number of rows to skip before returning results.
      * @returns Array of matching template rows (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
-    async getByOrganization(organizationId: string, options?: PaginationOptions) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByOrganization.name}`);
-        logger.debug({ organizationId, options }, `Request:`);
+    async getAll(options?: PaginationOptions) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
+        logger.debug({ options }, `Request:`);
 
         try {
-            const templates = await db.select().from(templateTable).where(eq(templateTable.organization_id, organizationId)).orderBy(asc(templateTable.id))
+            const templates = await db.select().from(templateTable).orderBy(asc(templateTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
-            logger.debug({ organizationId, count: templates.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByOrganization.name}`);
+            logger.debug({ count: templates.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
             return templates;
         } catch (error) {
-            logger.error({ err: error, organizationId, options }, `Exception in ${this.constructor.name}.${this.getByOrganization.name}: Failed to get templates for organization`);
+            logger.error({ err: error, options }, `Exception in ${this.constructor.name}.${this.getAll.name}: Failed to get templates`);
             throw error;
         }
     }
