@@ -1,6 +1,6 @@
 # Design
 
-The Mail Rocket web app (`nextjs/mail-rocket-app`). Product truth lives in [PRODUCT.md](PRODUCT.md).
+The Mail Rocket web app (`apps/web`). Product truth lives in [PRODUCT.md](PRODUCT.md).
 
 ## World: framed sheet
 

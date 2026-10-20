@@ -1,0 +1,82 @@
+# Full stack: postgres, redis, the API and the web app.
+#
+# Run from the repo root with the API's env file, so the ${POSTGRES_*}
+# values below come from it (compose otherwise looks for a .env beside this
+# file and silently falls back to the defaults):
+#
+#   docker compose --env-file apps/api/.env up --build -d
+#
+# `bun run stack` at the root does exactly that.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-mail-rocket}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # postgres 18+ keeps its data in a versioned subdirectory
+      # (/var/lib/postgresql/18/docker) and refuses to start with a volume at
+      # the old /var/lib/postgresql/data path, so the volume mounts one level up.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    # AOF persistence so a scheduled (delayed) campaign-send job survives a container restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  api:
+    build: ./apps/api
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mail-rocket}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      # Bind mount (not a named volume) so logs/app.log lands on the host at
+      # apps/api/logs/ and survives `docker compose down` - a named volume
+      # would too, but a plain `-v` on that command would delete it.
+      - ./apps/api/logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  web:
+    build: ./apps/web
+    ports:
+      - "3001:3001"
+    environment:
+      # Server-side only: the web app's BFF proxy reaches the API over the
+      # Docker network; the browser only ever talks to the web app.
+      BUN_API_URL: http://api:3000
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-mr_session}
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  pgdata:
+  redisdata:
