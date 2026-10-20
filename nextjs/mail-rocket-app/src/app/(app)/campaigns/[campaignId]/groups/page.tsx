@@ -1,36 +1,44 @@
 "use client";
 
 import { use } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/feedback";
+import { SubsectionHeader } from "@/components/resources/SubsectionHeader";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
 import { useGetCampaignGroupsQuery } from "@/features/groups";
+import { formatDate } from "@/lib/format";
+import type { Group } from "@/types/resources";
 
 export default function CampaignGroupsPage({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = use(params);
-  const router = useRouter();
-  const { data: groups, isLoading, error } = useGetCampaignGroupsQuery({ campaignId, limit: 50 });
+  const { data: groups, isLoading, error, refetch } = useGetCampaignGroupsQuery({ campaignId, limit: 50 });
+
+  const action = (
+    <Can I="create" a="Group">
+      <Button href={`/groups/new?campaignId=${campaignId}`} icon={Plus} size="sm">
+        New group
+      </Button>
+    </Can>
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-primary">Groups</h2>
-        <Can I="create" a="Group">
-          <Button href={`/groups/new?campaignId=${campaignId}`} iconLeading={Plus} size="sm">
-            New group
-          </Button>
-        </Can>
-      </div>
-
-      <ResourceTable
+    <div className="flex flex-col gap-4">
+      <SubsectionHeader title="Groups" note="Recipient lists this campaign sends to. Open one to see its recipients." action={action} />
+      <DataTable<Group>
+        noun="groups"
         rows={groups}
-        loading={isLoading}
+        isLoading={isLoading}
         error={error}
-        onRowClick={(row) => router.push(`/campaigns/${campaignId}/groups/${row.id}/recipients`)}
-        columns={[{ header: "Name", render: (g) => g.name }]}
-        emptyMessage="No groups linked to this campaign yet."
+        onRetry={refetch}
+        href={(group) => `/campaigns/${campaignId}/groups/${group.id}/recipients`}
+        columns={[
+          { header: "Group", cell: (group) => group.name || "Untitled group" },
+          { header: "Created", cell: (group) => <span className="tabular">{formatDate(group.created_at)}</span>, align: "right", className: "w-40" },
+        ]}
+        mobile={{ title: (group) => group.name || "Untitled group", subtitle: (group) => `Created ${formatDate(group.created_at)}` }}
+        empty={<EmptyState title="No groups linked yet" action={action}>Groups collect recipients so the campaign can send to all of them, and fill {"{{group_name}}"}.</EmptyState>}
       />
     </div>
   );

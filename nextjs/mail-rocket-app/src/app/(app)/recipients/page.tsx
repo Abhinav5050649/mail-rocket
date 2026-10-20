@@ -1,42 +1,56 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
-import { LimitOffsetPagination } from "@/components/data/LimitOffsetPagination";
+import { Button } from "@/components/ui/button";
+import { DataTable, Pagination } from "@/components/ui/data-table";
+import { Dash, PageHeader } from "@/components/ui/page";
+import { EmptyState } from "@/components/ui/feedback";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
 import { usePaginationParams } from "@/hooks/usePaginationParams";
+import { useCampaignNames, useGroupNames } from "@/hooks/useLookups";
 import { useGetRecipientsQuery } from "@/features/recipients";
+import { fullName } from "@/lib/format";
+import type { Recipient } from "@/types/resources";
 
 export default function RecipientsPage() {
-  const router = useRouter();
-  const { limit, offset, setLimit, setOffset } = usePaginationParams();
-  const { data: recipients, isLoading, error } = useGetRecipientsQuery({ limit, offset });
+  const { limit, offset, setOffset } = usePaginationParams();
+  const { data: recipients, isLoading, error, refetch } = useGetRecipientsQuery({ limit, offset });
+  const { groupName } = useGroupNames();
+  const { campaignName } = useCampaignNames();
+
+  const action = (
+    <Can I="create" a="Recipient">
+      <Button href="/recipients/new" variant="primary" icon={Plus}>
+        Add recipient
+      </Button>
+    </Can>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-primary">Recipients</h1>
-        <Can I="create" a="Recipient">
-          <Button href={`/recipients/new`} iconLeading={Plus}>
-            Add recipient
-          </Button>
-        </Can>
+      <PageHeader title="Recipients" description="Everyone a campaign can send to, directly or through a group." actions={action} />
+      <div>
+        <DataTable<Recipient>
+          noun="recipients"
+          rows={recipients}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refetch}
+          href={(recipient) => `/recipients/${recipient.id}`}
+          columns={[
+            { header: "Email", cell: (recipient) => recipient.email_id, className: "w-[32%]" },
+            { header: "Name", cell: (recipient) => fullName(recipient) ?? <Dash /> },
+            { header: "Group", cell: (recipient) => groupName(recipient.group_id) ?? <Dash />, className: "hidden text-muted lg:table-cell" },
+            { header: "Campaign", cell: (recipient) => campaignName(recipient.campaign_id) ?? <Dash />, className: "text-muted" },
+          ]}
+          mobile={{
+            title: (recipient) => recipient.email_id,
+            subtitle: (recipient) => [fullName(recipient), groupName(recipient.group_id)].filter(Boolean).join(" · ") || "No name",
+          }}
+          empty={<EmptyState title="No recipients yet" action={action}>Add the people a campaign sends to. Put them in a group to send to many at once.</EmptyState>}
+        />
+        <Pagination noun="recipients" limit={limit} offset={offset} rowCount={recipients?.length ?? 0} onOffsetChange={setOffset} />
       </div>
-
-      <ResourceTable
-        rows={recipients}
-        loading={isLoading}
-        error={error}
-        onRowClick={(row) => router.push(`/recipients/${row.id}`)}
-        columns={[
-          { header: "Name", render: (r) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "—" },
-          { header: "Email", render: (r) => r.email_id },
-        ]}
-      />
-
-      <LimitOffsetPagination limit={limit} offset={offset} rowCount={recipients?.length ?? 0} onLimitChange={setLimit} onOffsetChange={setOffset} />
     </div>
   );
 }

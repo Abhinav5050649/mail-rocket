@@ -1,39 +1,48 @@
 "use client";
 
 import { use } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/feedback";
+import { Dash } from "@/components/ui/page";
+import { SubsectionHeader } from "@/components/resources/SubsectionHeader";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
 import { useGetCampaignRecipientsQuery } from "@/features/recipients";
+import { useGroupNames } from "@/hooks/useLookups";
+import { fullName } from "@/lib/format";
+import type { Recipient } from "@/types/resources";
 
 export default function CampaignRecipientsPage({ params }: { params: Promise<{ campaignId: string }> }) {
   const { campaignId } = use(params);
-  const router = useRouter();
-  const { data: recipients, isLoading, error } = useGetCampaignRecipientsQuery({ campaignId, limit: 50 });
+  const { data: recipients, isLoading, error, refetch } = useGetCampaignRecipientsQuery({ campaignId, limit: 50 });
+  const { groupName } = useGroupNames();
+
+  const action = (
+    <Can I="create" a="Recipient">
+      <Button href={`/recipients/new?campaignId=${campaignId}`} icon={Plus} size="sm">
+        Add recipient
+      </Button>
+    </Can>
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-primary">Recipients</h2>
-        <Can I="create" a="Recipient">
-          <Button href={`/recipients/new?campaignId=${campaignId}`} iconLeading={Plus} size="sm">
-            Add recipient
-          </Button>
-        </Can>
-      </div>
-
-      <ResourceTable
+    <div className="flex flex-col gap-4">
+      <SubsectionHeader title="Recipients" note="Everyone linked to this campaign, in any group or none. First 50 shown." action={action} />
+      <DataTable<Recipient>
+        noun="recipients"
         rows={recipients}
-        loading={isLoading}
+        isLoading={isLoading}
         error={error}
-        onRowClick={(row) => router.push(`/recipients/${row.id}`)}
+        onRetry={refetch}
+        href={(recipient) => `/recipients/${recipient.id}`}
         columns={[
-          { header: "Name", render: (r) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "—" },
-          { header: "Email", render: (r) => r.email_id },
+          { header: "Email", cell: (recipient) => recipient.email_id, className: "w-[40%]" },
+          { header: "Name", cell: (recipient) => fullName(recipient) ?? <Dash /> },
+          { header: "Group", cell: (recipient) => groupName(recipient.group_id) ?? <Dash />, className: "text-muted" },
         ]}
-        emptyMessage="No recipients linked to this campaign yet."
+        mobile={{ title: (recipient) => recipient.email_id, subtitle: (recipient) => [fullName(recipient), groupName(recipient.group_id)].filter(Boolean).join(" · ") || "No name" }}
+        empty={<EmptyState title="No recipients linked yet" action={action}>Add people directly, or through a group linked to this campaign.</EmptyState>}
       />
     </div>
   );

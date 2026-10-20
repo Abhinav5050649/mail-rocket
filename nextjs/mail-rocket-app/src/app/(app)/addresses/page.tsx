@@ -1,45 +1,55 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
-import { LimitOffsetPagination } from "@/components/data/LimitOffsetPagination";
+import { Button } from "@/components/ui/button";
+import { DataTable, Pagination } from "@/components/ui/data-table";
+import { Dash, PageHeader } from "@/components/ui/page";
+import { Pill } from "@/components/ui/pill";
+import { EmptyState } from "@/components/ui/feedback";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
-import { Badge } from "@/components/base/badges/badges";
+import { addressLine } from "@/components/addresses/AddressForm";
 import { usePaginationParams } from "@/hooks/usePaginationParams";
 import { useGetAddressesQuery } from "@/features/addresses";
+import type { Address } from "@/types/resources";
 
 export default function AddressesPage() {
-  const router = useRouter();
-  const { limit, offset, setLimit, setOffset } = usePaginationParams();
-  const { data: addresses, isLoading, error } = useGetAddressesQuery({ limit, offset });
+  const { limit, offset, setOffset } = usePaginationParams();
+  const { data: addresses, isLoading, error, refetch } = useGetAddressesQuery({ limit, offset });
+
+  const action = (
+    <Can I="create" a="Address">
+      <Button href="/addresses/new" variant="primary" icon={Plus}>
+        Add address
+      </Button>
+    </Can>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-primary">Addresses</h1>
-        <Can I="create" a="Address">
-          <Button href={`/addresses/new`} iconLeading={Plus}>
-            Add address
-          </Button>
-        </Can>
+      <PageHeader title="Addresses" description="The organization's postal addresses." actions={action} />
+      <div>
+        <DataTable<Address>
+          noun="addresses"
+          rows={addresses}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refetch}
+          href={(address) => `/addresses/${address.id}`}
+          columns={[
+            { header: "Street", cell: (address) => address.street || "No street", className: "w-[34%]" },
+            { header: "City", cell: (address) => address.city || <Dash /> },
+            { header: "Country", cell: (address) => address.country || <Dash />, className: "text-muted" },
+            { header: "", cell: (address) => address.is_primary && <Pill tone="accent">Primary</Pill>, align: "right", className: "w-28" },
+          ]}
+          mobile={{
+            title: (address) => address.street || address.city || "Address",
+            subtitle: (address) => addressLine(address) || "No details",
+            trailing: (address) => address.is_primary && <Pill tone="accent">Primary</Pill>,
+          }}
+          empty={<EmptyState title="No addresses yet" action={action}>Add the organization&apos;s postal address, for example for email footers.</EmptyState>}
+        />
+        <Pagination noun="addresses" limit={limit} offset={offset} rowCount={addresses?.length ?? 0} onOffsetChange={setOffset} />
       </div>
-
-      <ResourceTable
-        rows={addresses}
-        loading={isLoading}
-        error={error}
-        onRowClick={(row) => router.push(`/addresses/${row.id}`)}
-        columns={[
-          { header: "Street", render: (a) => a.street || "—" },
-          { header: "City", render: (a) => a.city || "—" },
-          { header: "Country", render: (a) => a.country || "—" },
-          { header: "Primary", render: (a) => (a.is_primary ? <Badge size="sm" color="brand">Primary</Badge> : "—") },
-        ]}
-      />
-
-      <LimitOffsetPagination limit={limit} offset={offset} rowCount={addresses?.length ?? 0} onLimitChange={setLimit} onOffsetChange={setOffset} />
     </div>
   );
 }

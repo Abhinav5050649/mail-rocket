@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { RecipientForm, type RecipientFormValues } from "@/components/recipients/RecipientForm";
+import { RecipientForm } from "@/components/recipients/RecipientForm";
+import { PageHeader } from "@/components/ui/page";
 import { useCreateRecipientMutation } from "@/features/recipients";
 
 export default function NewRecipientPage() {
@@ -10,30 +11,22 @@ export default function NewRecipientPage() {
   const campaignId = searchParams.get("campaignId") ?? undefined;
   const groupId = searchParams.get("groupId") ?? undefined;
   const [createRecipient, { isLoading, error }] = useCreateRecipientMutation();
-
-  const onSubmit = async (values: RecipientFormValues) => {
-    const result = await createRecipient({
-      ...values,
-      campaign_id: values.campaign_id || undefined,
-      group_id: values.group_id || undefined,
-    });
-    if (result.data) {
-      router.push(`/recipients/${result.data.id}`);
-    }
-  };
+  const back = campaignId && groupId ? `/campaigns/${campaignId}/groups/${groupId}/recipients` : campaignId ? `/campaigns/${campaignId}/recipients` : "/recipients";
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-primary">Add recipient</h1>
+      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : "Recipients" }} title="Add recipient" />
       <RecipientForm
         mode="create"
-       
         defaultCampaignId={campaignId}
         defaultGroupId={groupId}
-        onSubmit={onSubmit}
         isSubmitting={isLoading}
         error={error}
-        onCancel={() => router.push(`/recipients`)}
+        onCancel={() => router.push(back)}
+        onSubmit={async (values) => {
+          const result = await createRecipient({ ...values, campaign_id: values.campaign_id || undefined, group_id: values.group_id || undefined });
+          if (result.data) router.push(`/recipients/${result.data.id}`);
+        }}
       />
     </div>
   );

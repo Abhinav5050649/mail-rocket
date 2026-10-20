@@ -1,24 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { AddressForm, type AddressFormValues } from "@/components/addresses/AddressForm";
+import { AddressForm } from "@/components/addresses/AddressForm";
+import { PageHeader } from "@/components/ui/page";
 import { useCreateAddressMutation } from "@/features/addresses";
 
 export default function NewAddressPage() {
   const router = useRouter();
   const [createAddress, { isLoading, error }] = useCreateAddressMutation();
 
-  const onSubmit = async (values: AddressFormValues) => {
-    const result = await createAddress({ ...values });
-    if (result.data) {
-      router.push(`/addresses/${result.data.id}`);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-primary">Add address</h1>
-      <AddressForm mode="create" onSubmit={onSubmit} isSubmitting={isLoading} error={error} onCancel={() => router.push(`/addresses`)} />
+      <PageHeader back={{ href: "/addresses", label: "Addresses" }} title="Add address" />
+      <AddressForm
+        mode="create"
+        isSubmitting={isLoading}
+        error={error}
+        onCancel={() => router.push("/addresses")}
+        onSubmit={async (values) => {
+          const result = await createAddress(values);
+          if (result.data) router.push(`/addresses/${result.data.id}`);
+        }}
+      />
     </div>
   );
 }

@@ -1,29 +1,26 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ContactDetailsForm, type ContactDetailsFormValues } from "@/components/contactDetails/ContactDetailsForm";
+import { ContactDetailsForm } from "@/components/contactDetails/ContactDetailsForm";
+import { PageHeader } from "@/components/ui/page";
 import { useCreateContactDetailsMutation } from "@/features/contactDetails";
 
 export default function NewContactDetailsPage() {
   const router = useRouter();
   const [createContactDetails, { isLoading, error }] = useCreateContactDetailsMutation();
 
-  const onSubmit = async (values: ContactDetailsFormValues) => {
-    const result = await createContactDetails({ ...values });
-    if (result.data) {
-      router.push(`/contact-details/${result.data.id}`);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-primary">Add contact details</h1>
+      <PageHeader back={{ href: "/contact-details", label: "Contact details" }} title="Add contact details" />
       <ContactDetailsForm
         mode="create"
-        onSubmit={onSubmit}
         isSubmitting={isLoading}
         error={error}
-        onCancel={() => router.push(`/contact-details`)}
+        onCancel={() => router.push("/contact-details")}
+        onSubmit={async (values) => {
+          const result = await createContactDetails(values);
+          if (result.data) router.push(`/contact-details/${result.data.id}`);
+        }}
       />
     </div>
   );

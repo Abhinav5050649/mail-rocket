@@ -1,33 +1,29 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { GroupForm, type GroupFormValues } from "@/components/groups/GroupForm";
+import { GroupForm } from "@/components/groups/GroupForm";
+import { PageHeader } from "@/components/ui/page";
 import { useCreateGroupMutation } from "@/features/groups";
 
 export default function NewGroupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const campaignId = searchParams.get("campaignId") ?? undefined;
+  const campaignId = useSearchParams().get("campaignId") ?? undefined;
   const [createGroup, { isLoading, error }] = useCreateGroupMutation();
-
-  const onSubmit = async (values: GroupFormValues) => {
-    const result = await createGroup({ ...values, campaign_id: values.campaign_id || undefined });
-    if (result.data) {
-      router.push(`/groups/${result.data.id}`);
-    }
-  };
+  const back = campaignId ? `/campaigns/${campaignId}/groups` : "/groups";
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-primary">New group</h1>
+      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : "Groups" }} title="New group" />
       <GroupForm
         mode="create"
-       
         defaultCampaignId={campaignId}
-        onSubmit={onSubmit}
         isSubmitting={isLoading}
         error={error}
-        onCancel={() => router.push(`/groups`)}
+        onCancel={() => router.push(back)}
+        onSubmit={async (values) => {
+          const result = await createGroup({ ...values, campaign_id: values.campaign_id || undefined });
+          if (result.data) router.push(`/groups/${result.data.id}`);
+        }}
       />
     </div>
   );

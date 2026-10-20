@@ -1,54 +1,199 @@
 @import "tailwindcss";
-@import "../styles/theme.css";
-@import "../styles/typography.css";
 
 @plugin "tailwindcss-react-aria-components";
 @plugin "tailwindcss-animate";
 
+/* next-themes toggles `light-mode` / `dark-mode` on <html>. */
 @custom-variant dark (&:where(.dark-mode, .dark-mode *));
-@custom-variant label (& [data-label]);
-@custom-variant focus-input-within (&:has(input:focus));
 
-@utility scrollbar-hide {
-    &::-webkit-scrollbar {
-        display: none;
-        -webkit-appearance: none;
-    }
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+/*
+ * Framed sheet: the sidebar and top bar share one tinted frame; the work
+ * sits on a white sheet with a hairline edge and no shadow. The frame takes
+ * a low-chroma step of the accent's teal, which is the product's face. Colour
+ * goes on data, status and the one primary action; the chrome stays grey.
+ */
+:root {
+  --frame: #eff3f3;
+  --sheet: #ffffff;
+  --raised: #f4f6f7;
+  --active: #e1e8e8;
+  --border: #e4e8e9;
+  --rule: #eef1f1;
+  --control: #c9cfd1;
+  --text: #131416;
+  --muted: #565b5d;
+  --faint: #686d70;
+  --primary: #131416;
+  --primary-ink: #ffffff;
+  --accent: #1b6c80;
+  --accent-soft: #e2f0f3;
+  --accent-ink: #0d4351;
+  --positive: #1e7b4f;
+  --negative: #c4242a;
+  --warning: #92400e;
+  --pill-neutral-bg: #eceff0;
+  --pill-neutral-ink: #353a3c;
+  --pill-positive-bg: #dcf7e6;
+  --pill-positive-ink: #0b3a1f;
+  --pill-negative-bg: #ffecea;
+  --pill-negative-ink: #831c1e;
+  --pill-warning-bg: #fdf3dc;
+  --pill-warning-ink: #7a3a08;
+  --notice-border: #f2d796;
+  --track: #e6eaeb;
+  --focus: #1b6c80;
+  --selection: #cfe6eb;
+  --scrim: rgb(19 20 22 / 0.4);
+  color-scheme: light;
 }
 
-@utility transition-inherit-all {
-    transition-property: inherit;
-    transition-duration: inherit;
-    transition-timing-function: inherit;
+.dark-mode {
+  --frame: #0f1212;
+  --sheet: #171a1a;
+  --raised: #1e2222;
+  --active: #262b2b;
+  --border: #272c2c;
+  --rule: #202525;
+  --control: #3e4545;
+  --text: #eef1f1;
+  --muted: #a9b0b0;
+  --faint: #8f9797;
+  --primary: #eef1f1;
+  --primary-ink: #131416;
+  --accent: #5db4c8;
+  --accent-soft: #16292e;
+  --accent-ink: #9fd6e2;
+  --positive: #4cc584;
+  --negative: #f07a80;
+  --warning: #e3b45c;
+  --pill-neutral-bg: #262b2b;
+  --pill-neutral-ink: #c9cfcf;
+  --pill-positive-bg: #15291e;
+  --pill-positive-ink: #6fd59c;
+  --pill-negative-bg: #2e1a1c;
+  --pill-negative-ink: #f39a9f;
+  --pill-warning-bg: #2b2210;
+  --pill-warning-ink: #e6bd6c;
+  --notice-border: #4a3a17;
+  --track: #2a3030;
+  --focus: #5db4c8;
+  --selection: #1f4650;
+  --scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
 }
 
-html,
-body {
-    font-family: var(--font-body);
+@theme inline {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --color-frame: var(--frame);
+  --color-sheet: var(--sheet);
+  --color-raised: var(--raised);
+  --color-active: var(--active);
+  --color-border: var(--border);
+  --color-rule: var(--rule);
+  --color-control: var(--control);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-track: var(--track);
+  --color-focus: var(--focus);
+
+  /* App type scale: 12 / 14 / 16 / 22 / 28. */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-title: 22px;
+  --text-title--line-height: 28px;
+  --text-kpi: 28px;
+  --text-kpi--line-height: 32px;
+
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-sheet: 16px;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--frame);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    -webkit-font-variant-ligatures: contextual;
-    font-variant-ligatures: contextual;
-    -webkit-font-kerning: normal;
     font-kerning: normal;
-    margin: 0;
-}
+  }
 
-details summary::-webkit-details-marker {
-    display: none;
-}
+  ::selection {
+    background: var(--selection);
+    color: var(--text);
+  }
 
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: var(--accent);
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+
+  code,
+  kbd,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  /* Thin scrollbars in the palette rather than the platform default. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--control) transparent;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-}
-input[type="number"] {
-    -moz-appearance: textfield;
+  }
+
+  /* The native date/time picker icon follows the theme. */
+  input::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  .dark-mode input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
 }
 
-input[type="search"]::-webkit-search-cancel-button {
-    -webkit-appearance: none;
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

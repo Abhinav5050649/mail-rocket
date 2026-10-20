@@ -2,26 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch, Controller } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy01 } from "@untitledui/icons";
-import { Input } from "@/components/base/input/input";
-import { NativeSelect } from "@/components/base/select/select-native";
-import { Button } from "@/components/base/buttons/button";
-import { getApiErrorMessage } from "@/lib/redux/api/errors";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
+import { Field, Input } from "@/components/ui/field";
+import { FormActions, PageHeader, SettingsSection } from "@/components/ui/page";
+import { FormError, Notice } from "@/components/ui/feedback";
 import { PRESETS, PRESET_DESCRIPTIONS } from "@/lib/auth/abilities";
 import { keyCreateSchema, type KeyCreateFormValues } from "@/lib/validation/authSchema";
+import { capitalize } from "@/lib/format";
 import { useCreateKeyMutation, type ApiKeyCreated } from "@/features/keys";
-
-const PRESET_OPTIONS = PRESETS.map((preset) => ({ label: preset[0]!.toUpperCase() + preset.slice(1), value: preset }));
+import { cx } from "@/utils/cx";
 
 export default function NewKeyPage() {
   const router = useRouter();
   const [createKey, { isLoading, error }] = useCreateKeyMutation();
   // Held only in component state: the secret is shown once and gone on navigation.
   const [created, setCreated] = useState<ApiKeyCreated | null>(null);
-  const { copied, copy } = useClipboard();
 
   const {
     control,
@@ -31,66 +29,82 @@ export default function NewKeyPage() {
   } = useForm<KeyCreateFormValues>({ resolver: zodResolver(keyCreateSchema), defaultValues: { name: "", preset: "viewer", expires_on: "" } });
   const preset = useWatch({ control, name: "preset" });
 
-  const onSubmit = async (values: KeyCreateFormValues) => {
-    const result = await createKey({
-      name: values.name,
-      preset: values.preset,
-      // A date input yields `YYYY-MM-DD`; the key expires at the end of that day, local time.
-      expires_at: values.expires_on ? new Date(`${values.expires_on}T23:59:59`).toISOString() : null,
-    });
-    if (result.data) setCreated(result.data);
-  };
-
   if (created) {
     return (
-      <div className="flex max-w-lg flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-primary">Key created</h1>
-          <p className="text-sm text-tertiary">
-            Copy <strong>{created.name}</strong> now. It won&apos;t be shown again; if it&apos;s lost, revoke it and create another.
-          </p>
+      <div className="flex flex-col gap-6">
+        <PageHeader back={{ href: "/settings/keys", label: "API keys" }} title={`Key “${created.name}” created`} />
+        <Notice title="Copy the key now. It won’t be shown again.">If it’s lost, revoke it and create another.</Notice>
+        <div className="flex max-w-2xl items-center gap-2 rounded-card border border-border bg-raised py-2 pr-2 pl-4">
+          <code className="min-w-0 flex-1 text-sm break-all text-text">{created.secret}</code>
+          <CopyButton value={created.secret} label="Copy key" className="size-8" />
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 ring-1 ring-secondary">
-          <code className="flex-1 font-mono text-sm break-all text-primary">{created.secret}</code>
-          <Button type="button" color="secondary" size="sm" iconLeading={copied ? Check : Copy01} onClick={() => copy(created.secret)}>
-            {copied ? "Copied" : "Copy"}
+        <p className="max-w-2xl text-sm text-muted">
+          Sign in with it here, send it as <code className="text-text">Authorization: Bearer …</code> to the API, or add it to an MCP client.
+        </p>
+        <div>
+          <Button variant="primary" onClick={() => router.push("/settings/keys")}>
+            Done
           </Button>
         </div>
-        <Button type="button" className="w-max" onClick={() => router.push("/settings/keys")}>
-          Done
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex max-w-lg flex-col gap-6">
-      <h1 className="text-xl font-semibold text-primary">New API key</h1>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
-        {error && <p className="rounded-lg bg-error-primary px-3 py-2 text-sm text-error-primary ring-1 ring-error_subtle">{getApiErrorMessage(error)}</p>}
-        <Controller
-          control={control}
-          name="name"
-          render={({ field }) => (
-            <Input {...field} label="Name" placeholder="e.g. ops, ci, jane" isInvalid={!!errors.name} hint={errors.name?.message ?? "Only for telling keys apart."} />
-          )}
-        />
-        <div className="flex flex-col gap-1.5">
-          <NativeSelect label="Preset" options={PRESET_OPTIONS} {...register("preset")} />
-          <p className="text-sm text-tertiary">{PRESET_DESCRIPTIONS[preset]}</p>
-        </div>
-        <Controller
-          control={control}
-          name="expires_on"
-          render={({ field }) => <Input {...field} label="Expires on" type="date" hint="Leave empty for a key that never expires." />}
-        />
-        <div className="flex gap-3">
-          <Button type="submit" isLoading={isLoading}>
-            Create key
-          </Button>
-          <Button type="button" color="link-gray" onClick={() => router.push("/settings/keys")}>
-            Cancel
-          </Button>
+    <div className="flex flex-col gap-6">
+      <PageHeader back={{ href: "/settings/keys", label: "API keys" }} title="New API key" />
+      <form
+        noValidate
+        onSubmit={handleSubmit(async (values) => {
+          const result = await createKey({
+            name: values.name,
+            preset: values.preset,
+            // A date input yields `YYYY-MM-DD`; the key expires at the end of that day, local time.
+            expires_at: values.expires_on ? new Date(`${values.expires_on}T23:59:59`).toISOString() : null,
+          });
+          if (result.data) setCreated(result.data);
+        })}
+      >
+        <SettingsSection title="Key" description="The name is only for telling keys apart.">
+          <div className="flex flex-col gap-4">
+            <Field label="Name" error={errors.name?.message}>
+              {(props) => <Input {...props} {...register("name")} placeholder="e.g. ops laptop, ci, claude" />}
+            </Field>
+            <Field label="Expires on" optional hint="Leave empty for a key that never expires.">
+              {(props) => <Input {...props} {...register("expires_on")} type="date" className="tabular max-w-52" />}
+            </Field>
+          </div>
+        </SettingsSection>
+        <SettingsSection title="Access" description="Presets expand to a fixed set of claims. A key can't later change its own.">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Preset</legend>
+            {PRESETS.map((option) => (
+              <label
+                key={option}
+                className={cx(
+                  "flex cursor-pointer gap-3 rounded-card border p-3.5 transition-colors has-focus-visible:outline-2 has-focus-visible:outline-focus",
+                  preset === option ? "border-text bg-raised" : "border-control hover:bg-raised",
+                )}
+              >
+                <input type="radio" value={option} {...register("preset")} className="mt-1 accent-(--accent)" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-text">{capitalize(option)}</span>
+                  <span className="text-sm text-muted">{PRESET_DESCRIPTIONS[option]}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        </SettingsSection>
+        <div className="flex flex-col gap-3 border-t border-border pt-5 lg:pl-[360px]">
+          <FormError error={error} />
+          <FormActions>
+            <Button variant="ghost" onClick={() => router.push("/settings/keys")}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isLoading}>
+              Create key
+            </Button>
+          </FormActions>
         </div>
       </form>
     </div>

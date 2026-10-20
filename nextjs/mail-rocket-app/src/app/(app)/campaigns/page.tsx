@@ -1,71 +1,117 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
-import { LimitOffsetPagination } from "@/components/data/LimitOffsetPagination";
-import { CampaignStatusChip } from "@/components/campaigns/CampaignStatusChip";
+import { Button } from "@/components/ui/button";
+import { DataTable, Pagination } from "@/components/ui/data-table";
+import { Dash, PageHeader, Tabs } from "@/components/ui/page";
+import { CampaignStatusPill } from "@/components/ui/pill";
+import { EmptyState } from "@/components/ui/feedback";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
-import { NativeSelect } from "@/components/base/select/select-native";
 import { usePaginationParams } from "@/hooks/usePaginationParams";
-import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { useGetCampaignsQuery, selectCampaignStatusFilter, campaignFiltersChanged } from "@/features/campaigns";
-import type { CampaignStatus } from "@/types/resources";
+import { useIdentityNames } from "@/hooks/useLookups";
+import { useGetCampaignsQuery } from "@/features/campaigns";
+import { useGetOverviewQuery } from "@/features/overview";
+import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Campaign, CampaignStatus } from "@/types/resources";
 
-const STATUS_OPTIONS = [
-  { label: "All statuses", value: "" },
-  { label: "Draft", value: "draft" },
-  { label: "Scheduled", value: "scheduled" },
-  { label: "Sending", value: "sending" },
-  { label: "Sent", value: "sent" },
-  { label: "Failed", value: "failed" },
+const STATUSES: { value: CampaignStatus; label: string }[] = [
+  { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "sending", label: "Sending" },
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Failed" },
 ];
 
-export default function CampaignsPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const status = useAppSelector(selectCampaignStatusFilter);
-  const { limit, offset, setLimit, setOffset } = usePaginationParams();
+/** When a campaign sends (or sent), with its distance from now; a dash when it has no start time. */
+function StartTime({ campaign }: { campaign: Campaign }) {
+  if (!campaign.start_time) return <Dash />;
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className="tabular">{formatDateTime(campaign.start_time)}</span>
+      <span className="text-xs text-muted">{formatRelative(campaign.start_time)}</span>
+    </span>
+  );
+}
 
-  const { data: campaigns, isLoading, error } = useGetCampaignsQuery({ status, limit, offset });
+export default function CampaignsPage() {
+  const { limit, offset, searchParams, setOffset } = usePaginationParams();
+  const status = (searchParams.get("status") as CampaignStatus | null) ?? undefined;
+
+  const { data: campaigns, isLoading, isFetching, error, refetch } = useGetCampaignsQuery({ status, limit, offset });
+  const { data: overview } = useGetOverviewQuery();
+  const { identityName } = useIdentityNames();
+  const counts = overview?.campaigns;
+
+  const statusLabel = STATUSES.find((item) => item.value === status)?.label.toLowerCase();
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-primary">Campaigns</h1>
-        <Can I="create" a="Campaign">
-          <Button href={`/campaigns/new`} iconLeading={Plus}>
-            New campaign
-          </Button>
-        </Can>
-      </div>
-
-      <NativeSelect
-        className="w-48"
-        size="sm"
-        options={STATUS_OPTIONS}
-        value={status ?? ""}
-        onChange={(e) => {
-          dispatch(campaignFiltersChanged({ status: (e.target.value || undefined) as CampaignStatus | undefined }));
-          setOffset(0);
-        }}
+      <PageHeader
+        title="Campaigns"
+        description="Each campaign sends one template to its recipients, from one identity, at its start time."
+        actions={
+          <Can I="create" a="Campaign">
+            <Button href="/campaigns/new" variant="primary" icon={Plus}>
+              New campaign
+            </Button>
+          </Can>
+        }
       />
 
-      <ResourceTable
-        rows={campaigns}
-        loading={isLoading}
-        error={error}
-        onRowClick={(row) => router.push(`/campaigns/${row.id}`)}
-        columns={[
-          { header: "Name", render: (c) => c.name },
-          { header: "Subject", render: (c) => c.subject || "—" },
-          { header: "Status", render: (c) => <CampaignStatusChip status={c.status} /> },
-          { header: "Start", render: (c) => (c.start_time ? new Date(c.start_time).toLocaleString() : "—") },
+      <Tabs
+        label="Filter by status"
+        items={[
+          { label: "All", href: "/campaigns", count: counts?.total, active: !status },
+          ...STATUSES.map((item) => ({
+            label: item.label,
+            href: `/campaigns?status=${item.value}`,
+            count: counts?.by_status[item.value],
+            active: status === item.value,
+          })),
         ]}
       />
 
-      <LimitOffsetPagination limit={limit} offset={offset} rowCount={campaigns?.length ?? 0} onLimitChange={setLimit} onOffsetChange={setOffset} />
+      <div className={isFetching && !isLoading ? "opacity-70 transition-opacity" : "transition-opacity"}>
+        <DataTable<Campaign>
+          noun="campaigns"
+          rows={campaigns}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refetch}
+          href={(campaign) => `/campaigns/${campaign.id}`}
+          columns={[
+            { header: "Campaign", cell: (campaign) => campaign.name || "Untitled campaign", className: "w-[30%]" },
+            { header: "Subject", cell: (campaign) => campaign.subject || <Dash />, className: "hidden w-[26%] text-muted lg:table-cell" },
+            { header: "Sender", cell: (campaign) => identityName(campaign.identity_id) ?? <Dash />, className: "hidden text-muted xl:table-cell" },
+            { header: "Status", cell: (campaign) => <CampaignStatusPill status={campaign.status} />, className: "w-32" },
+            { header: "Start time", cell: (campaign) => <StartTime campaign={campaign} />, align: "right", className: "w-48" },
+          ]}
+          mobile={{
+            title: (campaign) => campaign.name || "Untitled campaign",
+            subtitle: (campaign) => (campaign.start_time ? `${formatDateTime(campaign.start_time)} · ${formatRelative(campaign.start_time)}` : "No start time"),
+            trailing: (campaign) => <CampaignStatusPill status={campaign.status} />,
+          }}
+          empty={
+            <EmptyState
+              title={status ? `No ${statusLabel} campaigns` : "No campaigns yet"}
+              action={
+                !status && (
+                  <Can I="create" a="Campaign">
+                    <Button href="/campaigns/new" size="sm" icon={Plus}>
+                      New campaign
+                    </Button>
+                  </Can>
+                )
+              }
+            >
+              {status
+                ? "Campaigns move between these tabs as their sends are scheduled and go out."
+                : "Create a campaign, give it a template, recipients and a verified sender, then set a start time to schedule it."}
+            </EmptyState>
+          }
+        />
+        <Pagination noun="campaigns" limit={limit} offset={offset} rowCount={campaigns?.length ?? 0} onOffsetChange={setOffset} />
+      </div>
     </div>
   );
 }

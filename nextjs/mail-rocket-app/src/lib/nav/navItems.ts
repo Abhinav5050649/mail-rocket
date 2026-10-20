@@ -1,30 +1,47 @@
-import {
-  BarChart03,
-  Building07,
-  Contrast01,
-  Home02,
-  Key01,
-  Mail01,
-  Settings01,
-  Shield01,
-  Users01,
-  UserSquare,
-} from "@untitledui/icons";
-import type { NavItemType } from "@/components/application/app-navigation/config";
+import { AtSign, Building02, FileCode01, Home02, Key01, MarkerPin01, Phone, Send01, User01, Users01 } from "@untitledui/icons";
+import type { Subject } from "@/lib/auth/abilities";
 
-/** Subset of items surfaced in the mobile bottom row/quick links - keep this short. */
-export const PRIMARY_NAV_LABELS = ["Dashboard", "Campaigns", "Templates", "Recipients"];
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Hidden unless the signed-in key can `read` this subject. */
+  subject?: Subject;
+  /** Active only on this exact path. */
+  exact?: boolean;
+}
 
-/** Sidebar items. One instance serves one organization, so every path is top-level. */
-export const NAV_ITEMS: NavItemType[] = [
-  { label: "Dashboard", href: "/", icon: Home02 },
-  { label: "Campaigns", href: "/campaigns", icon: BarChart03 },
-  { label: "Templates", href: "/templates", icon: Mail01 },
-  { label: "Groups", href: "/groups", icon: Users01 },
-  { label: "Recipients", href: "/recipients", icon: UserSquare },
-  { label: "Identities", href: "/identities", icon: Shield01 },
-  { label: "Addresses", href: "/addresses", icon: Building07 },
-  { label: "Contact details", href: "/contact-details", icon: Contrast01 },
-  { label: "API keys", href: "/settings/keys", icon: Key01 },
-  { label: "Settings", href: "/settings", icon: Settings01 },
+export interface NavGroup {
+  /** Sentence-case group label; the first group has none. */
+  label?: string;
+  items: NavItem[];
+}
+
+/** Sidebar navigation. One instance serves one organization, so every path is top-level. */
+export const NAV_GROUPS: NavGroup[] = [
+  { items: [{ label: "Overview", href: "/", icon: Home02, exact: true }] },
+  {
+    label: "Sending",
+    items: [
+      { label: "Campaigns", href: "/campaigns", icon: Send01, subject: "Campaign" },
+      { label: "Templates", href: "/templates", icon: FileCode01, subject: "Template" },
+      { label: "Identities", href: "/identities", icon: AtSign, subject: "Identity" },
+    ],
+  },
+  {
+    label: "Audience",
+    items: [
+      { label: "Groups", href: "/groups", icon: Users01, subject: "Group" },
+      { label: "Recipients", href: "/recipients", icon: User01, subject: "Recipient" },
+    ],
+  },
+  {
+    label: "Organization",
+    items: [
+      { label: "Profile", href: "/settings", icon: Building02, subject: "Organization", exact: true },
+      { label: "Addresses", href: "/addresses", icon: MarkerPin01, subject: "Address" },
+      { label: "Contact details", href: "/contact-details", icon: Phone, subject: "ContactDetails" },
+      { label: "API keys", href: "/settings/keys", icon: Key01, subject: "Key" },
+    ],
+  },
 ];

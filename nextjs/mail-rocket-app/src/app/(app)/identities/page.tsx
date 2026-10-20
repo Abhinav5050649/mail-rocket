@@ -1,85 +1,104 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
-import { LimitOffsetPagination } from "@/components/data/LimitOffsetPagination";
-import { IdentityStatusBadge } from "@/components/identities/IdentityStatusBadge";
+import { Button } from "@/components/ui/button";
+import { DataTable, Pagination } from "@/components/ui/data-table";
+import { PageHeader, Tabs } from "@/components/ui/page";
+import { IdentityStatusPill } from "@/components/ui/pill";
+import { EmptyState } from "@/components/ui/feedback";
+import { Select } from "@/components/ui/field";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
-import { NativeSelect } from "@/components/base/select/select-native";
 import { usePaginationParams } from "@/hooks/usePaginationParams";
-import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { useGetIdentitiesQuery, selectIdentityFilters, identityFiltersChanged } from "@/features/identities";
-import type { IdentityStatus, IdentityType } from "@/types/resources";
+import { useGetIdentitiesQuery } from "@/features/identities";
+import { useGetOverviewQuery } from "@/features/overview";
+import { formatDate } from "@/lib/format";
+import type { Identity, IdentityStatus, IdentityType } from "@/types/resources";
 
-const TYPE_OPTIONS = [
-  { label: "All types", value: "" },
-  { label: "Domain", value: "domain" },
-  { label: "Email", value: "email" },
-];
-const STATUS_OPTIONS = [
-  { label: "All statuses", value: "" },
-  { label: "Created", value: "created" },
-  { label: "Pending", value: "pending" },
-  { label: "Active", value: "active" },
+const STATUS_TABS: { value: IdentityStatus; label: string }[] = [
+  { value: "active", label: "Verified" },
+  { value: "pending", label: "Awaiting verification" },
+  { value: "created", label: "Created" },
 ];
 
 export default function IdentitiesPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const filters = useAppSelector(selectIdentityFilters);
-  const { limit, offset, setLimit, setOffset } = usePaginationParams();
+  const { limit, offset, searchParams, setOffset, setFilter } = usePaginationParams();
+  const status = (searchParams.get("status") as IdentityStatus | null) ?? undefined;
+  const type = (searchParams.get("type") as IdentityType | null) ?? undefined;
 
-  const { data: identities, isLoading, error } = useGetIdentitiesQuery({ ...filters, limit, offset });
+  const { data: identities, isLoading, error, refetch } = useGetIdentitiesQuery({ status, type, limit, offset });
+  const { data: overview } = useGetOverviewQuery();
+  const counts = overview?.identities;
+
+  /** Keeps the type filter when switching status tabs. */
+  const tabHref = (value?: IdentityStatus) => {
+    const params = new URLSearchParams();
+    if (value) params.set("status", value);
+    if (type) params.set("type", type);
+    const query = params.toString();
+    return query ? `/identities?${query}` : "/identities";
+  };
+
+  const action = (
+    <Can I="create" a="Identity">
+      <Button href="/identities/new" variant="primary" icon={Plus}>
+        Add identity
+      </Button>
+    </Can>
+  );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-primary">Identities</h1>
-        <Can I="create" a="Identity">
-          <Button href={`/identities/new`} iconLeading={Plus}>
-            New identity
-          </Button>
-        </Can>
-      </div>
+      <PageHeader title="Identities" description="Domains and email addresses campaigns send from. SES has to verify each one before it can send." actions={action} />
 
-      <div className="flex gap-3">
-        <NativeSelect
-          className="w-40"
-          size="sm"
-          options={TYPE_OPTIONS}
-          value={filters.type ?? ""}
-          onChange={(e) => {
-            dispatch(identityFiltersChanged({ type: (e.target.value || undefined) as IdentityType | undefined }));
-            setOffset(0);
-          }}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <Tabs
+          label="Filter by status"
+          className="min-w-0 flex-1"
+          items={[
+            { label: "All", href: tabHref(), count: counts?.total, active: !status },
+            ...STATUS_TABS.map((tab) => ({ label: tab.label, href: tabHref(tab.value), count: counts?.by_status[tab.value], active: status === tab.value })),
+          ]}
         />
-        <NativeSelect
-          className="w-40"
-          size="sm"
-          options={STATUS_OPTIONS}
-          value={filters.status ?? ""}
-          onChange={(e) => {
-            dispatch(identityFiltersChanged({ status: (e.target.value || undefined) as IdentityStatus | undefined }));
-            setOffset(0);
-          }}
+        <Select
+          aria-label="Filter by type"
+          className="h-8 w-40"
+          value={type ?? ""}
+          onChange={(event) => setFilter("type", event.target.value || undefined)}
+          options={[
+            { label: "Domains and emails", value: "" },
+            { label: "Domains", value: "domain" },
+            { label: "Email addresses", value: "email" },
+          ]}
         />
       </div>
 
-      <ResourceTable
-        rows={identities}
-        loading={isLoading}
-        error={error}
-        onRowClick={(row) => router.push(`/identities/${row.id}`)}
-        columns={[
-          { header: "Identity", render: (i) => i.identity },
-          { header: "Type", render: (i) => <span className="capitalize">{i.type}</span> },
-          { header: "Status", render: (i) => <IdentityStatusBadge status={i.status} /> },
-        ]}
-      />
-
-      <LimitOffsetPagination limit={limit} offset={offset} rowCount={identities?.length ?? 0} onLimitChange={setLimit} onOffsetChange={setOffset} />
+      <div>
+        <DataTable<Identity>
+          noun="identities"
+          rows={identities}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refetch}
+          href={(identity) => `/identities/${identity.id}`}
+          columns={[
+            { header: "Identity", cell: (identity) => identity.identity, className: "w-[42%]" },
+            { header: "Type", cell: (identity) => (identity.type === "domain" ? "Domain" : "Email address"), className: "text-muted" },
+            { header: "Status", cell: (identity) => <IdentityStatusPill status={identity.status} />, className: "w-52" },
+            { header: "Added", cell: (identity) => <span className="tabular">{formatDate(identity.created_at)}</span>, align: "right", className: "w-36" },
+          ]}
+          mobile={{
+            title: (identity) => identity.identity,
+            subtitle: (identity) => (identity.type === "domain" ? "Domain" : "Email address"),
+            trailing: (identity) => <IdentityStatusPill status={identity.status} />,
+          }}
+          empty={
+            <EmptyState title={status || type ? "No identities match these filters" : "No identities yet"} action={!status && !type ? action : undefined}>
+              {status || type ? "Try another status or type." : "Add a domain (send from any address on it) or a single email address."}
+            </EmptyState>
+          }
+        />
+        <Pagination noun="identities" limit={limit} offset={offset} rowCount={identities?.length ?? 0} onOffsetChange={setOffset} />
+      </div>
     </div>
   );
 }

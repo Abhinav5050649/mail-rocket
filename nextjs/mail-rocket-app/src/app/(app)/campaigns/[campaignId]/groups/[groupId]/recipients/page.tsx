@@ -1,54 +1,51 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus } from "@untitledui/icons";
-import { ResourceTable } from "@/components/data/ResourceTable";
+import { Plus } from "@untitledui/icons";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState, Skeleton } from "@/components/ui/feedback";
+import { CardLink, Dash } from "@/components/ui/page";
+import { SubsectionHeader } from "@/components/resources/SubsectionHeader";
 import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
 import { useGetGroupRecipientsQuery } from "@/features/recipients";
 import { useGetGroupQuery } from "@/features/groups";
+import { fullName } from "@/lib/format";
+import type { Recipient } from "@/types/resources";
 
-export default function CampaignGroupRecipientsPage({
-  params,
-}: {
-  params: Promise<{ campaignId: string; groupId: string }>;
-}) {
+export default function CampaignGroupRecipientsPage({ params }: { params: Promise<{ campaignId: string; groupId: string }> }) {
   const { campaignId, groupId } = use(params);
-  const router = useRouter();
   const { data: group } = useGetGroupQuery({ groupId });
-  const { data: recipients, isLoading, error } = useGetGroupRecipientsQuery({ campaignId, groupId, limit: 50 });
+  const { data: recipients, isLoading, error, refetch } = useGetGroupRecipientsQuery({ campaignId, groupId, limit: 50 });
+
+  const action = (
+    <div className="flex items-center gap-3">
+      <CardLink href={`/groups/${groupId}`}>Edit group</CardLink>
+      <Can I="create" a="Recipient">
+        <Button href={`/recipients/new?campaignId=${campaignId}&groupId=${groupId}`} icon={Plus} size="sm">
+          Add recipient
+        </Button>
+      </Can>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link
-        href={`/campaigns/${campaignId}/groups`}
-        className="flex w-max items-center gap-1.5 text-sm font-semibold text-tertiary hover:text-secondary"
-      >
-        <ArrowLeft className="size-4" />
-        Back to groups
-      </Link>
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-primary">Recipients in {group?.name ?? "group"}</h2>
-        <Can I="create" a="Recipient">
-          <Button href={`/recipients/new?campaignId=${campaignId}&groupId=${groupId}`} iconLeading={Plus} size="sm">
-            Add recipient
-          </Button>
-        </Can>
-      </div>
-
-      <ResourceTable
+    <div className="flex flex-col gap-4">
+      <CardLink href={`/campaigns/${campaignId}/groups`}>← All groups</CardLink>
+      <SubsectionHeader title={group ? (group.name ?? "Untitled group") : "Group"} note={group ? "Recipients in this group. First 50 shown." : <Skeleton className="h-4 w-48" />} action={action} />
+      <DataTable<Recipient>
+        noun="recipients"
         rows={recipients}
-        loading={isLoading}
+        isLoading={isLoading}
         error={error}
-        onRowClick={(row) => router.push(`/recipients/${row.id}`)}
+        onRetry={refetch}
+        href={(recipient) => `/recipients/${recipient.id}`}
         columns={[
-          { header: "Name", render: (r) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || "—" },
-          { header: "Email", render: (r) => r.email_id },
+          { header: "Email", cell: (recipient) => recipient.email_id, className: "w-[50%]" },
+          { header: "Name", cell: (recipient) => fullName(recipient) ?? <Dash /> },
         ]}
-        emptyMessage="No recipients in this group yet."
+        mobile={{ title: (recipient) => recipient.email_id, subtitle: (recipient) => fullName(recipient) ?? "No name" }}
+        empty={<EmptyState title="No one in this group yet" action={action} />}
       />
     </div>
   );

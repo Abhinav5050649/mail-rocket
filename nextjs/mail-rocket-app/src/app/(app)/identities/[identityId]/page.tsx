@@ -1,13 +1,15 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IdentityStatusBadge } from "@/components/identities/IdentityStatusBadge";
-import { ConfirmDialog } from "@/components/data/ConfirmDialog";
-import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { DeleteSection } from "@/components/resources/DeleteSection";
+import { CopyButton } from "@/components/ui/copy-button";
+import { FactList, PageHeader, SettingsSection } from "@/components/ui/page";
+import { IdentityStatusPill } from "@/components/ui/pill";
+import { ErrorNotice, Notice, Skeleton } from "@/components/ui/feedback";
+import { useAbility } from "@/hooks/useAbility";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
+import { formatDateTime } from "@/lib/format";
 import {
   useGetIdentityQuery,
   useDeleteIdentityMutation,
@@ -15,90 +17,136 @@ import {
   identityDeleteDialogOpened,
   identityDialogClosed,
 } from "@/features/identities";
+import type { IdentityVerificationRecord } from "@/types/resources";
+
+/** One DNS record as three copyable cells. Values wrap rather than truncate, so nothing is hidden. */
+function RecordRow({ record }: { record: IdentityVerificationRecord }) {
+  return (
+    <li className="grid gap-x-4 gap-y-1 border-b border-rule py-3 last:border-b-0 md:grid-cols-[64px_minmax(0,1fr)_minmax(0,1.2fr)] md:items-start">
+      <span className="text-xs font-medium text-muted md:pt-1.5 md:text-sm md:text-text">{record.type}</span>
+      {[
+        { label: "Name", value: record.name },
+        { label: "Value", value: record.value },
+      ].map((cell) => (
+        <span key={cell.label} className="flex min-w-0 items-start gap-1">
+          <span className="w-12 shrink-0 pt-1.5 text-xs text-muted md:hidden">{cell.label}</span>
+          <code className="min-w-0 flex-1 rounded-control bg-raised px-2 py-1 text-[13px] leading-5 break-all text-text">{cell.value}</code>
+          <CopyButton value={cell.value} label={`Copy ${cell.label.toLowerCase()}`} />
+        </span>
+      ))}
+    </li>
+  );
+}
 
 export default function IdentityDetailPage({ params }: { params: Promise<{ identityId: string }> }) {
   const { identityId } = use(params);
   const router = useRouter();
   const dispatch = useAppDispatch();
   const dialog = useAppSelector(selectIdentityDialog);
+  const { ability } = useAbility();
 
-  const { data: identity, isLoading } = useGetIdentityQuery({ identityId });
-  const [deleteIdentity, { isLoading: isDeleting }] = useDeleteIdentityMutation();
+  // Poll once a minute while SES is still verifying, so the page flips to verified on its own.
+  const [pollingInterval, setPollingInterval] = useState(60_000);
+  const { data: identity, isLoading, error, refetch } = useGetIdentityQuery({ identityId }, { pollingInterval, skipPollingIfUnfocused: true });
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (identity?.status === "active") setPollingInterval(0);
+  }, [identity?.status]);
+  const [deleteIdentity, { isLoading: isDeleting, error: deleteError }] = useDeleteIdentityMutation();
 
-  const onDelete = async () => {
-    const result = await deleteIdentity({ identityId });
-    if (!("error" in result)) {
-      router.push(`/identities`);
-    }
-  };
-
-  if (isLoading || !identity) {
-    return (
-      <div className="flex justify-center py-16">
-        <LoadingIndicator size="sm" />
-      </div>
-    );
-  }
+  const records = identity?.verification_records ?? [];
+  const isDomain = identity?.type === "domain";
 
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-primary">{identity.identity}</h1>
-          <IdentityStatusBadge status={identity.status} />
-        </div>
-        <p className="text-sm text-tertiary capitalize">{identity.type} identity</p>
-      </div>
-
-      {identity.status !== "active" && (
-        <p className="rounded-lg bg-warning-primary px-3 py-2 text-sm text-warning-primary ring-1 ring-warning_subtle">
-          Verification is still pending. {identity.type === "domain" ? "Add the DNS records below to verify this domain." : "Check your inbox for the SES verification email."}
-        </p>
-      )}
-
-      {identity.verification_records && identity.verification_records.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-primary">DNS records</h2>
-          <div className="overflow-hidden rounded-xl bg-primary ring-1 ring-secondary">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-quaternary">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-quaternary">Name</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-quaternary">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {identity.verification_records.map((record, i) => (
-                  <tr key={i} className="border-t border-secondary">
-                    <td className="px-4 py-2 font-mono text-xs text-tertiary">{record.type}</td>
-                    <td className="max-w-48 truncate px-4 py-2 font-mono text-xs text-tertiary">{record.name}</td>
-                    <td className="max-w-64 truncate px-4 py-2 font-mono text-xs text-tertiary">{record.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <Can I="delete" a="Identity">
-        <div className="flex flex-col gap-3 border-t border-secondary pt-6">
-          <h2 className="text-sm font-semibold text-error-primary">Danger zone</h2>
-          <Button type="button" color="secondary-destructive" className="w-max" onClick={() => dispatch(identityDeleteDialogOpened(identityId))}>
-            Delete identity
-          </Button>
-        </div>
-      </Can>
-
-      <ConfirmDialog
-        isOpen={dialog?.type === "delete"}
-        onOpenChange={(open) => !open && dispatch(identityDialogClosed())}
-        title="Delete this identity?"
-        description="Campaigns using this identity to send will need a new one selected. This can't be undone."
-        isLoading={isDeleting}
-        onConfirm={onDelete}
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        back={{ href: "/identities", label: "Identities" }}
+        title={identity ? identity.identity : isLoading ? <Skeleton className="h-7 w-64" /> : "Identity"}
+        status={identity && <IdentityStatusPill status={identity.status} />}
+        description={identity && (isDomain ? "Domain: campaigns can send from any address on it." : "Email address: campaigns send from this address.")}
       />
+
+      {error ? (
+        <ErrorNotice error={error} what="this identity" onRetry={refetch} />
+      ) : !identity ? (
+        <Skeleton className="h-64 w-full" />
+      ) : (
+        <div className="flex flex-col">
+          {identity.status !== "active" && (
+            <Notice className="mb-6" title={isDomain ? "Add these DNS records to verify the domain" : "Confirm the email SES sent to this address"}>
+              {isDomain
+                ? "DNS changes can take up to 72 hours to propagate. Mail Rocket checks with SES every 5 minutes; this page refreshes itself."
+                : "Open the message from Amazon Web Services and click its link. Mail Rocket checks with SES every 5 minutes."}
+            </Notice>
+          )}
+
+          {isDomain && (
+            <SettingsSection
+              wide
+              title="DNS records"
+              description={
+                <>
+                  One TXT record proves you own the domain; three CNAME records sign outgoing mail with DKIM.
+                  {identity.status === "active" && " Keep them in place: removing them stops verification."}
+                </>
+              }
+            >
+              {records.length > 0 ? (
+                <ul className="flex flex-col">
+                  <li className="hidden grid-cols-[64px_minmax(0,1fr)_minmax(0,1.2fr)] gap-x-4 pb-2 text-xs text-muted md:grid" aria-hidden>
+                    <span>Type</span>
+                    <span>Name</span>
+                    <span>Value</span>
+                  </li>
+                  {records.map((record) => (
+                    <RecordRow key={`${record.type}-${record.name}`} record={record} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">SES returned no records for this domain.</p>
+              )}
+            </SettingsSection>
+          )}
+
+          <SettingsSection title="Details">
+            <FactList
+              items={[
+                { label: "Type", value: isDomain ? "Domain" : "Email address" },
+                { label: "Added", value: <span className="tabular">{formatDateTime(identity.created_at)}</span> },
+                { label: "Last change", value: <span className="tabular">{formatDateTime(identity.updated_at ?? identity.created_at)}</span> },
+                {
+                  label: "ID",
+                  value: (
+                    <span className="inline-flex items-center gap-1">
+                      <code className="text-xs text-muted">{identity.id.slice(0, 8)}…</code>
+                      <CopyButton value={identity.id} label="Copy identity ID" />
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </SettingsSection>
+
+          {ability.can("delete", "Identity") && (
+            <DeleteSection
+              noun="identity"
+              name={identity.identity}
+              consequence="Campaigns that send from it will need another sender before they can go out."
+              isOpen={dialog?.type === "delete"}
+              onOpenChange={(open) => dispatch(open ? identityDeleteDialogOpened(identityId) : identityDialogClosed())}
+              isDeleting={isDeleting}
+              error={deleteError}
+              onConfirm={async () => {
+                const result = await deleteIdentity({ identityId });
+                if (!("error" in result)) {
+                  dispatch(identityDialogClosed());
+                  router.push("/identities");
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

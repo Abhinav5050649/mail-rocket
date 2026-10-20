@@ -25,7 +25,7 @@ export function Can({ I: action, a: subject, mode = "hide", children }: CanProps
 
   if (allowed) return children;
   if (mode === "hide") return null;
-  // Untitled UI's react-aria-based controls use `isDisabled`; plain native
+  // react-aria-based controls use `isDisabled`; plain native
   // elements use `disabled` - set both so this works on either.
   return React.cloneElement(children, { disabled: true, isDisabled: true } as Partial<unknown>);
 }

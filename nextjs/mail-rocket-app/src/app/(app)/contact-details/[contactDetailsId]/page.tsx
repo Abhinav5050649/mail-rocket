@@ -2,11 +2,11 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { ContactDetailsForm, type ContactDetailsFormValues } from "@/components/contactDetails/ContactDetailsForm";
-import { ConfirmDialog } from "@/components/data/ConfirmDialog";
-import { Can } from "@/components/auth/Can";
-import { Button } from "@/components/base/buttons/button";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { ContactDetailsForm, phoneLine } from "@/components/contactDetails/ContactDetailsForm";
+import { DeleteSection } from "@/components/resources/DeleteSection";
+import { PageHeader } from "@/components/ui/page";
+import { ErrorNotice, Skeleton } from "@/components/ui/feedback";
+import { useAbility } from "@/hooks/useAbility";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import {
   useGetContactDetailsQuery,
@@ -22,58 +22,51 @@ export default function ContactDetailsDetailPage({ params }: { params: Promise<{
   const router = useRouter();
   const dispatch = useAppDispatch();
   const dialog = useAppSelector(selectContactDetailsDialog);
+  const { ability } = useAbility();
 
-  const { data: contactDetails, isLoading } = useGetContactDetailsQuery({ contactDetailsId });
+  const { data: contact, isLoading, error, refetch } = useGetContactDetailsQuery({ contactDetailsId });
   const [updateContactDetails, { isLoading: isSaving, error: updateError }] = useUpdateContactDetailsMutation();
-  const [deleteContactDetails, { isLoading: isDeleting }] = useDeleteContactDetailsMutation();
-
-  const onSubmit = (values: ContactDetailsFormValues) => {
-    updateContactDetails({ contactDetailsId, ...values });
-  };
-
-  const onDelete = async () => {
-    const result = await deleteContactDetails({ contactDetailsId });
-    if (!("error" in result)) {
-      router.push(`/contact-details`);
-    }
-  };
-
-  if (isLoading || !contactDetails) {
-    return (
-      <div className="flex justify-center py-16">
-        <LoadingIndicator size="sm" />
-      </div>
-    );
-  }
+  const [deleteContactDetails, { isLoading: isDeleting, error: deleteError }] = useDeleteContactDetailsMutation();
+  const title = contact ? contact.email_id || phoneLine(contact) || "Contact details" : "Contact details";
 
   return (
-    <div className="flex flex-col gap-8">
-      <Can I="update" a="ContactDetails">
-        <ContactDetailsForm mode="edit" initialData={contactDetails} onSubmit={onSubmit} isSubmitting={isSaving} error={updateError} />
-      </Can>
-
-      <Can I="delete" a="ContactDetails">
-        <div className="flex flex-col gap-3 border-t border-secondary pt-6">
-          <h2 className="text-sm font-semibold text-error-primary">Danger zone</h2>
-          <Button
-            type="button"
-            color="secondary-destructive"
-            className="w-max"
-            onClick={() => dispatch(contactDetailsDeleteDialogOpened(contactDetailsId))}
-          >
-            Delete contact details
-          </Button>
+    <div className="flex flex-col gap-6">
+      <PageHeader back={{ href: "/contact-details", label: "Contact details" }} title={isLoading ? <Skeleton className="h-7 w-56" /> : title} />
+      {error ? (
+        <ErrorNotice error={error} what="these contact details" onRetry={refetch} />
+      ) : !contact ? (
+        <Skeleton className="h-48 w-full" />
+      ) : (
+        <div className="flex flex-col">
+          <ContactDetailsForm
+            key={contact.updated_at ?? contact.created_at}
+            mode="edit"
+            initialData={contact}
+            readOnly={!ability.can("update", "ContactDetails")}
+            isSubmitting={isSaving}
+            error={updateError}
+            onSubmit={(values) => updateContactDetails({ contactDetailsId, ...values })}
+          />
+          {ability.can("delete", "ContactDetails") && (
+            <DeleteSection
+              noun="contact details"
+              name={title}
+              consequence="Permanently removes these contact details."
+              isOpen={dialog?.type === "delete"}
+              onOpenChange={(open) => dispatch(open ? contactDetailsDeleteDialogOpened(contactDetailsId) : contactDetailsDialogClosed())}
+              isDeleting={isDeleting}
+              error={deleteError}
+              onConfirm={async () => {
+                const result = await deleteContactDetails({ contactDetailsId });
+                if (!("error" in result)) {
+                  dispatch(contactDetailsDialogClosed());
+                  router.push("/contact-details");
+                }
+              }}
+            />
+          )}
         </div>
-      </Can>
-
-      <ConfirmDialog
-        isOpen={dialog?.type === "delete"}
-        onOpenChange={(open) => !open && dispatch(contactDetailsDialogClosed())}
-        title="Delete these contact details?"
-        description="This can't be undone."
-        isLoading={isDeleting}
-        onConfirm={onDelete}
-      />
+      )}
     </div>
   );
 }
