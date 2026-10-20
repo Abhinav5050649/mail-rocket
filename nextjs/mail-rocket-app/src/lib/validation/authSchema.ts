@@ -1,15 +1,15 @@
 import { z } from "zod";
+import { PRESETS } from "@/lib/auth/abilities";
 
 export const signinSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  key: z.string().trim().min(1, "API key is required"),
 });
 export type SigninFormValues = z.infer<typeof signinSchema>;
 
-export const signupSchema = z.object({
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+export const keyCreateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100, "Keep it under 100 characters"),
+  preset: z.enum(PRESETS),
+  /** `YYYY-MM-DD` from a date input, or empty for a key that never expires. */
+  expires_on: z.string().optional(),
 });
-export type SignupFormValues = z.infer<typeof signupSchema>;
+export type KeyCreateFormValues = z.infer<typeof keyCreateSchema>;

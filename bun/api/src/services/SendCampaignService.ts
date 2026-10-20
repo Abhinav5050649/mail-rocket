@@ -1,16 +1,15 @@
 import { SendEmailCommand } from "@aws-sdk/client-ses";
-import { count, desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, logger, sesClient, renderTemplate, type TemplateVariableContext } from "../libs";
-import { recipientsTable, templateTable, campaignRecipientTable, groupTable } from "../models";
+import { recipientsTable, templateTable, campaignRecipientTable, groupTable, groupRecipientTable } from "../models";
 import { CampaignService } from "./CampaignService";
+import { campaignAudience, outerRecipientId } from "./RecipientService";
 import { IdentityService } from "./IdentityService";
 import { OrganizationService } from "./OrganizationService";
-import { UserService } from "./UserService";
 
 const campaignService = new CampaignService();
 const identityService = new IdentityService();
 const organizationService = new OrganizationService();
-const userService = new UserService();
 
 /**
  * Business logic for the campaign send pipeline (dispatch -> send-chunk ->
@@ -23,7 +22,9 @@ const userService = new UserService();
 export class SendCampaignService {
 
     /**
-     * Fetches every recipient id belonging to a campaign. Unpaginated,
+     * Fetches every recipient id in a campaign's audience: recipients linked
+     * to it directly plus members of the groups linked to it, each once (see
+     * `campaignAudience`). Unpaginated,
      * unlike other list methods in this codebase - a send must see every
      * recipient, not one page of them.
      *
@@ -36,7 +37,7 @@ export class SendCampaignService {
 
         try {
             const rows = await db.select({ id: recipientsTable.id }).from(recipientsTable)
-                .where(eq(recipientsTable.campaign_id, campaignId));
+                .where(campaignAudience(campaignId));
             const recipientIds = rows.map(row => row.id);
 
             logger.debug({ campaignId, count: recipientIds.length }, `Response:`);
@@ -90,11 +91,10 @@ export class SendCampaignService {
      * same recipient stays freely reusable across campaigns.
      *
      * @param campaignId - id of the campaign being sent.
-     * @param organizationId - id of the organization the campaign belongs to.
      * @param recipientIds - ids of the recipients to include in this send.
      * @returns The created `campaign_recipient` rows' ids, in the same order as `recipientIds`.
      */
-    async createCampaignRecipientManifest(campaignId: string, organizationId: string | null, recipientIds: string[]): Promise<string[]> {
+    async createCampaignRecipientManifest(campaignId: string, recipientIds: string[]): Promise<string[]> {
         logger.info(`Start method: ${this.constructor.name}.${this.createCampaignRecipientManifest.name}`);
         logger.debug({ campaignId, count: recipientIds.length }, `Request:`);
 
@@ -103,7 +103,6 @@ export class SendCampaignService {
                 recipientIds.map(recipientId => ({
                     campaign_id: campaignId,
                     recipient_id: recipientId,
-                    organization_id: organizationId,
                 }))
             ).returning({ id: campaignRecipientTable.id });
             const manifestIds = rows.map(row => row.id);
@@ -135,11 +134,11 @@ export class SendCampaignService {
      * @param campaignId - id of the campaign.
      * @param reason - human-readable reason the send failed.
      */
-    async markCampaignSendFailed(campaignId: string, reason: string): Promise<void> {
-        logger.info(`Start method: ${this.constructor.name}.${this.markCampaignSendFailed.name}`);
-        logger.warn({ campaignId, reason }, `${this.constructor.name}.${this.markCampaignSendFailed.name}: Marking campaign send as failed`);
-        await campaignService.update(campaignId, { status: "send_failed", send_failure_reason: reason });
-        logger.info(`End method: ${this.constructor.name}.${this.markCampaignSendFailed.name}`);
+    async markCampaignFailed(campaignId: string, reason: string): Promise<void> {
+        logger.info(`Start method: ${this.constructor.name}.${this.markCampaignFailed.name}`);
+        logger.warn({ campaignId, reason }, `${this.constructor.name}.${this.markCampaignFailed.name}: Marking campaign send as failed`);
+        await campaignService.update(campaignId, { status: "failed", failure_reason: reason });
+        logger.info(`End method: ${this.constructor.name}.${this.markCampaignFailed.name}`);
     }
 
     /**
@@ -177,8 +176,8 @@ export class SendCampaignService {
         if (identity.type !== "email") throw new Error(`Identity ${identity.id} is type '${identity.type}'; only 'email' sending identities are supported`);
 
         // Resolved once per chunk - shared by every recipient's template context below.
-        const organization = campaign.organization_id ? await organizationService.getById(campaign.organization_id) : null;
-        const organizer = campaign.organizer_id ? await userService.getById(campaign.organizer_id) : null;
+        // The instance's single organization profile, for `{{organization_name}}`.
+        const organization = await organizationService.get();
 
         const template = await this.getCurrentTemplateForCampaign(campaignId);
         if (!template) throw new Error(`Campaign ${campaignId} has no template`);
@@ -189,10 +188,15 @@ export class SendCampaignService {
             email: recipientsTable.email_id,
             firstName: recipientsTable.first_name,
             lastName: recipientsTable.last_name,
-            groupName: groupTable.name,
+            // Every group the recipient is in, by name - "{{group_name}}" lists them all.
+            groupNames: sql<string | null>`(
+                select string_agg(${groupTable.name}, ', ' order by ${groupTable.name})
+                from ${groupRecipientTable}
+                inner join ${groupTable} on ${groupTable.id} = ${groupRecipientTable.group_id}
+                where ${groupRecipientTable.recipient_id} = ${outerRecipientId}
+            )`,
         }).from(campaignRecipientTable)
             .innerJoin(recipientsTable, eq(campaignRecipientTable.recipient_id, recipientsTable.id))
-            .leftJoin(groupTable, eq(recipientsTable.group_id, groupTable.id))
             .where(inArray(campaignRecipientTable.id, campaignRecipientIds));
 
         for (const row of rows) {
@@ -204,10 +208,9 @@ export class SendCampaignService {
 
             const context: TemplateVariableContext = {
                 recipient: { first_name: row.firstName, last_name: row.lastName, email_id: row.email },
-                group: row.groupName !== null && row.groupName !== undefined ? { name: row.groupName } : null,
+                group: row.groupNames ? { name: row.groupNames } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
-                organization: organization ? { name: organization.name } : null,
-                organizer: organizer ? { first_name: organizer.first_name, last_name: organizer.last_name, email: organizer.email } : null,
+                organization: organization ? { name: organization.name, timezone: organization.timezone } : null,
                 sender: { email: identity.identity },
             };
 
@@ -244,7 +247,7 @@ export class SendCampaignService {
 
     /**
      * Recomputes a campaign's final status once every chunk of its send has
-     * settled: `sent` if at least one recipient succeeded, `send_failed`
+     * settled: `sent` if at least one recipient succeeded, `failed`
      * only on total failure. Partial delivery failures (bounces etc.) are
      * routine at scale and shouldn't flip a whole campaign to a failed
      * state - the per-recipient `campaign_recipient.send_status` trail
@@ -266,7 +269,7 @@ export class SendCampaignService {
         if (sentCount > 0) {
             await campaignService.update(campaignId, { status: "sent" });
         } else {
-            await this.markCampaignSendFailed(campaignId, "No recipients were successfully sent to");
+            await this.markCampaignFailed(campaignId, "No recipients were successfully sent to");
         }
 
         logger.debug({ campaignId, counts }, `Response:`);

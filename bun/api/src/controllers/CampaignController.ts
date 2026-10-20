@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { assertNoSystemFields, logger } from "../libs";
 import { CampaignService } from "../services";
 import type { CampaignStatus } from "../models";
 
@@ -24,34 +24,36 @@ const coerceStartTime = (body: Record<string, unknown>): void => {
 };
 
 /**
+ * Fields the send pipeline owns. `status` must stay in step with the queued
+ * dispatch job - set by `CampaignService` when `start_time` changes and by
+ * the send workers afterwards - so a client writing it could mark a campaign
+ * "scheduled" that will never send, or "draft" while its job still fires.
+ */
+const CAMPAIGN_SYSTEM_FIELDS = ["status", "failure_reason"] as const;
+
+/** How a client actually controls sending, for the rejection message. */
+const SCHEDULING_HINT = "Set start_time to schedule a send, or set it to null to cancel one.";
+
+/**
  * HTTP layer for campaign-related endpoints. Translates Hono `Context`
  * objects into `CampaignService` calls and maps the results to HTTP
- * responses/errors. Campaigns are nested under an organization:
- * `/organizations/:organization_id/campaigns`.
+ * responses/errors. Campaigns live at `/campaigns`.
  */
 export class CampaignController {
     constructor(private campaignService: CampaignService) {
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns
-     * Lists campaigns belonging to an organization.
+     * GET /campaigns
+     * Lists all campaigns.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts an optional `status` filter, and optional `limit`
+     * @param c - Hono request context; accepts an optional `status` filter, and optional `limit`
      * (max rows to return) and `offset` (rows to skip before returning
      * results) query params.
      * @returns JSON array of campaigns.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
-
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
 
         const status = c.req.query('status') as CampaignStatus | undefined;
         const limitParam = c.req.query('limit');
@@ -59,49 +61,43 @@ export class CampaignController {
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, status, limit, offset }, `Request:`);
+        logger.debug({ status, limit, offset }, `Request:`);
 
-        const campaigns = await this.campaignService.getByOrganization(organizationId, { status, limit, offset });
+        const campaigns = await this.campaignService.getAll({ status, limit, offset });
 
-        logger.debug({ organizationId, count: campaigns.length }, `Response:`);
+        logger.debug({ count: campaigns.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(campaigns);
     }
 
     /**
-     * POST /organizations/:organization_id/campaigns
-     * Creates a new campaign within an organization.
+     * POST /campaigns
+     * Creates a new campaign.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the campaign fields.
+     * @param c - Hono request context; expects a JSON body with the campaign fields.
      * @returns JSON response with the created campaign.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {ValidationError} 400 if the body sets `status` or `failure_reason`.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
         const body = await c.req.json();
+        assertNoSystemFields(body, CAMPAIGN_SYSTEM_FIELDS, SCHEDULING_HINT);
         coerceStartTime(body);
 
-        logger.debug({ organizationId, body }, `Request:`);
+        logger.debug({ body }, `Request:`);
 
-        const campaign = await this.campaignService.create({ ...body, organization_id: organizationId });
+        const campaign = await this.campaignService.create(body);
 
-        logger.debug({ organizationId, campaign }, `Response:`);
+        logger.debug({ campaign }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(campaign, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns/:campaign_id
+     * GET /campaigns/:campaign_id
      * Fetches a single campaign by id.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
@@ -134,7 +130,7 @@ export class CampaignController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/campaigns/:campaign_id
+     * PATCH /campaigns/:campaign_id
      * Partially updates a campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param
@@ -142,6 +138,7 @@ export class CampaignController {
      * @returns JSON response with the updated campaign.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      * @throws {HTTPException} 404 if no campaign matches the given id.
+     * @throws {ValidationError} 400 if the body sets `status` or `failure_reason`.
      */
     update = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);
@@ -153,6 +150,7 @@ export class CampaignController {
         }
 
         const body = await c.req.json();
+        assertNoSystemFields(body, CAMPAIGN_SYSTEM_FIELDS, SCHEDULING_HINT);
         coerceStartTime(body);
 
         logger.debug({ campaignId, body }, `Request:`);
@@ -171,13 +169,15 @@ export class CampaignController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/campaigns/:campaign_id
-     * Deletes a campaign.
+     * DELETE /campaigns/:campaign_id
+     * Deletes a campaign and cancels its queued send. Its templates, groups
+     * and recipients are kept, unlinked.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
      * @returns JSON response with the deleted campaign.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      * @throws {HTTPException} 404 if no campaign matches the given id.
+     * @throws {ValidationError} 400 if the campaign is sending right now.
      */
     delete = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);

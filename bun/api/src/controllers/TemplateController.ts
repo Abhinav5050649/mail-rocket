@@ -6,10 +6,9 @@ import { TemplateService } from "../services";
 /**
  * HTTP layer for template-related endpoints. Translates Hono `Context`
  * objects into `TemplateService` calls and maps the results to HTTP
- * responses/errors. Templates are nested under an organization
- * (`/organizations/:organization_id/templates`) for org-wide access, and
- * additionally under a campaign
- * (`/organizations/:organization_id/campaigns/:campaign_id/templates`) for
+ * responses/errors. Templates live at `/templates`, and are
+ * additionally nested under a campaign
+ * (`/campaigns/:campaign_id/templates`) for
  * campaign-scoped listing/creation.
  */
 export class TemplateController {
@@ -17,71 +16,55 @@ export class TemplateController {
     }
 
     /**
-     * GET /organizations/:organization_id/templates
-     * Lists every template belonging to an organization, across all campaigns.
+     * GET /templates
+     * Lists every template, across all campaigns.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `limit` (max rows to return) and `offset`
+     * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
      * @returns JSON array of templates.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
-
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
 
         const limitParam = c.req.query('limit');
         const offsetParam = c.req.query('offset');
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, limit, offset }, `Request:`);
+        logger.debug({ limit, offset }, `Request:`);
 
-        const templates = await this.templateService.getByOrganization(organizationId, { limit, offset });
+        const templates = await this.templateService.getAll({ limit, offset });
 
-        logger.debug({ organizationId, count: templates.length }, `Response:`);
+        logger.debug({ count: templates.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(templates);
     }
 
     /**
-     * POST /organizations/:organization_id/templates
-     * Creates a new template within an organization.
+     * POST /templates
+     * Creates a new template.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the template fields.
+     * @param c - Hono request context; expects a JSON body with the template fields.
      * @returns JSON response with the created template.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
         const body = await c.req.json();
 
-        logger.debug({ organizationId, body }, `Request:`);
+        logger.debug({ body }, `Request:`);
 
-        const template = await this.templateService.create({ ...body, organization_id: organizationId });
+        const template = await this.templateService.create(body);
 
-        logger.debug({ organizationId, template }, `Response:`);
+        logger.debug({ template }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(template, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns/:campaign_id/templates
+     * GET /campaigns/:campaign_id/templates
      * Lists templates belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
@@ -115,38 +98,37 @@ export class TemplateController {
     }
 
     /**
-     * POST /organizations/:organization_id/campaigns/:campaign_id/templates
+     * POST /campaigns/:campaign_id/templates
      * Creates a new template within a campaign.
      *
-     * @param c - Hono request context; expects `organization_id` and
-     * `campaign_id` route params and a JSON body with the template fields.
+     * @param c - Hono request context; expects a `campaign_id`
+     * route param and a JSON body with the template fields.
      * @returns JSON response with the created template.
-     * @throws {HTTPException} 400 if `organization_id` or `campaign_id` is missing.
+     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     postByCampaign = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
-        const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
 
-        if (!organizationId || !campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId, campaignId" });
+        if (!campaignId) {
+            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
         const body = await c.req.json();
 
-        logger.debug({ organizationId, campaignId, body }, `Request:`);
+        logger.debug({ campaignId, body }, `Request:`);
 
-        const template = await this.templateService.create({ ...body, organization_id: organizationId, campaign_id: campaignId });
+        const template = await this.templateService.create({ ...body, campaign_id: campaignId });
 
-        logger.debug({ organizationId, campaignId, template }, `Response:`);
+        logger.debug({ campaignId, template }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(template, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/templates/:template_id
+     * GET /templates/:template_id
      * Fetches a single template by id.
      *
      * @param c - Hono request context; expects a `template_id` route param.
@@ -179,7 +161,7 @@ export class TemplateController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/templates/:template_id
+     * PATCH /templates/:template_id
      * Partially updates a template.
      *
      * @param c - Hono request context; expects a `template_id` route param
@@ -215,7 +197,7 @@ export class TemplateController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/templates/:template_id
+     * DELETE /templates/:template_id
      * Deletes a template.
      *
      * @param c - Hono request context; expects a `template_id` route param.

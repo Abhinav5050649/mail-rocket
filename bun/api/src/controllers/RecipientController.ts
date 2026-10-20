@@ -1,91 +1,93 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "../libs";
+import { logger, ValidationError } from "../libs";
 import { RecipientService } from "../services";
+
+/**
+ * Checks a recipient body's group membership fields. `group_ids`, when
+ * present, must be an array of id strings; the old single `group_id` is
+ * rejected with a pointer to its replacement rather than silently ignored.
+ *
+ * @param body - The parsed JSON request body.
+ * @throws {ValidationError} (-> 400) on `group_id` or a malformed `group_ids`.
+ */
+const assertGroupIdsField = (body: Record<string, unknown>): void => {
+    if ("group_id" in body) {
+        throw new ValidationError("group_id was replaced by group_ids: a recipient can be in several groups. Send group_ids: [\"<group id>\"] instead.");
+    }
+    if ("group_ids" in body && (!Array.isArray(body.group_ids) || !body.group_ids.every((id) => typeof id === "string" && id.length > 0))) {
+        throw new ValidationError("group_ids must be an array of group id strings");
+    }
+};
 
 /**
  * HTTP layer for recipient-related endpoints. Translates Hono `Context`
  * objects into `RecipientService` calls and maps the results to HTTP
- * responses/errors. Recipients are nested under an organization
- * (`/organizations/:organization_id/recipients`) for org-wide access, and
- * additionally under a campaign
- * (`/organizations/:organization_id/campaigns/:campaign_id/recipients`) or a
+ * responses/errors. Recipients live at `/recipients`, and are
+ * additionally nested under a campaign
+ * (`/campaigns/:campaign_id/recipients`) or a
  * group within a campaign
- * (`/organizations/:organization_id/campaigns/:campaign_id/groups/:group_id/recipients`)
- * for narrower listing/creation.
+ * (`/campaigns/:campaign_id/groups/:group_id/recipients`)
+ * for narrower listing/creation. Group membership is many-to-many and is
+ * managed at `/groups/:group_id/recipients`, or by sending `group_ids`.
  */
 export class RecipientController {
     constructor(private recipientService: RecipientService) {
     }
 
     /**
-     * GET /organizations/:organization_id/recipients
-     * Lists every recipient belonging to an organization, across all
-     * campaigns and groups.
+     * GET /recipients
+     * Lists every recipient, across all campaigns and groups.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `limit` (max rows to return) and `offset`
+     * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
      * @returns JSON array of recipients.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
-
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
 
         const limitParam = c.req.query('limit');
         const offsetParam = c.req.query('offset');
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, limit, offset }, `Request:`);
+        logger.debug({ limit, offset }, `Request:`);
 
-        const recipients = await this.recipientService.getByOrganization(organizationId, { limit, offset });
+        const recipients = await this.recipientService.getAll({ limit, offset });
 
-        logger.debug({ organizationId, count: recipients.length }, `Response:`);
+        logger.debug({ count: recipients.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(recipients);
     }
 
     /**
-     * POST /organizations/:organization_id/recipients
-     * Creates a new recipient within an organization.
+     * POST /recipients
+     * Creates a new recipient.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the recipient fields.
+     * @param c - Hono request context; expects a JSON body with the recipient fields.
      * @returns JSON response with the created recipient.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
         const body = await c.req.json();
+        assertGroupIdsField(body);
 
-        logger.debug({ organizationId, body }, `Request:`);
+        logger.debug({ body }, `Request:`);
 
-        const recipient = await this.recipientService.create({ ...body, organization_id: organizationId });
+        const recipient = await this.recipientService.create(body);
 
-        logger.debug({ organizationId, recipient }, `Response:`);
+        logger.debug({ recipient }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(recipient, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns/:campaign_id/recipients
-     * Lists recipients belonging to a single campaign.
+     * GET /campaigns/:campaign_id/recipients
+     * Lists a campaign's audience: recipients linked to it directly plus
+     * members of its linked groups, each once.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
      * Accepts optional `limit` (max rows to return) and `offset` (rows to
@@ -118,38 +120,39 @@ export class RecipientController {
     }
 
     /**
-     * POST /organizations/:organization_id/campaigns/:campaign_id/recipients
+     * POST /campaigns/:campaign_id/recipients
      * Creates a new recipient within a campaign.
      *
-     * @param c - Hono request context; expects `organization_id` and
-     * `campaign_id` route params and a JSON body with the recipient fields.
+     * @param c - Hono request context; expects a `campaign_id`
+     * route param and a JSON body with the recipient fields.
      * @returns JSON response with the created recipient.
-     * @throws {HTTPException} 400 if `organization_id` or `campaign_id` is missing.
+     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     postByCampaign = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
-        const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
 
-        if (!organizationId || !campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId, campaignId" });
+        if (!campaignId) {
+            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
         const body = await c.req.json();
+        assertGroupIdsField(body);
 
-        logger.debug({ organizationId, campaignId, body }, `Request:`);
+        logger.debug({ campaignId, body }, `Request:`);
 
-        const recipient = await this.recipientService.create({ ...body, organization_id: organizationId, campaign_id: campaignId });
+        const recipient = await this.recipientService.create({ ...body, campaign_id: campaignId });
 
-        logger.debug({ organizationId, campaignId, recipient }, `Response:`);
+        logger.debug({ campaignId, recipient }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(recipient, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns/:campaign_id/groups/:group_id/recipients
+     * GET /groups/:group_id/recipients
+     * GET /campaigns/:campaign_id/groups/:group_id/recipients
      * Lists recipients belonging to a single group.
      *
      * @param c - Hono request context; expects a `group_id` route param.
@@ -183,45 +186,45 @@ export class RecipientController {
     }
 
     /**
-     * POST /organizations/:organization_id/campaigns/:campaign_id/groups/:group_id/recipients
+     * POST /campaigns/:campaign_id/groups/:group_id/recipients
      * Creates a new recipient within a group.
      *
-     * @param c - Hono request context; expects `organization_id`,
-     * `campaign_id`, and `group_id` route params and a JSON body with the
+     * @param c - Hono request context; expects `campaign_id` and
+     * `group_id` route params and a JSON body with the
      * recipient fields.
      * @returns JSON response with the created recipient.
-     * @throws {HTTPException} 400 if `organization_id`, `campaign_id`, or `group_id` is missing.
+     * @throws {HTTPException} 400 if `campaign_id` or `group_id` is missing.
      */
     postByGroup = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.postByGroup.name}`);
 
-        const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
         const groupId = c.req.param('group_id');
 
-        if (!organizationId || !campaignId || !groupId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId, campaignId, groupId" });
+        if (!campaignId || !groupId) {
+            throw new HTTPException(400, { message: "Missing Parameters: campaignId, groupId" });
         }
 
         const body = await c.req.json();
+        assertGroupIdsField(body);
 
-        logger.debug({ organizationId, campaignId, groupId, body }, `Request:`);
+        logger.debug({ campaignId, groupId, body }, `Request:`);
 
+        // The route's group is always one of the new recipient's groups.
         const recipient = await this.recipientService.create({
             ...body,
-            organization_id: organizationId,
             campaign_id: campaignId,
-            group_id: groupId,
+            group_ids: [...new Set([...(body.group_ids ?? []), groupId])],
         });
 
-        logger.debug({ organizationId, campaignId, groupId, recipient }, `Response:`);
+        logger.debug({ campaignId, groupId, recipient }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.postByGroup.name}`);
 
         return c.json(recipient, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/recipients/:recipient_id
+     * GET /recipients/:recipient_id
      * Fetches a single recipient by id.
      *
      * @param c - Hono request context; expects a `recipient_id` route param.
@@ -254,7 +257,7 @@ export class RecipientController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/recipients/:recipient_id
+     * PATCH /recipients/:recipient_id
      * Partially updates a recipient.
      *
      * @param c - Hono request context; expects a `recipient_id` route param
@@ -273,6 +276,7 @@ export class RecipientController {
         }
 
         const body = await c.req.json();
+        assertGroupIdsField(body);
 
         logger.debug({ recipientId, body }, `Request:`);
 
@@ -290,7 +294,7 @@ export class RecipientController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/recipients/:recipient_id
+     * DELETE /recipients/:recipient_id
      * Deletes a recipient.
      *
      * @param c - Hono request context; expects a `recipient_id` route param.
@@ -318,6 +322,76 @@ export class RecipientController {
 
         logger.debug({ recipient }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.delete.name}`);
+
+        return c.json(recipient);
+    }
+
+    /**
+     * POST /groups/:group_id/recipients
+     * Adds an existing recipient to a group. Already a member is a no-op.
+     *
+     * @param c - Hono request context; expects a `group_id` route param and a
+     * JSON body `{ recipient_id }`.
+     * @returns JSON response with the recipient and its updated `group_ids`.
+     * @throws {HTTPException} 400 if `group_id` or `recipient_id` is missing.
+     * @throws {HTTPException} 404 if the group or recipient doesn't exist.
+     */
+    addToGroup = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.addToGroup.name}`);
+
+        const groupId = c.req.param('group_id');
+        const body = await c.req.json();
+        const recipientId = typeof body?.recipient_id === "string" ? body.recipient_id : undefined;
+
+        if (!groupId || !recipientId) {
+            throw new HTTPException(400, { message: "Missing Parameters: groupId, recipient_id" });
+        }
+
+        logger.debug({ groupId, recipientId }, `Request:`);
+
+        const recipient = await this.recipientService.addToGroup(groupId, recipientId);
+
+        if (!recipient) {
+            logger.warn({ groupId, recipientId }, `${this.constructor.name}.${this.addToGroup.name}: Group or recipient not found`);
+            throw new HTTPException(404, { message: "Group or recipient not found" });
+        }
+
+        logger.debug({ recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.addToGroup.name}`);
+
+        return c.json(recipient);
+    }
+
+    /**
+     * DELETE /groups/:group_id/recipients/:recipient_id
+     * Removes a recipient from a group; the recipient itself is kept.
+     *
+     * @param c - Hono request context; expects `group_id` and `recipient_id` route params.
+     * @returns JSON response with the recipient and its updated `group_ids`.
+     * @throws {HTTPException} 400 if a param is missing.
+     * @throws {HTTPException} 404 if the recipient isn't in the group.
+     */
+    removeFromGroup = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.removeFromGroup.name}`);
+
+        const groupId = c.req.param('group_id');
+        const recipientId = c.req.param('recipient_id');
+
+        if (!groupId || !recipientId) {
+            throw new HTTPException(400, { message: "Missing Parameters: groupId, recipientId" });
+        }
+
+        logger.debug({ groupId, recipientId }, `Request:`);
+
+        const recipient = await this.recipientService.removeFromGroup(groupId, recipientId);
+
+        if (!recipient) {
+            logger.warn({ groupId, recipientId }, `${this.constructor.name}.${this.removeFromGroup.name}: Recipient not in group`);
+            throw new HTTPException(404, { message: "Recipient is not in this group" });
+        }
+
+        logger.debug({ recipient }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.removeFromGroup.name}`);
 
         return c.json(recipient);
     }

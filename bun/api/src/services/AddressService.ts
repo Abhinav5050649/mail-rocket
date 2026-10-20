@@ -12,7 +12,6 @@ export interface CreateAddressInput {
     postal_code?: string;
     is_primary?: boolean;
     organization_id?: string;
-    user_id?: string;
     description?: string;
 }
 
@@ -86,34 +85,6 @@ export class AddressService {
             return address;
         } catch (error) {
             logger.error({ err: error, addressId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get address`);
-            throw error;
-        }
-    }
-
-    /**
-     * Lists every address belonging to a given user, ordered by `id` ascending.
-     *
-     * @param userId - id of the user.
-     * @param options.limit - max number of rows to return.
-     * @param options.offset - number of rows to skip before returning results.
-     * @returns Array of matching address rows (empty if none exist).
-     * @throws Re-throws any error from the underlying query, after logging it.
-     */
-    async getByUser(userId: string, options?: PaginationOptions) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getByUser.name}`);
-        logger.debug({ userId, options }, `Request:`);
-
-        try {
-            const addresses = await db.select().from(addressTable).where(eq(addressTable.user_id, userId)).orderBy(asc(addressTable.id))
-                .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
-                .offset(options?.offset ?? 0);
-
-            logger.debug({ userId, count: addresses.length }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getByUser.name}`);
-
-            return addresses;
-        } catch (error) {
-            logger.error({ err: error, userId, options }, `Exception in ${this.constructor.name}.${this.getByUser.name}: Failed to get addresses for user`);
             throw error;
         }
     }

@@ -1,8 +1,7 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
-import { userTable } from "./UserModel";
 
-/** Drizzle schema for `contact_details`: email/phone reachable via a user or organization. */
+/** Drizzle schema for `contact_details`: email/phone the organization can be reached at. */
 export const contactDetailsTable = pgTable("contact_details", {
     /** UUID to uniquely identify contact. */
     id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -20,12 +19,9 @@ export const contactDetailsTable = pgTable("contact_details", {
     description: varchar("description"),
     /** Organization the contact detail is associated to. */
     organization_id: varchar("organization_id").references(() => organizationTable.id),
-    /** User the contact detail is associated to. */
-    user_id: varchar("user_id").references(() => userTable.id),
 }, (table) => [
-    // Backs `getByOrganization` and `getByUser`.
+    // Backs `getByOrganization`.
     index("contact_details_organization_id_idx").on(table.organization_id),
-    index("contact_details_user_id_idx").on(table.user_id),
 ]);
 
 /** TS type for a contact_details row, inferred directly from the table schema above. */

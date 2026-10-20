@@ -29,17 +29,17 @@ const processDispatch = async (job: Job<{ campaignId: string }>) => {
 
     const recipientIds = await sendCampaignService.getRecipientIdsForCampaign(campaignId);
     if (recipientIds.length === 0) {
-        await sendCampaignService.markCampaignSendFailed(campaignId, "No recipients found for campaign");
+        await sendCampaignService.markCampaignFailed(campaignId, "No recipients found for campaign");
         return;
     }
 
     const template = await sendCampaignService.getCurrentTemplateForCampaign(campaignId);
     if (!template) {
-        await sendCampaignService.markCampaignSendFailed(campaignId, "No template found for campaign");
+        await sendCampaignService.markCampaignFailed(campaignId, "No template found for campaign");
         return;
     }
 
-    const manifestIds = await sendCampaignService.createCampaignRecipientManifest(campaignId, campaign.organization_id, recipientIds);
+    const manifestIds = await sendCampaignService.createCampaignRecipientManifest(campaignId, recipientIds);
     await sendCampaignService.beginSending(campaignId);
 
     const chunks = chunkArray(manifestIds, CHUNK_SIZE);

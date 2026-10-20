@@ -5,27 +5,27 @@ import type { Group, GroupInput } from "./model";
 
 export const groupsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getGroups: builder.query<Group[], { organizationId: string } & PageArgs>({
-      query: ({ organizationId, ...args }) => ({
-        url: `/organizations/${organizationId}/groups`,
+    getGroups: builder.query<Group[], PageArgs>({
+      query: (args) => ({
+        url: `/groups`,
         params: args,
       }),
       providesTags: (result) => listTags("Group", result),
     }),
-    getCampaignGroups: builder.query<Group[], { organizationId: string; campaignId: string } & PageArgs>({
-      query: ({ organizationId, campaignId, ...args }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/groups`,
+    getCampaignGroups: builder.query<Group[], { campaignId: string } & PageArgs>({
+      query: ({ campaignId, ...args }) => ({
+        url: `/campaigns/${campaignId}/groups`,
         params: args,
       }),
       providesTags: (result, _e, { campaignId }) => listTags("Group", result, [`CAMPAIGN_${campaignId}`]),
     }),
-    getGroup: builder.query<Group, { organizationId: string; groupId: string }>({
-      query: ({ organizationId, groupId }) => `/organizations/${organizationId}/groups/${groupId}`,
+    getGroup: builder.query<Group, { groupId: string }>({
+      query: ({ groupId }) => `/groups/${groupId}`,
       providesTags: (_r, _e, { groupId }) => itemTag("Group", groupId),
     }),
-    createGroup: builder.mutation<Group, { organizationId: string } & GroupInput>({
-      query: ({ organizationId, ...body }) => ({
-        url: `/organizations/${organizationId}/groups`,
+    createGroup: builder.mutation<Group, GroupInput>({
+      query: (body) => ({
+        url: `/groups`,
         method: "POST",
         body,
       }),
@@ -34,9 +34,9 @@ export const groupsApi = apiSlice.injectEndpoints({
         ...(result?.campaign_id ? [{ type: "Group" as const, id: `CAMPAIGN_${result.campaign_id}` }] : []),
       ],
     }),
-    createCampaignGroup: builder.mutation<Group, { organizationId: string; campaignId: string } & GroupInput>({
-      query: ({ organizationId, campaignId, ...body }) => ({
-        url: `/organizations/${organizationId}/campaigns/${campaignId}/groups`,
+    createCampaignGroup: builder.mutation<Group, { campaignId: string } & GroupInput>({
+      query: ({ campaignId, ...body }) => ({
+        url: `/campaigns/${campaignId}/groups`,
         method: "POST",
         body,
       }),
@@ -45,9 +45,9 @@ export const groupsApi = apiSlice.injectEndpoints({
         { type: "Group", id: `CAMPAIGN_${campaignId}` },
       ],
     }),
-    updateGroup: builder.mutation<Group, { organizationId: string; groupId: string } & Partial<GroupInput>>({
-      query: ({ organizationId, groupId, ...body }) => ({
-        url: `/organizations/${organizationId}/groups/${groupId}`,
+    updateGroup: builder.mutation<Group, { groupId: string } & Partial<GroupInput>>({
+      query: ({ groupId, ...body }) => ({
+        url: `/groups/${groupId}`,
         method: "PATCH",
         body,
       }),
@@ -56,9 +56,9 @@ export const groupsApi = apiSlice.injectEndpoints({
         ...(result?.campaign_id ? [{ type: "Group" as const, id: `CAMPAIGN_${result.campaign_id}` }] : []),
       ],
     }),
-    deleteGroup: builder.mutation<void, { organizationId: string; groupId: string; campaignId?: string }>({
-      query: ({ organizationId, groupId }) => ({
-        url: `/organizations/${organizationId}/groups/${groupId}`,
+    deleteGroup: builder.mutation<void, { groupId: string; campaignId?: string }>({
+      query: ({ groupId }) => ({
+        url: `/groups/${groupId}`,
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, { groupId, campaignId }) => [

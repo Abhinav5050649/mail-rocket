@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.2",
     "@hookform/resolvers": "^5.9.1",
     "@internationalized/date": "^3.12.4",
     "@react-aria/utils": "^3.34.1",

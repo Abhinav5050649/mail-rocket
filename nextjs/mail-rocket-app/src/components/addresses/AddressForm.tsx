@@ -1,15 +1,15 @@
 "use client";
 
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Input } from "@/components/base/input/input";
-import { Checkbox } from "@/components/base/checkbox/checkbox";
-import { Button } from "@/components/base/buttons/button";
-import { getApiErrorMessage } from "@/lib/redux/api/errors";
-import type { Address } from "@/types/resources";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
+import { Checkbox, Field, Input } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { FormActions, SettingsSection } from "@/components/ui/page";
+import { FormError } from "@/components/ui/feedback";
+import type { Address } from "@/types/resources";
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -29,10 +29,15 @@ interface AddressFormProps {
   isSubmitting: boolean;
   error?: FetchBaseQueryError | SerializedError;
   onCancel?: () => void;
+  readOnly?: boolean;
 }
 
-export function AddressForm({ mode, initialData, onSubmit, isSubmitting, error, onCancel }: AddressFormProps) {
-  const { control, handleSubmit } = useForm<AddressFormValues>({
+export function AddressForm({ mode, initialData, onSubmit, isSubmitting, error, onCancel, readOnly }: AddressFormProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { isDirty },
+  } = useForm<AddressFormValues>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
       street: initialData?.street ?? "",
@@ -46,35 +51,52 @@ export function AddressForm({ mode, initialData, onSubmit, isSubmitting, error, 
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex max-w-lg flex-col gap-5">
-      {error && <p className="rounded-lg bg-error-primary px-3 py-2 text-sm text-error-primary ring-1 ring-error_subtle">{getApiErrorMessage(error)}</p>}
-      <Controller control={control} name="street" render={({ field }) => <Input {...field} label="Street" />} />
-      <div className="flex gap-3">
-        <Controller control={control} name="area" render={({ field }) => <Input {...field} label="Area" />} />
-        <Controller control={control} name="city" render={({ field }) => <Input {...field} label="City" />} />
-      </div>
-      <div className="flex gap-3">
-        <Controller control={control} name="state" render={({ field }) => <Input {...field} label="State" />} />
-        <Controller control={control} name="postal_code" render={({ field }) => <Input {...field} label="Postal code" />} />
-      </div>
-      <Controller control={control} name="country" render={({ field }) => <Input {...field} label="Country" />} />
-      <Controller
-        control={control}
-        name="is_primary"
-        render={({ field }) => (
-          <Checkbox label="Primary address" isSelected={field.value} onChange={field.onChange} />
-        )}
-      />
-      <div className="flex gap-3">
-        <Button type="submit" isLoading={isSubmitting}>
-          {mode === "create" ? "Add address" : "Save changes"}
-        </Button>
-        {onCancel && (
-          <Button type="button" color="link-gray" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <SettingsSection title="Address" description="A postal address for the organization, e.g. for an email footer.">
+        <fieldset disabled={readOnly} className="flex flex-col gap-4">
+          <Field label="Street" optional>
+            {(props) => <Input {...props} {...register("street")} autoComplete="street-address" />}
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Area" optional>
+              {(props) => <Input {...props} {...register("area")} />}
+            </Field>
+            <Field label="City" optional>
+              {(props) => <Input {...props} {...register("city")} autoComplete="address-level2" />}
+            </Field>
+            <Field label="State or region" optional>
+              {(props) => <Input {...props} {...register("state")} autoComplete="address-level1" />}
+            </Field>
+            <Field label="Postal code" optional>
+              {(props) => <Input {...props} {...register("postal_code")} autoComplete="postal-code" className="tabular" />}
+            </Field>
+          </div>
+          <Field label="Country" optional>
+            {(props) => <Input {...props} {...register("country")} autoComplete="country-name" />}
+          </Field>
+          <Checkbox {...register("is_primary")} label="Primary address" description="The one used when only one address is needed." />
+          {!readOnly && (
+            <>
+              <FormError error={error} />
+              <FormActions>
+                {onCancel && (
+                  <Button variant="ghost" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" variant="primary" isLoading={isSubmitting} disabled={mode === "edit" && !isDirty}>
+                  {mode === "create" ? "Add address" : "Save changes"}
+                </Button>
+              </FormActions>
+            </>
+          )}
+        </fieldset>
+      </SettingsSection>
     </form>
   );
+}
+
+/** "12 Rue X, Paris, 75001, France" from whichever parts are set. */
+export function addressLine(address: Address) {
+  return [address.street, address.area, address.city, address.state, address.postal_code, address.country].filter(Boolean).join(", ");
 }

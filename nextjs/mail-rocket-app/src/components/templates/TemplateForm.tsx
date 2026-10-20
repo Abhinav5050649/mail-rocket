@@ -1,20 +1,22 @@
 "use client";
 
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Input } from "@/components/base/input/input";
-import { NativeSelect } from "@/components/base/select/select-native";
-import { Button } from "@/components/base/buttons/button";
-import { TemplateEditor } from "./TemplateEditor";
-import { getApiErrorMessage } from "@/lib/redux/api/errors";
-import { useGetCampaignsQuery } from "@/features/campaigns";
-import type { Template } from "@/types/resources";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
+import { Field, Input, Select } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/ui/page";
+import { FormError } from "@/components/ui/feedback";
+import { TemplateEditor } from "./TemplateEditor";
+import { useCampaignNames } from "@/hooks/useLookups";
+import { useAbility } from "@/hooks/useAbility";
+import { useGetOrganizationQuery } from "@/features/organizations";
+import type { Template } from "@/types/resources";
 
 const templateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().trim().min(1, "Give the template a name"),
   campaign_id: z.string().optional(),
   html_body: z.string().optional(),
 });
@@ -22,23 +24,26 @@ export type TemplateFormValues = z.infer<typeof templateSchema>;
 
 interface TemplateFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Template;
   defaultCampaignId?: string;
   onSubmit: (values: TemplateFormValues) => void;
   isSubmitting: boolean;
   error?: FetchBaseQueryError | SerializedError;
   onCancel?: () => void;
+  readOnly?: boolean;
 }
 
-export function TemplateForm({ mode, organizationId, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: TemplateFormProps) {
-  const { data: campaigns } = useGetCampaignsQuery({ organizationId, limit: 100 });
+/** Name and linked campaign on one row, then the editor and its live preview. */
+export function TemplateForm({ mode, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel, readOnly }: TemplateFormProps) {
+  const { campaigns } = useCampaignNames();
+  const { ability } = useAbility();
+  const { data: organization } = useGetOrganizationQuery(undefined, { skip: !ability.can("read", "Organization") });
 
   const {
     control,
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<TemplateFormValues>({
     resolver: zodResolver(templateSchema),
     defaultValues: {
@@ -48,28 +53,43 @@ export function TemplateForm({ mode, organizationId, initialData, defaultCampaig
     },
   });
 
-  const campaignOptions = [{ label: "None", value: "" }, ...(campaigns?.map((c) => ({ label: c.name ?? "", value: c.id })) ?? [])];
+  const campaignOptions = [{ label: "Not linked", value: "" }, ...(campaigns?.map((campaign) => ({ label: campaign.name ?? "Untitled campaign", value: campaign.id })) ?? [])];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex max-w-2xl flex-col gap-5">
-      {error && <p className="rounded-lg bg-error-primary px-3 py-2 text-sm text-error-primary ring-1 ring-error_subtle">{getApiErrorMessage(error)}</p>}
+    <form onSubmit={handleSubmit((values) => onSubmit({ ...values, name: values.name.trim() }))} noValidate className="flex flex-col gap-5">
+      <fieldset disabled={readOnly} className="grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
+        <Field label="Template name" error={errors.name?.message}>
+          {(props) => <Input {...props} {...register("name")} placeholder="Autumn update email" />}
+        </Field>
+        <Field label="Campaign" optional hint="The campaign that sends this template.">
+          {(props) => (
+              // Controlled, so the stored value shows once its options arrive.
+              <Controller control={control} name="campaign_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={campaignOptions} />} />
+            )}
+        </Field>
+      </fieldset>
+
       <Controller
         control={control}
-        name="name"
-        render={({ field }) => <Input {...field} label="Template name" isInvalid={!!errors.name} hint={errors.name?.message} />}
+        name="html_body"
+        render={({ field }) => <TemplateEditor value={field.value ?? ""} onChange={field.onChange} organizationName={organization?.name} readOnly={readOnly} />}
       />
-      <NativeSelect label="Linked campaign" options={campaignOptions} {...register("campaign_id")} />
-      <Controller control={control} name="html_body" render={({ field }) => <TemplateEditor value={field.value ?? ""} onChange={field.onChange} />} />
-      <div className="flex gap-3">
-        <Button type="submit" isLoading={isSubmitting}>
-          {mode === "create" ? "Create template" : "Save changes"}
-        </Button>
-        {onCancel && (
-          <Button type="button" color="link-gray" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
+
+      {!readOnly && (
+        <div className="flex flex-col gap-3">
+          <FormError error={error} />
+          <FormActions>
+            {onCancel && (
+              <Button variant="ghost" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button type="submit" variant="primary" isLoading={isSubmitting} disabled={mode === "edit" && !isDirty}>
+              {mode === "create" ? "Create template" : "Save changes"}
+            </Button>
+          </FormActions>
+        </div>
+      )}
     </form>
   );
 }

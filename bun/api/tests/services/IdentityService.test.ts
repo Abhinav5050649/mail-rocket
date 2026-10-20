@@ -69,7 +69,7 @@ describe("IdentityService", () => {
             mockSesSend.mockImplementationOnce(async () => ({}));
             mockDb.insert.mockImplementationOnce(() => chain([emailIdentity]));
 
-            const result = await service.create({ type: "email", identity: "sender@example.com", organization_id: "org-1" });
+            const result = await service.create({ type: "email", identity: "sender@example.com" });
 
             expect(mockSesSend).toHaveBeenCalledTimes(1);
             expect(mockScheduleCheck).toHaveBeenCalledWith(emailIdentity.id);
@@ -82,7 +82,7 @@ describe("IdentityService", () => {
                 .mockImplementationOnce(async () => ({ DkimTokens: ["dkim1", "dkim2"] })); // VerifyDomainDkimCommand
             mockDb.insert.mockImplementationOnce(() => chain([domainIdentity]));
 
-            const result = await service.create({ type: "domain", identity: "example.com", organization_id: "org-1" });
+            const result = await service.create({ type: "domain", identity: "example.com" });
 
             expect(mockSesSend).toHaveBeenCalledTimes(2);
             expect(mockScheduleCheck).toHaveBeenCalledWith(domainIdentity.id);
@@ -91,7 +91,7 @@ describe("IdentityService", () => {
 
         it("throws a ValidationError for an unsupported identity type without touching SES or the DB", async () => {
             await expect(
-                service.create({ type: "unsupported" as any, identity: "whatever", organization_id: "org-1" })
+                service.create({ type: "unsupported" as any, identity: "whatever" })
             ).rejects.toBeInstanceOf(ValidationError);
 
             expect(mockSesSend).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe("IdentityService", () => {
             let insertNode: any;
             mockDb.insert.mockImplementationOnce(() => (insertNode = chain([emailIdentity])));
 
-            await service.create({ type: "email", identity: "sender@example.com", organization_id: "org-1" });
+            await service.create({ type: "email", identity: "sender@example.com" });
 
             expect(insertNode.values).toHaveBeenCalledWith(expect.objectContaining({ status: "pending" }));
         });
@@ -122,16 +122,16 @@ describe("IdentityService", () => {
         });
     });
 
-    describe("getByOrganization", () => {
-        it("lists identities for the organization", async () => {
+    describe("getAll", () => {
+        it("lists every identity", async () => {
             mockDb.select.mockImplementationOnce(() => chain([emailIdentity, domainIdentity]));
-            const result = await service.getByOrganization("org-1");
+            const result = await service.getAll();
             expect(result).toEqual([emailIdentity, domainIdentity]);
         });
 
         it("applies type/status filters and pagination without erroring", async () => {
             mockDb.select.mockImplementationOnce(() => chain([emailIdentity]));
-            const result = await service.getByOrganization("org-1", { type: "email", status: "active", limit: 5, offset: 0 });
+            const result = await service.getAll({ type: "email", status: "active", limit: 5, offset: 0 });
             expect(result).toEqual([emailIdentity]);
         });
     });

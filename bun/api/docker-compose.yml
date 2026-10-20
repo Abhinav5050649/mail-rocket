@@ -8,7 +8,10 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # postgres 18+ keeps its data in a versioned subdirectory
+      # (/var/lib/postgresql/18/docker) and refuses to start with a volume at
+      # the old /var/lib/postgresql/data path, so the volume mounts one level up.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s

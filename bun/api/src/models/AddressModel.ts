@@ -1,6 +1,5 @@
 import { pgTable, varchar, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { organizationTable } from "./OrganizationModel";
-import { userTable } from "./UserModel";
 
 /**
  * Drizzle schema for `address`. `id` is `varchar` like every other table
@@ -32,12 +31,9 @@ export const addressTable = pgTable("address", {
     is_primary: boolean("is_primary").default(true),
     /** ID of organization. */
     organization_id: varchar("organization_id").references(() => organizationTable.id),
-    /** ID of user. */
-    user_id: varchar("user_id").references(() => userTable.id),
 }, (table) => [
-    // Backs `getByOrganization` and `getByUser`.
+    // Backs `getByOrganization`.
     index("address_organization_id_idx").on(table.organization_id),
-    index("address_user_id_idx").on(table.user_id),
 ]);
 
 /** TS type for an address row, inferred directly from the table schema above. */

@@ -11,6 +11,8 @@
  * sync with `TEMPLATE_VARIABLES` below.
  */
 
+import { DEFAULT_TIME_ZONE } from "./timeZones";
+
 /** Data available when resolving template variables for one recipient's send. */
 export interface TemplateVariableContext {
     recipient: {
@@ -18,7 +20,7 @@ export interface TemplateVariableContext {
         last_name: string | null;
         email_id: string | null;
     };
-    /** The recipient's group, if it belongs to one. */
+    /** The recipient's groups; `name` is all their names, comma-separated. Null when in none. */
     group: {
         name: string | null;
     } | null;
@@ -26,15 +28,11 @@ export interface TemplateVariableContext {
         name: string | null;
         start_time: Date | null;
     };
-    /** The organization running the campaign. */
+    /** The organization running this instance (its single `organization` row). */
     organization: {
         name: string | null;
-    } | null;
-    /** The user who organized the campaign, if it has one. */
-    organizer: {
-        first_name: string | null;
-        last_name: string | null;
-        email: string | null;
+        /** IANA time zone dates are rendered in. */
+        timezone: string;
     } | null;
     /** The SES sending identity the campaign sends from. */
     sender: {
@@ -63,12 +61,9 @@ export const TEMPLATE_VARIABLES: Record<string, VariableResolver> = {
     recipient_email: (ctx) => ctx.recipient.email_id,
     group_name: (ctx) => ctx.group?.name,
     campaign_name: (ctx) => ctx.campaign.name,
-    campaign_start_date: (ctx) => ctx.campaign.start_time?.toLocaleDateString() ?? null,
+    // The calendar date in the organization's time zone: a 23:30 UTC send is "tomorrow" in Asia/Kolkata.
+    campaign_start_date: (ctx) => ctx.campaign.start_time?.toLocaleDateString(undefined, { timeZone: ctx.organization?.timezone ?? DEFAULT_TIME_ZONE }) ?? null,
     organization_name: (ctx) => ctx.organization?.name,
-    organizer_first_name: (ctx) => ctx.organizer?.first_name,
-    organizer_last_name: (ctx) => ctx.organizer?.last_name,
-    organizer_full_name: (ctx) => ctx.organizer ? joinName(ctx.organizer.first_name, ctx.organizer.last_name) : null,
-    organizer_email: (ctx) => ctx.organizer?.email,
     sender_email: (ctx) => ctx.sender.email,
 };
 

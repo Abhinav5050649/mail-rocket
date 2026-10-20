@@ -1,68 +1,78 @@
 "use client";
 
-import { useForm, Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Input } from "@/components/base/input/input";
-import { NativeSelect } from "@/components/base/select/select-native";
-import { Button } from "@/components/base/buttons/button";
-import { getApiErrorMessage } from "@/lib/redux/api/errors";
-import { useGetCampaignsQuery } from "@/features/campaigns";
-import type { Group } from "@/types/resources";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
+import { Field, Input, Select } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { FormActions, SettingsSection } from "@/components/ui/page";
+import { FormError } from "@/components/ui/feedback";
+import { useCampaignNames } from "@/hooks/useLookups";
+import type { Group } from "@/types/resources";
 
 const groupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().trim().min(1, "Give the group a name"),
   campaign_id: z.string().optional(),
 });
 export type GroupFormValues = z.infer<typeof groupSchema>;
 
 interface GroupFormProps {
   mode: "create" | "edit";
-  organizationId: string;
   initialData?: Group;
   defaultCampaignId?: string;
   onSubmit: (values: GroupFormValues) => void;
   isSubmitting: boolean;
   error?: FetchBaseQueryError | SerializedError;
   onCancel?: () => void;
+  readOnly?: boolean;
 }
 
-export function GroupForm({ mode, organizationId, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel }: GroupFormProps) {
-  const { data: campaigns } = useGetCampaignsQuery({ organizationId, limit: 100 });
-
+export function GroupForm({ mode, initialData, defaultCampaignId, onSubmit, isSubmitting, error, onCancel, readOnly }: GroupFormProps) {
+  const { campaigns } = useCampaignNames();
   const {
     control,
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
     defaultValues: { name: initialData?.name ?? "", campaign_id: initialData?.campaign_id ?? defaultCampaignId ?? "" },
   });
 
-  const campaignOptions = [{ label: "None", value: "" }, ...(campaigns?.map((c) => ({ label: c.name ?? "", value: c.id })) ?? [])];
+  const campaignOptions = [{ label: "Not linked", value: "" }, ...(campaigns?.map((campaign) => ({ label: campaign.name ?? "Untitled campaign", value: campaign.id })) ?? [])];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex max-w-lg flex-col gap-5">
-      {error && <p className="rounded-lg bg-error-primary px-3 py-2 text-sm text-error-primary ring-1 ring-error_subtle">{getApiErrorMessage(error)}</p>}
-      <Controller
-        control={control}
-        name="name"
-        render={({ field }) => <Input {...field} label="Group name" isInvalid={!!errors.name} hint={errors.name?.message} />}
-      />
-      <NativeSelect label="Linked campaign" options={campaignOptions} {...register("campaign_id")} />
-      <div className="flex gap-3">
-        <Button type="submit" isLoading={isSubmitting}>
-          {mode === "create" ? "Create group" : "Save changes"}
-        </Button>
-        {onCancel && (
-          <Button type="button" color="link-gray" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
+    <form onSubmit={handleSubmit((values) => onSubmit({ ...values, name: values.name.trim() }))} noValidate>
+      <SettingsSection title="Group" description={<>The name fills {"{{group_name}}"} in templates for everyone in the group.</>}>
+        <fieldset disabled={readOnly} className="flex flex-col gap-4">
+          <Field label="Group name" error={errors.name?.message}>
+            {(props) => <Input {...props} {...register("name")} placeholder="Newsletter subscribers" />}
+          </Field>
+          <Field label="Campaign" optional hint="The campaign that sends to this group.">
+            {(props) => (
+              // Controlled, so the stored value shows once its options arrive.
+              <Controller control={control} name="campaign_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={campaignOptions} />} />
+            )}
+          </Field>
+          {!readOnly && (
+            <>
+              <FormError error={error} />
+              <FormActions>
+                {onCancel && (
+                  <Button variant="ghost" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" variant="primary" isLoading={isSubmitting} disabled={mode === "edit" && !isDirty}>
+                  {mode === "create" ? "Create group" : "Save changes"}
+                </Button>
+              </FormActions>
+            </>
+          )}
+        </fieldset>
+      </SettingsSection>
     </form>
   );
 }

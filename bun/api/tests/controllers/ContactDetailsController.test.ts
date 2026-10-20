@@ -1,17 +1,17 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { ContactDetailsController } from "../../src/controllers";
-import type { ContactDetailsService } from "../../src/services";
+import type { ContactDetailsService, OrganizationService } from "../../src/services";
 import { createMockContext, expectHttpException } from "../helpers/mockContext";
 
 describe("ContactDetailsController", () => {
     let contactDetailsService: ContactDetailsService;
+    let organizationService: OrganizationService;
     let controller: ContactDetailsController;
 
-    const contactDetails = { id: "contact-1", organization_id: "org-1", user_id: "user-1", phone: "+1-555-0100" };
+    const contactDetails = { id: "contact-1", organization_id: "org-1", phone: "+1-555-0100" };
 
     beforeEach(() => {
         contactDetailsService = {
-            getByUser: mock(async () => [contactDetails]),
             getByOrganization: mock(async () => [contactDetails]),
             create: mock(async () => contactDetails),
             getById: mock(async () => contactDetails),
@@ -19,26 +19,22 @@ describe("ContactDetailsController", () => {
             delete: mock(async () => contactDetails),
         } as unknown as ContactDetailsService;
 
-        controller = new ContactDetailsController(contactDetailsService);
+        organizationService = {
+            get: mock(async () => ({ id: "org-1", name: "Acme" })),
+        } as unknown as OrganizationService;
+
+        controller = new ContactDetailsController(contactDetailsService, organizationService);
     });
 
     describe("getAll", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {} });
-            await expectHttpException(controller.getAll(ctx), 400, "organizationId");
+        it("404s when the organization hasn't been seeded", async () => {
+            (organizationService.get as any).mockImplementationOnce(async () => null);
+            const ctx = createMockContext({});
+            await expectHttpException(controller.getAll(ctx), 404, "Organization not found");
         });
 
-        it("scopes to a single user when user_id is given", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, query: { user_id: "user-1" } });
-            const result: any = await controller.getAll(ctx);
-
-            expect(contactDetailsService.getByUser).toHaveBeenCalledWith("user-1", { limit: undefined, offset: undefined });
-            expect(contactDetailsService.getByOrganization).not.toHaveBeenCalled();
-            expect(result.body).toEqual([contactDetails]);
-        });
-
-        it("lists by organization when no user_id is given", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, query: { limit: "10", offset: "0" } });
+        it("lists the organization's contact details", async () => {
+            const ctx = createMockContext({ query: { limit: "10", offset: "0" } });
             const result: any = await controller.getAll(ctx);
 
             expect(contactDetailsService.getByOrganization).toHaveBeenCalledWith("org-1", { limit: 10, offset: 0 });
@@ -47,13 +43,14 @@ describe("ContactDetailsController", () => {
     });
 
     describe("post", () => {
-        it("400s when the organization_id param is missing", async () => {
-            const ctx = createMockContext({ params: {}, body: {} });
-            await expectHttpException(controller.post(ctx), 400, "organizationId");
+        it("404s when the organization hasn't been seeded", async () => {
+            (organizationService.get as any).mockImplementationOnce(async () => null);
+            const ctx = createMockContext({ body: {} });
+            await expectHttpException(controller.post(ctx), 404, "Organization not found");
         });
 
-        it("creates a contact-details row scoped to the organization", async () => {
-            const ctx = createMockContext({ params: { organization_id: "org-1" }, body: { phone: "+1-555-0100" } });
+        it("creates a contact-details row linked to the organization", async () => {
+            const ctx = createMockContext({ body: { phone: "+1-555-0100" } });
             const result: any = await controller.post(ctx);
 
             expect(contactDetailsService.create).toHaveBeenCalledWith({ phone: "+1-555-0100", organization_id: "org-1" });

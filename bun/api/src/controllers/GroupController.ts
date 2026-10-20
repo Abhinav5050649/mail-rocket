@@ -6,10 +6,9 @@ import { GroupService } from "../services";
 /**
  * HTTP layer for group-related endpoints. Translates Hono `Context` objects
  * into `GroupService` calls and maps the results to HTTP responses/errors.
- * Groups are nested under an organization
- * (`/organizations/:organization_id/groups`) for org-wide access, and
- * additionally under a campaign
- * (`/organizations/:organization_id/campaigns/:campaign_id/groups`) for
+ * Groups live at `/groups`, and are
+ * additionally nested under a campaign
+ * (`/campaigns/:campaign_id/groups`) for
  * campaign-scoped listing/creation.
  */
 export class GroupController {
@@ -17,71 +16,55 @@ export class GroupController {
     }
 
     /**
-     * GET /organizations/:organization_id/groups
-     * Lists every group belonging to an organization, across all campaigns.
+     * GET /groups
+     * Lists every group, across all campaigns.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts optional `limit` (max rows to return) and `offset`
+     * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
      * @returns JSON array of groups.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
-
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
 
         const limitParam = c.req.query('limit');
         const offsetParam = c.req.query('offset');
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, limit, offset }, `Request:`);
+        logger.debug({ limit, offset }, `Request:`);
 
-        const groups = await this.groupService.getByOrganization(organizationId, { limit, offset });
+        const groups = await this.groupService.getAll({ limit, offset });
 
-        logger.debug({ organizationId, count: groups.length }, `Response:`);
+        logger.debug({ count: groups.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
 
         return c.json(groups);
     }
 
     /**
-     * POST /organizations/:organization_id/groups
-     * Creates a new group within an organization.
+     * POST /groups
+     * Creates a new group.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the group fields.
+     * @param c - Hono request context; expects a JSON body with the group fields.
      * @returns JSON response with the created group.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
         const body = await c.req.json();
 
-        logger.debug({ organizationId, body }, `Request:`);
+        logger.debug({ body }, `Request:`);
 
-        const group = await this.groupService.create({ ...body, organization_id: organizationId });
+        const group = await this.groupService.create(body);
 
-        logger.debug({ organizationId, group }, `Response:`);
+        logger.debug({ group }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(group, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/campaigns/:campaign_id/groups
+     * GET /campaigns/:campaign_id/groups
      * Lists groups belonging to a single campaign.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
@@ -115,38 +98,37 @@ export class GroupController {
     }
 
     /**
-     * POST /organizations/:organization_id/campaigns/:campaign_id/groups
+     * POST /campaigns/:campaign_id/groups
      * Creates a new group within a campaign.
      *
-     * @param c - Hono request context; expects `organization_id` and
-     * `campaign_id` route params and a JSON body with the group fields.
+     * @param c - Hono request context; expects a `campaign_id`
+     * route param and a JSON body with the group fields.
      * @returns JSON response with the created group.
-     * @throws {HTTPException} 400 if `organization_id` or `campaign_id` is missing.
+     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      */
     postByCampaign = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
-        const organizationId = c.req.param('organization_id');
         const campaignId = c.req.param('campaign_id');
 
-        if (!organizationId || !campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId, campaignId" });
+        if (!campaignId) {
+            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
         }
 
         const body = await c.req.json();
 
-        logger.debug({ organizationId, campaignId, body }, `Request:`);
+        logger.debug({ campaignId, body }, `Request:`);
 
-        const group = await this.groupService.create({ ...body, organization_id: organizationId, campaign_id: campaignId });
+        const group = await this.groupService.create({ ...body, campaign_id: campaignId });
 
-        logger.debug({ organizationId, campaignId, group }, `Response:`);
+        logger.debug({ campaignId, group }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(group, 201);
     }
 
     /**
-     * GET /organizations/:organization_id/groups/:group_id
+     * GET /groups/:group_id
      * Fetches a single group by id.
      *
      * @param c - Hono request context; expects a `group_id` route param.
@@ -179,7 +161,7 @@ export class GroupController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/groups/:group_id
+     * PATCH /groups/:group_id
      * Partially updates a group.
      *
      * @param c - Hono request context; expects a `group_id` route param and
@@ -215,7 +197,7 @@ export class GroupController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/groups/:group_id
+     * DELETE /groups/:group_id
      * Deletes a group.
      *
      * @param c - Hono request context; expects a `group_id` route param.

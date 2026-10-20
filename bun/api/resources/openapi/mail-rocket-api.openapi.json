@@ -2,33 +2,33 @@
   "openapi": "3.0.1",
   "info": {
     "title": "mail-rocket-api",
-    "description": "API for Mail Rocket: organizations, users, addresses, contact details, campaigns, groups, and recipients.",
+    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and recipients. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do.",
     "version": "1.0.0"
   },
   "tags": [
     {
-      "name": "Auth",
-      "description": "Password-based signup/signin. The only endpoints that don't require an Authorization header."
+      "name": "Keys",
+      "description": "API keys - the only principal. A key's CASL claims decide what it may do."
     },
     {
-      "name": "Organizations",
-      "description": "Tenants. Every other resource is scoped to one organization."
+      "name": "MCP",
+      "description": "Model Context Protocol endpoint for AI clients."
     },
     {
-      "name": "Users",
-      "description": "Members of an organization."
+      "name": "Organization",
+      "description": "The single profile of the organization running this instance."
     },
     {
       "name": "Addresses",
-      "description": "Postal addresses belonging to an organization and/or a user."
+      "description": "Postal addresses of the organization."
     },
     {
       "name": "Contact Details",
-      "description": "Email/phone contact info belonging to an organization and/or a user."
+      "description": "Email/phone contact info of the organization."
     },
     {
       "name": "Campaigns",
-      "description": "Email campaigns run by an organization."
+      "description": "Email campaigns."
     },
     {
       "name": "Templates",
@@ -44,184 +44,17 @@
     },
     {
       "name": "Identities",
-      "description": "Domains/email addresses an organization sends from."
+      "description": "Domains/email addresses campaigns send from."
     }
   ],
   "paths": {
-    "/auth/signup": {
-      "post": {
-        "summary": "Sign Up",
-        "deprecated": false,
-        "description": "Creates credentials for an email - either a brand new account, or (if the email belongs to a user invited by an org admin but never activated) attaches a password to that existing row.",
-        "tags": [
-          "Auth"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AuthSignup"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Credentials created; caller is signed in.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The email already belongs to an activated account."
-          }
-        },
-        "security": [],
-        "operationId": "authSignup"
-      }
-    },
-    "/auth/signin": {
-      "post": {
-        "summary": "Sign In",
-        "deprecated": false,
-        "description": "Verifies credentials and issues an auth token.",
-        "tags": [
-          "Auth"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AuthSignin"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Credentials verified.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid email or password."
-          }
-        },
-        "security": [],
-        "operationId": "authSignin"
-      }
-    },
-    "/organizations": {
-      "get": {
-        "summary": "List Organizations",
-        "deprecated": false,
-        "description": "Lists organizations, optionally paginated.",
-        "tags": [
-          "Organizations"
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 10
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Organizations matching the query.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Organization"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "operationId": "organizationsGetAll"
-      },
-      "post": {
-        "summary": "Create Organization",
-        "deprecated": false,
-        "description": "Creates a new organization.",
-        "tags": [
-          "Organizations"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrganizationCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The created organization.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Organization"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "organizationsPost"
-      }
-    },
-    "/organizations/{organization_id}": {
+    "/organization": {
       "get": {
         "summary": "Get Organization",
         "deprecated": false,
-        "description": "Fetches a single organization by id.",
+        "description": "Fetches the instance's organization profile. Requires the `read Organization` claim.",
         "tags": [
-          "Organizations"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
+          "Organization"
         ],
         "responses": {
           "200": {
@@ -234,8 +67,8 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "404": {
+            "description": "The organization hasn't been seeded (boot didn't complete).",
             "content": {
               "application/json": {
                 "schema": {
@@ -244,8 +77,18 @@
               }
             }
           },
-          "404": {
-            "description": "Organization not found.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Organization`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -255,25 +98,14 @@
             }
           }
         },
-        "operationId": "organizationsGet"
+        "operationId": "organizationGet"
       },
       "patch": {
         "summary": "Update Organization",
         "deprecated": false,
-        "description": "Partially updates an organization.",
+        "description": "Partially updates the instance's organization profile. Requires the `update Organization` claim.",
         "tags": [
-          "Organizations"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
+          "Organization"
         ],
         "requestBody": {
           "required": true,
@@ -296,8 +128,8 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "404": {
+            "description": "The organization hasn't been seeded (boot didn't complete).",
             "content": {
               "application/json": {
                 "schema": {
@@ -306,8 +138,28 @@
               }
             }
           },
-          "404": {
-            "description": "Organization not found.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Organization`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`timezone` is not a known IANA time zone.",
             "content": {
               "application/json": {
                 "schema": {
@@ -317,431 +169,18 @@
             }
           }
         },
-        "operationId": "organizationsUpdate"
-      },
-      "delete": {
-        "summary": "Delete Organization",
-        "deprecated": false,
-        "description": "Deletes an organization.",
-        "tags": [
-          "Organizations"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The deleted organization.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Organization"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Organization not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "organizationsDelete"
+        "operationId": "organizationUpdate"
       }
     },
-    "/users/{id}": {
-      "get": {
-        "summary": "Get User",
-        "deprecated": false,
-        "description": "Fetches a single user by id, without needing to know its organization.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The requested user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "usersGet"
-      },
-      "patch": {
-        "summary": "Update User",
-        "deprecated": false,
-        "description": "Partially updates a user's profile.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserUpdate"
-              },
-              "example": {
-                "last_name": "Byron",
-                "normalized_name": "ada byron"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The updated user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                },
-                "example": {
-                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "entity": "mail_rocket.user",
-                  "first_name": "Ada",
-                  "last_name": "Byron",
-                  "normalized_name": "ada byron",
-                  "description": "Founding engineer",
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-08-01T10:15:00.000Z"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "usersUpdate"
-      },
-      "delete": {
-        "summary": "Delete User",
-        "deprecated": false,
-        "description": "Deletes a user account entirely (all of their organization memberships go with it). To remove a user from a single organization without deleting their account, use `DELETE /organizations/{organization_id}/users/{user_id}` instead.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of the user.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The deleted user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                },
-                "example": {
-                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "entity": "mail_rocket.user",
-                  "first_name": "Ada",
-                  "last_name": "Byron",
-                  "normalized_name": "ada byron",
-                  "description": "Founding engineer",
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-08-01T10:15:00.000Z"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "usersDelete"
-      }
-    },
-    "/organizations/{organization_id}/users": {
-      "get": {
-        "summary": "List Members",
-        "deprecated": false,
-        "description": "Lists the members of an organization, each combined with their role.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 10
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
-            "required": false,
-            "schema": {
-              "type": "number",
-              "default": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Members of the organization.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Member"
-                  }
-                },
-                "example": [
-                  {
-                    "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
-                    "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                    "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
-                    "role": "editor",
-                    "first_name": "Ada",
-                    "last_name": "Lovelace",
-                    "normalized_name": "ada lovelace",
-                    "description": "Founding engineer",
-                    "created_at": "2026-07-15T09:00:00.000Z",
-                    "updated_at": "2026-07-15T09:00:00.000Z"
-                  }
-                ]
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "organizationUsersGetAll"
-      },
-      "post": {
-        "summary": "Create Member",
-        "deprecated": false,
-        "description": "Creates a new user and adds them to the organization in one step. A caller can't assign a role ranked above their own (viewer < editor < admin < owner).",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MemberCreate"
-              },
-              "example": {
-                "first_name": "Ada",
-                "last_name": "Lovelace",
-                "normalized_name": "ada lovelace",
-                "role": "editor"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The created user, combined with their role and membership id in this organization.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Member"
-                },
-                "example": {
-                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
-                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
-                  "role": "editor",
-                  "first_name": "Ada",
-                  "last_name": "Lovelace",
-                  "normalized_name": "ada lovelace",
-                  "description": "Founding engineer",
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-07-15T09:00:00.000Z"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "A required path parameter is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "operationId": "organizationUsersPost"
-      }
-    },
-    "/organizations/{organization_id}/addresses": {
+    "/addresses": {
       "get": {
         "summary": "List Addresses",
         "deprecated": false,
-        "description": "Lists addresses belonging to an organization.",
+        "description": "Lists addresses. Requires the `read Address` claim.",
         "tags": [
           "Addresses"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "description": "Scope the list to addresses belonging to a single user.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "is_primary",
             "in": "query",
@@ -786,8 +225,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Address`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -802,20 +251,9 @@
       "post": {
         "summary": "Create Address",
         "deprecated": false,
-        "description": "Creates a new address within an organization.",
+        "description": "Creates a new address. Requires the `create Address` claim. The row is always linked to the instance's organization.",
         "tags": [
           "Addresses"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -838,8 +276,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Address`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -852,24 +300,15 @@
         "operationId": "addressesPost"
       }
     },
-    "/organizations/{organization_id}/addresses/{address_id}": {
+    "/addresses/{address_id}": {
       "get": {
         "summary": "Get Address",
         "deprecated": false,
-        "description": "Fetches a single address by id.",
+        "description": "Fetches a single address by id. Requires the `read Address` claim.",
         "tags": [
           "Addresses"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "address_id",
             "in": "path",
@@ -910,6 +349,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Address`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "addressesGet"
@@ -917,20 +376,11 @@
       "patch": {
         "summary": "Update Address",
         "deprecated": false,
-        "description": "Partially updates an address.",
+        "description": "Partially updates an address. Requires the `update Address` claim.",
         "tags": [
           "Addresses"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "address_id",
             "in": "path",
@@ -981,6 +431,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Address`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "addressesUpdate"
@@ -988,20 +458,11 @@
       "delete": {
         "summary": "Delete Address",
         "deprecated": false,
-        "description": "Deletes an address.",
+        "description": "Deletes an address. Requires the `delete Address` claim.",
         "tags": [
           "Addresses"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "address_id",
             "in": "path",
@@ -1042,38 +503,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Address`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "addressesDelete"
       }
     },
-    "/organizations/{organization_id}/contact-details": {
+    "/contact-details": {
       "get": {
         "summary": "List Contact Details",
         "deprecated": false,
-        "description": "Lists contact details belonging to an organization.",
+        "description": "Lists contact details. Requires the `read ContactDetails` claim.",
         "tags": [
           "Contact Details"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "description": "Scope the list to contact details belonging to a single user.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -1109,8 +572,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read ContactDetails`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1125,20 +598,9 @@
       "post": {
         "summary": "Create Contact Details",
         "deprecated": false,
-        "description": "Creates a new contact-details row within an organization.",
+        "description": "Creates a new contact-details row. Requires the `create ContactDetails` claim. The row is always linked to the instance's organization.",
         "tags": [
           "Contact Details"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -1161,8 +623,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create ContactDetails`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1175,24 +647,15 @@
         "operationId": "contactDetailsPost"
       }
     },
-    "/organizations/{organization_id}/contact-details/{contact_details_id}": {
+    "/contact-details/{contact_details_id}": {
       "get": {
         "summary": "Get Contact Details",
         "deprecated": false,
-        "description": "Fetches a single contact-details row by id.",
+        "description": "Fetches a single contact-details row by id. Requires the `read ContactDetails` claim.",
         "tags": [
           "Contact Details"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "contact_details_id",
             "in": "path",
@@ -1233,6 +696,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read ContactDetails`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "contactDetailsGet"
@@ -1240,20 +723,11 @@
       "patch": {
         "summary": "Update Contact Details",
         "deprecated": false,
-        "description": "Partially updates a contact-details row.",
+        "description": "Partially updates a contact-details row. Requires the `update ContactDetails` claim.",
         "tags": [
           "Contact Details"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "contact_details_id",
             "in": "path",
@@ -1304,6 +778,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update ContactDetails`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "contactDetailsUpdate"
@@ -1311,20 +805,11 @@
       "delete": {
         "summary": "Delete Contact Detail",
         "deprecated": false,
-        "description": "Deletes a contact-details row.",
+        "description": "Deletes a contact-details row. Requires the `delete ContactDetails` claim.",
         "tags": [
           "Contact Details"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "contact_details_id",
             "in": "path",
@@ -1365,29 +850,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete ContactDetails`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "contactDetailsDelete"
       }
     },
-    "/organizations/{organization_id}/campaigns": {
+    "/campaigns": {
       "get": {
         "summary": "List Campaigns",
         "deprecated": false,
-        "description": "Lists campaigns belonging to an organization.",
+        "description": "Lists campaigns. Requires the `read Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "status",
             "in": "query",
@@ -1397,7 +893,10 @@
               "type": "string",
               "enum": [
                 "draft",
-                "active"
+                "scheduled",
+                "sending",
+                "sent",
+                "failed"
               ]
             }
           },
@@ -1424,7 +923,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Campaigns in the organization.",
+            "description": "Campaigns.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1436,8 +935,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Campaign`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1452,20 +961,9 @@
       "post": {
         "summary": "Create Campaign",
         "deprecated": false,
-        "description": "Creates a new campaign within an organization.",
+        "description": "Creates a new campaign. Requires the `create Campaign` claim.",
         "tags": [
           "Campaigns"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -1489,7 +987,27 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "The body sets a system-managed field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Campaign`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1502,24 +1020,15 @@
         "operationId": "campaignsPost"
       }
     },
-    "/organizations/{organization_id}/campaigns/{campaign_id}": {
+    "/campaigns/{campaign_id}": {
       "get": {
         "summary": "Get Campaign",
         "deprecated": false,
-        "description": "Fetches a single campaign by id.",
+        "description": "Fetches a single campaign by id. Requires the `read Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -1560,6 +1069,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Campaign`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignsGet"
@@ -1567,20 +1096,11 @@
       "patch": {
         "summary": "Update Campaign",
         "deprecated": false,
-        "description": "Partially updates a campaign.",
+        "description": "Partially updates a campaign. Requires the `update Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -1613,7 +1133,27 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "A required path parameter is missing. Or the body sets a system-managed field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Campaign`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1638,20 +1178,11 @@
       "delete": {
         "summary": "Delete Campaign",
         "deprecated": false,
-        "description": "Deletes a campaign.",
+        "description": "Deletes a campaign and cancels its queued send, if one is pending. Its templates, groups and recipients are kept with `campaign_id` cleared; its per-recipient send history is removed. Requires the `delete Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -1674,7 +1205,7 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "The campaign is sending right now; wait for the send to finish.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1692,12 +1223,32 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Campaign`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignsDelete"
       }
     },
-    "/organizations/{organization_id}/groups": {
+    "/groups": {
       "get": {
         "summary": "List Groups",
         "deprecated": false,
@@ -1705,15 +1256,6 @@
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -1749,8 +1291,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Group`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1761,25 +1313,14 @@
           }
         },
         "operationId": "groupsGetAll",
-        "description": "Lists every group belonging to an organization, across all campaigns. For campaign-scoped listing, use GET /organizations/{organization_id}/campaigns/{campaign_id}/groups instead."
+        "description": "Lists every group, across all campaigns. For campaign-scoped listing, use GET /campaigns/{campaign_id}/groups instead. Requires the `read Group` claim."
       },
       "post": {
         "summary": "Create Group",
         "deprecated": false,
-        "description": "Creates a new group within an organization.",
+        "description": "Creates a new group. Requires the `create Group` claim.",
         "tags": [
           "Groups"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -1802,8 +1343,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Group`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1816,24 +1367,15 @@
         "operationId": "groupsPost"
       }
     },
-    "/organizations/{organization_id}/groups/{group_id}": {
+    "/groups/{group_id}": {
       "get": {
         "summary": "Get Group",
         "deprecated": false,
-        "description": "Fetches a single group by id.",
+        "description": "Fetches a single group by id. Requires the `read Group` claim.",
         "tags": [
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "group_id",
             "in": "path",
@@ -1874,6 +1416,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "groupsGet"
@@ -1881,20 +1443,11 @@
       "patch": {
         "summary": "Update Group",
         "deprecated": false,
-        "description": "Partially updates a group.",
+        "description": "Partially updates a group. Requires the `update Group` claim.",
         "tags": [
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "group_id",
             "in": "path",
@@ -1945,6 +1498,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "groupsUpdate"
@@ -1952,20 +1525,11 @@
       "delete": {
         "summary": "Delete Group",
         "deprecated": false,
-        "description": "Deletes a group.",
+        "description": "Deletes a group. Requires the `delete Group` claim.",
         "tags": [
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "group_id",
             "in": "path",
@@ -2006,29 +1570,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "groupsDelete"
       }
     },
-    "/organizations/{organization_id}/templates": {
+    "/templates": {
       "get": {
         "summary": "List Templates",
         "deprecated": false,
-        "description": "Lists every template belonging to an organization, across all campaigns. For campaign-scoped listing, use GET /organizations/{organization_id}/campaigns/{campaign_id}/templates instead.",
+        "description": "Lists every template, across all campaigns. For campaign-scoped listing, use GET /campaigns/{campaign_id}/templates instead. Requires the `read Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -2064,8 +1639,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Template`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2080,20 +1665,9 @@
       "post": {
         "summary": "Create Template",
         "deprecated": false,
-        "description": "Creates a new template within an organization.",
+        "description": "Creates a new template. Requires the `create Template` claim.",
         "tags": [
           "Templates"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -2116,8 +1690,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Template`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2130,24 +1714,15 @@
         "operationId": "templatesPost"
       }
     },
-    "/organizations/{organization_id}/templates/{template_id}": {
+    "/templates/{template_id}": {
       "get": {
         "summary": "Get Template",
         "deprecated": false,
-        "description": "Fetches a single template by id.",
+        "description": "Fetches a single template by id. Requires the `read Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "template_id",
             "in": "path",
@@ -2188,6 +1763,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Template`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "templatesGet"
@@ -2195,20 +1790,11 @@
       "patch": {
         "summary": "Update Template",
         "deprecated": false,
-        "description": "Partially updates a template.",
+        "description": "Partially updates a template. Requires the `update Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "template_id",
             "in": "path",
@@ -2259,6 +1845,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Template`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "templatesUpdate"
@@ -2266,20 +1872,11 @@
       "delete": {
         "summary": "Delete Template",
         "deprecated": false,
-        "description": "Deletes a template.",
+        "description": "Deletes a template. Requires the `delete Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "template_id",
             "in": "path",
@@ -2320,29 +1917,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Template`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "templatesDelete"
       }
     },
-    "/organizations/{organization_id}/recipients": {
+    "/recipients": {
       "get": {
         "summary": "List Recipients",
         "deprecated": false,
-        "description": "Lists every recipient belonging to an organization, across all campaigns and groups. For narrower listing, use the dedicated campaign/group-scoped endpoints instead.",
+        "description": "Lists every recipient, across all campaigns and groups. For narrower listing, use the dedicated campaign/group-scoped endpoints instead. Requires the `read Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "limit",
             "in": "query",
@@ -2378,8 +1986,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2394,20 +2012,9 @@
       "post": {
         "summary": "Create Recipient",
         "deprecated": false,
-        "description": "Creates a new recipient within an organization.",
+        "description": "Creates a new recipient. Requires the `create Recipient` claim.",
         "tags": [
           "Recipients"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -2430,8 +2037,28 @@
               }
             }
           },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "A group id doesn't exist, `group_ids` is malformed, or the retired `group_id` was sent.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2444,24 +2071,15 @@
         "operationId": "recipientsPost"
       }
     },
-    "/organizations/{organization_id}/recipients/{recipient_id}": {
+    "/recipients/{recipient_id}": {
       "get": {
         "summary": "Get Recipient",
         "deprecated": false,
-        "description": "Fetches a single recipient by id.",
+        "description": "Fetches a single recipient by id. Requires the `read Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "recipient_id",
             "in": "path",
@@ -2502,6 +2120,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "recipientsGet"
@@ -2509,20 +2147,11 @@
       "patch": {
         "summary": "Update Recipient",
         "deprecated": false,
-        "description": "Partially updates a recipient.",
+        "description": "Partially updates a recipient. Requires the `update Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "recipient_id",
             "in": "path",
@@ -2573,6 +2202,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "recipientsUpdate"
@@ -2580,20 +2229,11 @@
       "delete": {
         "summary": "Delete Recipient",
         "deprecated": false,
-        "description": "Deletes a recipient.",
+        "description": "Deletes a recipient. Requires the `delete Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "recipient_id",
             "in": "path",
@@ -2634,29 +2274,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "recipientsDelete"
       }
     },
-    "/organizations/{organization_id}/campaigns/{campaign_id}/groups": {
+    "/campaigns/{campaign_id}/groups": {
       "get": {
         "summary": "List Groups by Campaign",
         "deprecated": false,
-        "description": "Lists groups belonging to a single campaign.",
+        "description": "Lists groups belonging to a single campaign. Requires the `read Group` claim.",
         "tags": [
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -2710,6 +2361,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignGroupsGetAll"
@@ -2717,20 +2388,11 @@
       "post": {
         "summary": "Create Group in Campaign",
         "deprecated": false,
-        "description": "Creates a new group within a campaign.",
+        "description": "Creates a new group within a campaign. Requires the `create Group` claim.",
         "tags": [
           "Groups"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -2771,29 +2433,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignGroupsPost"
       }
     },
-    "/organizations/{organization_id}/campaigns/{campaign_id}/templates": {
+    "/campaigns/{campaign_id}/templates": {
       "get": {
         "summary": "List Templates by Campaign",
         "deprecated": false,
-        "description": "Lists templates belonging to a single campaign.",
+        "description": "Lists templates belonging to a single campaign. Requires the `read Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -2847,6 +2520,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Template`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignTemplatesGetAll"
@@ -2854,20 +2547,11 @@
       "post": {
         "summary": "Create Template in Campaign",
         "deprecated": false,
-        "description": "Creates a new template within a campaign.",
+        "description": "Creates a new template within a campaign. Requires the `create Template` claim.",
         "tags": [
           "Templates"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -2908,29 +2592,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Template`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignTemplatesPost"
       }
     },
-    "/organizations/{organization_id}/campaigns/{campaign_id}/recipients": {
+    "/campaigns/{campaign_id}/recipients": {
       "get": {
         "summary": "List Recipients by Campaign",
         "deprecated": false,
-        "description": "Lists recipients belonging to a single campaign.",
+        "description": "Lists the campaign's audience: recipients linked to it directly plus members of the groups linked to it, each once. This is who a send goes to. Requires the `read Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -2984,6 +2679,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignRecipientsGetAll"
@@ -2991,20 +2706,11 @@
       "post": {
         "summary": "Create Recipient in Campaign",
         "deprecated": false,
-        "description": "Creates a new recipient within a campaign.",
+        "description": "Creates a new recipient within a campaign. Requires the `create Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -3045,29 +2751,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "campaignRecipientsPost"
       }
     },
-    "/organizations/{organization_id}/campaigns/{campaign_id}/groups/{group_id}/recipients": {
+    "/campaigns/{campaign_id}/groups/{group_id}/recipients": {
       "get": {
         "summary": "List Recipients by Group",
         "deprecated": false,
-        "description": "Lists recipients belonging to a single group.",
+        "description": "Lists recipients belonging to a single group. Requires the `read Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -3130,6 +2847,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "groupRecipientsGetAll"
@@ -3137,20 +2874,11 @@
       "post": {
         "summary": "Create Recipient in Group",
         "deprecated": false,
-        "description": "Creates a new recipient within a group.",
+        "description": "Creates a new recipient within a group. Requires the `create Recipient` claim.",
         "tags": [
           "Recipients"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "campaign_id",
             "in": "path",
@@ -3200,29 +2928,40 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "groupRecipientsPost"
       }
     },
-    "/organizations/{organization_id}/identities": {
+    "/identities": {
       "get": {
         "summary": "List Identities",
         "deprecated": false,
-        "description": "Lists identities belonging to an organization.",
+        "description": "Lists identities. Requires the `read Identity` claim.",
         "tags": [
           "Identities"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "type",
             "in": "query",
@@ -3245,6 +2984,7 @@
               "type": "string",
               "enum": [
                 "created",
+                "pending",
                 "active"
               ]
             }
@@ -3272,7 +3012,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Identities in the organization.",
+            "description": "Identities.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3284,8 +3024,18 @@
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Identity`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3300,20 +3050,9 @@
       "post": {
         "summary": "Create Identity",
         "deprecated": false,
-        "description": "Creates a new identity within an organization.",
+        "description": "Creates a new identity. Requires the `create Identity` claim.",
         "tags": [
           "Identities"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -3337,7 +3076,27 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "The body sets a system-managed field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Identity`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3350,24 +3109,15 @@
         "operationId": "identitiesPost"
       }
     },
-    "/organizations/{organization_id}/identities/{identity_id}": {
+    "/identities/{identity_id}": {
       "get": {
         "summary": "Get Identity",
         "deprecated": false,
-        "description": "Fetches a single identity by id.",
+        "description": "Fetches a single identity by id. Requires the `read Identity` claim.",
         "tags": [
           "Identities"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "identity_id",
             "in": "path",
@@ -3408,6 +3158,26 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Identity`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "operationId": "identitiesGet"
@@ -3415,20 +3185,11 @@
       "patch": {
         "summary": "Update Identity",
         "deprecated": false,
-        "description": "Partially updates an identity.",
+        "description": "Partially updates an identity. Requires the `update Identity` claim.",
         "tags": [
           "Identities"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "identity_id",
             "in": "path",
@@ -3461,7 +3222,27 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "A required path parameter is missing. Or the body sets a system-managed field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Identity`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3486,20 +3267,11 @@
       "delete": {
         "summary": "Delete Identity",
         "deprecated": false,
-        "description": "Deletes an identity.",
+        "description": "Deletes an identity. Requires the `delete Identity` claim.",
         "tags": [
           "Identities"
         ],
         "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "identity_id",
             "in": "path",
@@ -3540,74 +3312,494 @@
                 }
               }
             }
-          }
-        },
-        "operationId": "identitiesDelete"
-      }
-    },
-    "/users": {
-      "post": {
-        "summary": "Create User",
-        "deprecated": false,
-        "description": "Creates a new standalone user account, with no organization membership yet - add one via `POST /organizations/{organization_id}/users` or `PATCH /organizations/{organization_id}/users/{user_id}`.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserCreate"
-              },
-              "example": {
-                "first_name": "Ada",
-                "last_name": "Lovelace",
-                "normalized_name": "ada lovelace",
-                "description": "Founding engineer"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The created user.",
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
-                },
-                "example": {
-                  "id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "entity": "mail_rocket.user",
-                  "first_name": "Ada",
-                  "last_name": "Lovelace",
-                  "normalized_name": "ada lovelace",
-                  "description": "Founding engineer",
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-07-15T09:00:00.000Z"
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Identity`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
           }
         },
-        "operationId": "usersPost"
+        "operationId": "identitiesDelete"
       }
     },
-    "/users/{id}/organizations": {
+    "/me": {
       "get": {
-        "summary": "List User's Organizations",
-        "deprecated": false,
-        "description": "Lists the organizations a user belongs to, each combined with the role they hold there.",
+        "summary": "Get Calling Key",
         "tags": [
-          "Users"
+          "Keys"
+        ],
+        "operationId": "meGet",
+        "description": "Returns the API key making the request, with its claims. Needs no claim beyond a valid key.",
+        "responses": {
+          "200": {
+            "description": "The calling key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys": {
+      "get": {
+        "summary": "List Keys",
+        "tags": [
+          "Keys"
+        ],
+        "operationId": "keysGetAll",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of rows to return. Defaults to 10 if omitted.",
+            "schema": {
+              "type": "number",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Number of rows to skip before returning results. Defaults to 0 if omitted.",
+            "schema": {
+              "type": "number",
+              "default": 0
+            }
+          }
+        ],
+        "description": "Lists API keys, newest first. A caller without the `create Key` claim receives only id, name, claims and preset for each key. Requires the `read Key` claim.",
+        "responses": {
+          "200": {
+            "description": "Keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/ApiKey"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ApiKeySummary"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Key`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Key",
+        "tags": [
+          "Keys"
+        ],
+        "operationId": "keysCreate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreate"
+              }
+            }
+          }
+        },
+        "description": "Mints an API key from a preset or an explicit claim list. The response is the only time the plaintext `secret` is returned. Requires the `create Key` claim.",
+        "responses": {
+          "201": {
+            "description": "The created key, with its secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body: e.g. both or neither of preset/claims, or a claim outside the closed action/subject lists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Key`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys/{key_id}": {
+      "get": {
+        "summary": "Get Key",
+        "tags": [
+          "Keys"
+        ],
+        "operationId": "keysGet",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "ID of the key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Fetches a single API key. Requires the `read Key` claim.",
+        "responses": {
+          "200": {
+            "description": "The key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Key`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API key not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Key",
+        "tags": [
+          "Keys"
+        ],
+        "operationId": "keysUpdate",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "ID of the key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyUpdate"
+              }
+            }
+          }
+        },
+        "description": "Updates a key's name, claims (via preset or claims), expiry or description. A key cannot change its own claims. Requires the `update Key` claim.",
+        "responses": {
+          "200": {
+            "description": "The updated key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Key`, or it tried to change its own claims.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API key not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Revoke Key",
+        "tags": [
+          "Keys"
+        ],
+        "operationId": "keysDelete",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "ID of the key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Revokes (permanently deletes) a key. A key cannot revoke itself. Requires the `delete Key` claim.",
+        "responses": {
+          "200": {
+            "description": "The revoked key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Key`, or it tried to revoke itself.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API key not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "summary": "MCP (Model Context Protocol) endpoint",
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpPost",
+        "description": "JSON-RPC 2.0 over MCP Streamable HTTP, stateless with JSON responses. Exposes 43 tools at parity with this API (see src/mcp/tools.ts). tools/list returns only the tools the key's claims allow, and every tools/call re-checks the claim. Expected failures come back as tool results with isError: true, not as HTTP errors.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "A JSON-RPC 2.0 request, e.g. initialize, tools/list or tools/call."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted (JSON-RPC notification, no body)."
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/overview": {
+      "get": {
+        "summary": "Get Overview",
+        "deprecated": false,
+        "description": "Resource counts, campaign and identity status breakdowns, the next scheduled sends and the latest sends. Any valid key may call it; each section is null unless the key can `read` that section's subject.",
+        "tags": [
+          "Overview"
+        ],
+        "responses": {
+          "200": {
+            "description": "The overview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "overviewGet"
+      }
+    },
+    "/groups/{group_id}/recipients": {
+      "get": {
+        "summary": "List Group Members",
+        "deprecated": false,
+        "description": "Lists the recipients in a group. Requires the `read Recipient` claim.",
+        "tags": [
+          "Recipients"
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "group_id",
             "in": "path",
-            "description": "ID of the user.",
+            "description": "ID of the group.",
             "required": true,
             "schema": {
               "type": "string"
@@ -3636,27 +3828,15 @@
         ],
         "responses": {
           "200": {
-            "description": "Organizations the user belongs to.",
+            "description": "Recipients in the group.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/OrganizationMembership"
+                    "$ref": "#/components/schemas/Recipient"
                   }
-                },
-                "example": [
-                  {
-                    "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
-                    "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
-                    "role": "editor",
-                    "name": "Acme Inc",
-                    "normalized_name": "acme inc",
-                    "description": null,
-                    "created_at": "2026-07-15T09:00:00.000Z",
-                    "updated_at": "2026-07-15T09:00:00.000Z"
-                  }
-                ]
+                }
               }
             }
           },
@@ -3669,33 +3849,42 @@
                 }
               }
             }
-          }
-        },
-        "operationId": "usersGetOrganizations"
-      }
-    },
-    "/organizations/{organization_id}/users/{user_id}": {
-      "patch": {
-        "summary": "Update Member",
-        "deprecated": false,
-        "description": "Updates a member's role (or membership metadata) within the organization. Does not touch the user's own profile fields - see `PATCH /users/{id}` for that. A caller can't change their own role, can't change another owner's role unless they're an owner too, and can't assign a role ranked above their own (viewer < editor < admin < owner).",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "name": "organization_id",
-            "in": "path",
-            "description": "ID of the organization.",
-            "required": true,
-            "schema": {
-              "type": "string"
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
             }
           },
+          "403": {
+            "description": "The key's claims don't include `read Recipient`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "groupMembersList"
+      },
+      "post": {
+        "summary": "Add Recipient to Group",
+        "operationId": "groupMembersAdd",
+        "tags": [
+          "Recipients"
+        ],
+        "description": "Adds an existing recipient to the group; they keep their other groups. Adding someone already in the group is a no-op. Requires the `update Group` claim.",
+        "parameters": [
           {
-            "name": "user_id",
+            "name": "group_id",
             "in": "path",
-            "description": "ID of the user.",
+            "description": "ID of the group.",
             "required": true,
             "schema": {
               "type": "string"
@@ -3707,37 +3896,52 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MembershipUpdate"
-              },
-              "example": {
-                "role": "admin"
+                "type": "object",
+                "properties": {
+                  "recipient_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "recipient_id"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The updated membership.",
+            "description": "The recipient with updated group_ids.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Membership"
-                },
-                "example": {
-                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
-                  "entity": "mail_rocket.organization_user",
-                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
-                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "role": "admin",
-                  "description": null,
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-08-01T10:15:00.000Z"
+                  "$ref": "#/components/schemas/Recipient"
                 }
               }
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "`recipient_id` is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3747,7 +3951,7 @@
             }
           },
           "404": {
-            "description": "The user isn't a member of the organization.",
+            "description": "The group or recipient doesn't exist.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3756,31 +3960,32 @@
               }
             }
           }
-        },
-        "operationId": "organizationUsersUpdate"
-      },
+        }
+      }
+    },
+    "/groups/{group_id}/recipients/{recipient_id}": {
       "delete": {
-        "summary": "Remove Member",
-        "deprecated": false,
-        "description": "Removes a user from the organization by deleting their membership row. The user's account itself is untouched - see `DELETE /users/{id}` to delete the account entirely. A caller can only remove a member ranked strictly below them (viewer < editor < admin < owner), which also rules out removing themselves.",
+        "summary": "Remove Recipient from Group",
+        "operationId": "groupMembersRemove",
         "tags": [
-          "Users"
+          "Recipients"
         ],
+        "description": "Removes the recipient from this group only; the recipient and their other groups are kept. Requires the `update Group` claim.",
         "parameters": [
           {
-            "name": "organization_id",
+            "name": "group_id",
             "in": "path",
-            "description": "ID of the organization.",
+            "description": "ID of the group.",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "user_id",
+            "name": "recipient_id",
             "in": "path",
-            "description": "ID of the user.",
             "required": true,
+            "description": "ID of the recipient.",
             "schema": {
               "type": "string"
             }
@@ -3788,27 +3993,27 @@
         ],
         "responses": {
           "200": {
-            "description": "The deleted membership.",
+            "description": "The recipient with updated group_ids.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Membership"
-                },
-                "example": {
-                  "id": "8e2f8a4a-9c31-4b6b-9f2e-7d4a6b3c1e02",
-                  "entity": "mail_rocket.organization_user",
-                  "organization_id": "1a2b3c4d-5e6f-4789-90ab-cdef01234567",
-                  "user_id": "3f29b6e2-8b7a-4c1e-9d2a-6a1e2c9f0b31",
-                  "role": "admin",
-                  "description": null,
-                  "created_at": "2026-07-15T09:00:00.000Z",
-                  "updated_at": "2026-08-01T10:15:00.000Z"
+                  "$ref": "#/components/schemas/Recipient"
                 }
               }
             }
           },
-          "400": {
-            "description": "A required path parameter is missing.",
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3818,7 +4023,7 @@
             }
           },
           "404": {
-            "description": "The user isn't a member of the organization.",
+            "description": "The recipient isn't in this group.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3827,8 +4032,7 @@
               }
             }
           }
-        },
-        "operationId": "organizationUsersDelete"
+        }
       }
     }
   },
@@ -3845,7 +4049,7 @@
       },
       "Organization": {
         "type": "object",
-        "description": "A tenant in Mail Rocket. Every other resource is scoped to one organization.",
+        "description": "The profile of the organization running this instance. Exactly one exists; it is seeded at boot.",
         "properties": {
           "id": {
             "type": "string",
@@ -3874,20 +4078,12 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
-          }
-        }
-      },
-      "OrganizationCreate": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
           },
-          "normalized_name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
+          "timezone": {
+            "type": "string",
+            "example": "Europe/London",
+            "description": "IANA time zone. Dates are shown and start times entered in it, and {{campaign_start_date}} is rendered in it. Changing it never moves a scheduled send: start_time is an absolute instant.",
+            "default": "UTC"
           }
         }
       },
@@ -3902,143 +4098,11 @@
           },
           "description": {
             "type": "string"
-          }
-        }
-      },
-      "User": {
-        "type": "object",
-        "description": "A user's identity, independent of any organization - see Member/OrganizationMembership for which organizations they belong to and their role in each.",
-        "properties": {
-          "id": {
+          },
+          "timezone": {
             "type": "string",
-            "description": "UUID of the user."
-          },
-          "entity": {
-            "type": "string"
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "Login identity. Never includes the password hash."
-          },
-          "normalized_name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "UserCreate": {
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "properties": {
-          "first_name": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "normalized_name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        }
-      },
-      "UserUpdate": {
-        "type": "object",
-        "properties": {
-          "first_name": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "normalized_name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        }
-      },
-      "AuthSignup": {
-        "type": "object",
-        "description": "Creates credentials for an email - either a brand new account, or (if the email belongs to a user invited by an org admin but never activated) attaches a password to that existing row.",
-        "required": [
-          "email",
-          "password"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "password": {
-            "type": "string",
-            "format": "password",
-            "minLength": 8
-          },
-          "first_name": {
-            "type": "string"
-          },
-          "last_name": {
-            "type": "string"
-          }
-        }
-      },
-      "AuthSignin": {
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "password": {
-            "type": "string",
-            "format": "password"
-          }
-        }
-      },
-      "AuthResponse": {
-        "type": "object",
-        "properties": {
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "token": {
-            "type": "string",
-            "description": "JWT to send as `Authorization: Bearer <token>` on subsequent requests."
+            "example": "Europe/London",
+            "description": "IANA time zone. Dates are shown and start times entered in it, and {{campaign_start_date}} is rendered in it. Changing it never moves a scheduled send: start_time is an absolute instant."
           }
         }
       },
@@ -4076,10 +4140,9 @@
             "description": "Whether this is the primary address of the organization."
           },
           "organization_id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true,
+            "description": "Always the instance's single organization; set by the server."
           },
           "description": {
             "type": "string"
@@ -4117,10 +4180,6 @@
           },
           "is_primary": {
             "type": "boolean"
-          },
-          "user_id": {
-            "type": "string",
-            "description": "Optional user to associate the address with."
           },
           "description": {
             "type": "string"
@@ -4178,10 +4237,9 @@
             "type": "string"
           },
           "organization_id": {
-            "type": "string"
-          },
-          "user_id": {
-            "type": "string"
+            "type": "string",
+            "readOnly": true,
+            "description": "Always the instance's single organization; set by the server."
           },
           "description": {
             "type": "string"
@@ -4208,10 +4266,6 @@
           },
           "phone_number": {
             "type": "string"
-          },
-          "user_id": {
-            "type": "string",
-            "description": "Optional user to associate the contact detail with."
           },
           "description": {
             "type": "string"
@@ -4262,23 +4316,6 @@
             "type": "string",
             "description": "Storage bucket where the campaign logo is stored."
           },
-          "organization_id": {
-            "type": "string"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "organizer_id": {
-            "type": "string",
-            "description": "ID of the user organizing the campaign."
-          },
-          "normalized_name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -4287,13 +4324,38 @@
             "type": "string",
             "format": "date-time"
           },
+          "description": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
               "draft",
-              "active"
+              "scheduled",
+              "sending",
+              "sent",
+              "failed"
             ],
-            "description": "Lifecycle status of the campaign."
+            "readOnly": true,
+            "description": "Lifecycle, managed by the system: draft (nothing scheduled) -> scheduled (a send is queued for start_time) -> sending -> sent (at least one recipient succeeded) | failed (none did, or the send couldn't start; see failure_reason)."
+          },
+          "identity_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "ID of the active email identity the campaign sends from."
+          },
+          "failure_reason": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "description": "Why the send ended in `failed`. Set by the send pipeline."
           }
         }
       },
@@ -4316,24 +4378,18 @@
             "type": "string",
             "format": "date-time"
           },
-          "organizer_id": {
-            "type": "string"
-          },
           "normalized_name": {
             "type": "string"
           },
           "description": {
             "type": "string"
           },
-          "status": {
+          "identity_id": {
             "type": "string",
-            "enum": [
-              "draft",
-              "active"
-            ],
-            "description": "Lifecycle status of the campaign. Defaults to \"draft\" if omitted."
+            "description": "ID of the active email identity the campaign sends from."
           }
-        }
+        },
+        "description": "status and failure_reason are managed by the send pipeline and are rejected with 400. Set start_time to schedule a send; set it to null to cancel one."
       },
       "CampaignUpdate": {
         "type": "object",
@@ -4352,7 +4408,8 @@
           },
           "start_time": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           },
           "normalized_name": {
             "type": "string"
@@ -4360,15 +4417,12 @@
           "description": {
             "type": "string"
           },
-          "status": {
+          "identity_id": {
             "type": "string",
-            "enum": [
-              "draft",
-              "active"
-            ],
-            "description": "Lifecycle status of the campaign."
+            "description": "ID of the active email identity the campaign sends from."
           }
-        }
+        },
+        "description": "status and failure_reason are managed by the send pipeline and are rejected with 400. Set start_time to schedule a send; set it to null to cancel one."
       },
       "Group": {
         "type": "object",
@@ -4387,13 +4441,6 @@
           "campaign_id": {
             "type": "string",
             "description": "ID of the campaign the group belongs to."
-          },
-          "organization_id": {
-            "type": "string"
-          },
-          "creator_id": {
-            "type": "string",
-            "description": "ID of the user who created the group."
           },
           "normalized_name": {
             "type": "string"
@@ -4418,9 +4465,6 @@
             "type": "string"
           },
           "campaign_id": {
-            "type": "string"
-          },
-          "creator_id": {
             "type": "string"
           },
           "normalized_name": {
@@ -4466,9 +4510,6 @@
           "campaign_id": {
             "type": "string",
             "description": "ID of the campaign the template belongs to."
-          },
-          "organization_id": {
-            "type": "string"
           },
           "normalized_name": {
             "type": "string"
@@ -4547,13 +4588,7 @@
             "type": "string",
             "format": "email"
           },
-          "group_id": {
-            "type": "string"
-          },
           "campaign_id": {
-            "type": "string"
-          },
-          "organization_id": {
             "type": "string"
           },
           "description": {
@@ -4566,6 +4601,13 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ids of the groups the recipient is in (many-to-many)."
           }
         }
       },
@@ -4585,14 +4627,18 @@
             "type": "string",
             "format": "email"
           },
-          "group_id": {
-            "type": "string"
-          },
           "campaign_id": {
             "type": "string"
           },
           "description": {
             "type": "string"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Groups the recipient joins. Each id must exist (400 otherwise). The retired single `group_id` is rejected with a 400."
           }
         }
       },
@@ -4614,6 +4660,18 @@
           },
           "description": {
             "type": "string"
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "When present, replaces the recipient's groups with exactly these. Omit to leave them unchanged."
+          },
+          "campaign_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Campaign the recipient is linked to directly."
           }
         }
       },
@@ -4640,9 +4698,6 @@
             "type": "string",
             "description": "The domain name or email address being identified."
           },
-          "organization_id": {
-            "type": "string"
-          },
           "description": {
             "type": "string"
           },
@@ -4661,7 +4716,8 @@
               "pending",
               "active"
             ],
-            "description": "Lifecycle status of the identity. `pending` = SES verification in flight."
+            "description": "Set by SES verification: pending until AWS SES confirms ownership, then active. Only active identities can send.",
+            "readOnly": true
           },
           "verification_records": {
             "type": "array",
@@ -4709,78 +4765,92 @@
           },
           "description": {
             "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "created",
-              "pending",
-              "active"
-            ],
-            "description": "Lifecycle status of the identity. Defaults to \"pending\" if omitted - creation always triggers SES verification."
           }
-        }
+        },
+        "description": "status and verification_records are managed by SES verification and are rejected with 400."
       },
       "IdentityUpdate": {
         "type": "object",
         "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "domain",
-              "email"
-            ],
-            "description": "Whether this identity is a domain or an email address."
-          },
-          "identity": {
-            "type": "string",
-            "description": "The domain name or email address being identified."
-          },
           "description": {
             "type": "string"
-          },
-          "status": {
+          }
+        },
+        "description": "Only description is editable. type, identity, status and verification_records are rejected with 400: changing the address would keep an active status SES never verified, so create a new identity instead."
+      },
+      "Claim": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "subject"
+        ],
+        "description": "One CASL grant. Closed lists only: no `manage`/`all` wildcards, conditions, fields or inverted rules.",
+        "properties": {
+          "action": {
             "type": "string",
             "enum": [
-              "created",
-              "pending",
-              "active"
-            ],
-            "description": "Lifecycle status of the identity."
+              "read",
+              "create",
+              "update",
+              "delete"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "enum": [
+              "Organization",
+              "Address",
+              "ContactDetails",
+              "Identity",
+              "Campaign",
+              "Template",
+              "Group",
+              "Recipient",
+              "Key"
+            ]
           }
         }
       },
-      "Membership": {
+      "ApiKey": {
         "type": "object",
-        "description": "Grants a user membership (and a role) in an organization.",
+        "description": "An API key - the only principal. The secret and its hash are never returned.",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "UUID of the membership row."
-          },
-          "entity": {
             "type": "string"
           },
-          "organization_id": {
-            "type": "string",
-            "description": "ID of the organization."
+          "name": {
+            "type": "string"
           },
-          "user_id": {
-            "type": "string",
-            "description": "ID of the user."
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "description": "Explicit claim list; duplicates are rejected."
           },
-          "role": {
+          "preset": {
             "type": "string",
             "enum": [
               "viewer",
               "editor",
-              "admin",
-              "owner"
+              "admin"
             ],
-            "description": "Permission level the user holds within this specific organization."
+            "description": "The preset the claims exactly match, or null for a custom list.",
+            "nullable": true
+          },
+          "prefix": {
+            "type": "string",
+            "description": "First characters of the secret, for recognition."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "created_at": {
             "type": "string",
@@ -4788,140 +4858,334 @@
           },
           "updated_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
-      "MembershipUpdate": {
+      "ApiKeySummary": {
         "type": "object",
-        "description": "Fields accepted when updating a membership (e.g. to change the user's role).",
+        "description": "What a caller without the `create Key` claim sees in GET /keys.",
         "properties": {
-          "role": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "description": "Explicit claim list; duplicates are rejected."
+          },
+          "preset": {
             "type": "string",
             "enum": [
               "viewer",
               "editor",
-              "admin",
-              "owner"
+              "admin"
             ],
-            "description": "Permission level to grant the user within the organization."
-          },
-          "description": {
-            "type": "string"
+            "description": "The preset the claims exactly match, or null for a custom list.",
+            "nullable": true
           }
         }
       },
-      "MemberCreate": {
-        "type": "object",
-        "description": "Fields for a new user, plus their initial role in the organization they're being added to.",
+      "ApiKeyCreated": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/UserCreate"
+            "$ref": "#/components/schemas/ApiKey"
           },
           {
             "type": "object",
+            "required": [
+              "secret"
+            ],
             "properties": {
-              "role": {
+              "secret": {
                 "type": "string",
-                "enum": [
-                  "viewer",
-                  "editor",
-                  "admin"
-                ],
-                "description": "Permission level to grant the user within the organization. Defaults to \"viewer\" if omitted."
+                "description": "The plaintext key (`mr_...`). Returned only here; store it now."
               }
             }
           }
         ]
       },
-      "Member": {
+      "ApiKeyCreate": {
         "type": "object",
-        "description": "A user's profile fields combined with their role in one organization. `id` is the membership row's id; `user_id` is the user's own id.",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "description": "Provide exactly one of `preset` or `claims`.",
         "properties": {
-          "id": {
+          "name": {
             "type": "string",
-            "description": "UUID of the membership row."
+            "minLength": 1,
+            "maxLength": 100
           },
-          "user_id": {
-            "type": "string",
-            "description": "UUID of the user."
-          },
-          "organization_id": {
-            "type": "string"
-          },
-          "role": {
+          "preset": {
             "type": "string",
             "enum": [
               "viewer",
               "editor",
-              "admin",
-              "owner"
+              "admin"
             ],
-            "description": "Permission level of the user within this organization."
+            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Recipient; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
           },
-          "first_name": {
-            "type": "string"
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "description": "Explicit claim list; duplicates are rejected."
           },
-          "last_name": {
-            "type": "string"
-          },
-          "normalized_name": {
-            "type": "string"
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "description": {
             "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the membership was created."
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
-      "OrganizationMembership": {
+      "ApiKeyUpdate": {
         "type": "object",
-        "description": "An organization's fields combined with the role a user holds there. `id` is the membership row's id.",
+        "additionalProperties": false,
+        "description": "Any subset of fields, but not both `preset` and `claims`. `expires_at: null` clears expiry.",
         "properties": {
-          "id": {
+          "name": {
             "type": "string",
-            "description": "UUID of the membership row."
+            "minLength": 1,
+            "maxLength": 100
           },
-          "organization_id": {
-            "type": "string"
-          },
-          "role": {
+          "preset": {
             "type": "string",
             "enum": [
               "viewer",
               "editor",
-              "admin",
-              "owner"
+              "admin"
             ],
-            "description": "Permission level the user holds within this organization."
+            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Recipient; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
           },
-          "name": {
-            "type": "string"
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "description": "Explicit claim list; duplicates are rejected."
           },
-          "normalized_name": {
-            "type": "string"
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "description": {
             "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the membership was created."
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
           }
         }
+      },
+      "Overview": {
+        "type": "object",
+        "description": "Dashboard counts. A section is null when the calling key cannot `read` its subject.",
+        "properties": {
+          "campaigns": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "by_status": {
+                "type": "object",
+                "properties": {
+                  "draft": {
+                    "type": "integer"
+                  },
+                  "scheduled": {
+                    "type": "integer"
+                  },
+                  "sending": {
+                    "type": "integer"
+                  },
+                  "sent": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "draft",
+                  "scheduled",
+                  "sending",
+                  "sent",
+                  "failed"
+                ]
+              },
+              "upcoming": {
+                "type": "array",
+                "description": "Next scheduled campaigns, soonest first (max 5).",
+                "items": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              },
+              "recent": {
+                "type": "array",
+                "description": "Latest campaigns whose send has started, newest first (max 5), each with its delivery counts.",
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Campaign"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "deliveries": {
+                          "type": "object",
+                          "properties": {
+                            "pending": {
+                              "type": "integer"
+                            },
+                            "sent": {
+                              "type": "integer"
+                            },
+                            "failed": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "pending",
+                            "sent",
+                            "failed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "deliveries"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "deliveries": {
+                "type": "object",
+                "properties": {
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "sent": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "pending",
+                  "sent",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "total",
+              "by_status",
+              "upcoming",
+              "recent",
+              "deliveries"
+            ]
+          },
+          "identities": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "by_status": {
+                "type": "object",
+                "properties": {
+                  "created": {
+                    "type": "integer"
+                  },
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "active": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "created",
+                  "pending",
+                  "active"
+                ]
+              }
+            },
+            "required": [
+              "total",
+              "by_status"
+            ]
+          },
+          "templates": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "groups": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "recipients": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "keys": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          }
+        },
+        "required": [
+          "campaigns",
+          "identities",
+          "templates",
+          "groups",
+          "recipients",
+          "keys"
+        ]
       }
     },
     "responses": {},
@@ -4929,15 +5193,29 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Token returned by POST /auth/signup or POST /auth/signin."
+        "bearerFormat": "API key",
+        "description": "An API key (`mr_...`), minted at first boot, by `bun run key:create`, or by POST /keys."
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "The same API key, as a header instead of a Bearer token."
       }
     }
   },
-  "servers": [],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development (PORT defaults to 3000)."
+    }
+  ],
   "security": [
     {
       "bearerAuth": []
+    },
+    {
+      "apiKeyHeader": []
     }
   ]
 }

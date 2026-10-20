@@ -1,23 +1,18 @@
 import { apiSlice } from "@/lib/redux/api/apiSlice";
-import type { User, UserOrganization } from "./model";
+import type { Me } from "./model";
 
 /**
- * `getMyOrganizations` is the single call that backs both the org switcher
- * and role-gating: it returns every org the current user belongs to *plus*
- * their role in each, so no second lookup is needed to answer "what's my
- * role in this org".
+ * `getMe` is the single call that backs both the shell and claim-gating: it
+ * returns the signed-in API key with its claims, which `useAbility` turns
+ * into the same CASL ability bun/api enforces - no second lookup needed.
  */
 export const sessionApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getMe: builder.query<User, void>({
+    getMe: builder.query<Me, void>({
       query: () => "/auth/me",
       providesTags: ["Session"],
-    }),
-    getMyOrganizations: builder.query<UserOrganization[], void>({
-      query: () => "/auth/me/organizations",
-      providesTags: ["Session", "Membership"],
     }),
   }),
 });
 
-export const { useGetMeQuery, useGetMyOrganizationsQuery } = sessionApi;
+export const { useGetMeQuery } = sessionApi;

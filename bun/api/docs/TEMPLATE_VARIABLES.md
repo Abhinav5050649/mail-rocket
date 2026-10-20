@@ -17,14 +17,10 @@ file is a description of that registry, kept in sync with it.
 | `{{recipient_last_name}}` | Recipient's last name | `recipients.last_name` |
 | `{{recipient_full_name}}` | First + last name, joined with a space (whichever parts exist) | `recipients.first_name` / `.last_name` |
 | `{{recipient_email}}` | Recipient's email address | `recipients.email_id` |
-| `{{group_name}}` | Name of the group the recipient belongs to | `group.name` |
+| `{{group_name}}` | Names of every group the recipient is in, alphabetical and comma-separated (e.g. "Newsletter subscribers, VIP customers") | `group.name` via `group_recipient` |
 | `{{campaign_name}}` | Name of the campaign | `campaign.name` |
-| `{{campaign_start_date}}` | Campaign's scheduled/actual start date | `campaign.start_time` |
-| `{{organization_name}}` | Name of the organization running the campaign | `organization.name` |
-| `{{organizer_first_name}}` | First name of the user who organized the campaign | `user.first_name` |
-| `{{organizer_last_name}}` | Last name of the user who organized the campaign | `user.last_name` |
-| `{{organizer_full_name}}` | Organizer's first + last name | `user.first_name` / `.last_name` |
-| `{{organizer_email}}` | Organizer's login email | `user.email` |
+| `{{campaign_start_date}}` | Campaign's scheduled/actual start date, as the calendar date in the organization's time zone | `campaign.start_time` |
+| `{{organization_name}}` | Name of the organization running this instance (set via `PATCH /organization`) | `organization.name` (the single row) |
 | `{{sender_email}}` | The verified SES identity the campaign sends from | `identity.identity` |
 
 ## Behavior on missing values
@@ -52,3 +48,7 @@ The unresolved-variable names are also logged at `warn` level
    query/lookups there and thread it into the `TemplateVariableContext` built
    per recipient.
 3. Add a row to the table above.
+
+> The `organizer_*` variables were removed along with users: an instance has
+> no users, so a campaign has no organizer. A template that still uses one
+> now fails every recipient with that variable reported as missing.

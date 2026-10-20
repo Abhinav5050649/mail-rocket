@@ -1,49 +1,57 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "../libs";
-import { ContactDetailsService } from "../services";
+import { ContactDetailsService, OrganizationService } from "../services";
 
 /**
  * HTTP layer for contact-details endpoints. Translates Hono `Context`
  * objects into `ContactDetailsService` calls and maps the results to HTTP
- * responses/errors. Contact details are nested under an organization:
- * `/organizations/:organization_id/contact-details`.
+ * responses/errors. Contact details live at `/contact-details` and always
+ * belong to the instance's single organization.
  */
 export class ContactDetailsController {
-    constructor(private contactDetailsService: ContactDetailsService) {
+    constructor(private contactDetailsService: ContactDetailsService, private organizationService: OrganizationService) {
     }
 
     /**
-     * GET /organizations/:organization_id/contact-details
-     * Lists contact details belonging to an organization.
+     * Resolves the id of the instance's single organization, which every
+     * contact-details row is linked to.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param. Accepts an optional `user_id` query param to scope the list to
-     * a single user, and optional `limit` (max rows to return) and `offset`
+     * @returns The organization's id.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded (boot didn't complete).
+     */
+    private organizationId = async () => {
+        const organization = await this.organizationService.get();
+
+        if (!organization) {
+            throw new HTTPException(404, { message: "Organization not found" });
+        }
+
+        return organization.id;
+    }
+
+    /**
+     * GET /contact-details
+     * Lists contact details belonging to the organization.
+     *
+     * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
      * @returns JSON array of contact-details rows.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded.
      */
     getAll = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.getAll.name}`);
 
-        const organizationId = c.req.param('organization_id');
+        const organizationId = await this.organizationId();
 
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
-
-        const userId = c.req.query('user_id');
         const limitParam = c.req.query('limit');
         const offsetParam = c.req.query('offset');
         const limit = limitParam !== undefined ? Number(limitParam) : undefined;
         const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
 
-        logger.debug({ organizationId, userId, limit, offset }, `Request:`);
+        logger.debug({ organizationId, limit, offset }, `Request:`);
 
-        const contactDetails = userId
-            ? await this.contactDetailsService.getByUser(userId, { limit, offset })
-            : await this.contactDetailsService.getByOrganization(organizationId, { limit, offset });
+        const contactDetails = await this.contactDetailsService.getByOrganization(organizationId, { limit, offset });
 
         logger.debug({ organizationId, count: contactDetails.length }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.getAll.name}`);
@@ -52,22 +60,17 @@ export class ContactDetailsController {
     }
 
     /**
-     * POST /organizations/:organization_id/contact-details
-     * Creates a new contact-details row within an organization.
+     * POST /contact-details
+     * Creates a new contact-details row.
      *
-     * @param c - Hono request context; expects an `organization_id` route
-     * param and a JSON body with the contact-details fields.
+     * @param c - Hono request context; expects a JSON body with the contact-details fields.
      * @returns JSON response with the created contact-details row.
-     * @throws {HTTPException} 400 if the `organization_id` param is missing.
+     * @throws {HTTPException} 404 if the organization hasn't been seeded.
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
-        const organizationId = c.req.param('organization_id');
-
-        if (!organizationId) {
-            throw new HTTPException(400, { message: "Missing Parameters: organizationId" });
-        }
+        const organizationId = await this.organizationId();
 
         const body = await c.req.json();
 
@@ -82,7 +85,7 @@ export class ContactDetailsController {
     }
 
     /**
-     * GET /organizations/:organization_id/contact-details/:contact_details_id
+     * GET /contact-details/:contact_details_id
      * Fetches a single contact-details row by id.
      *
      * @param c - Hono request context; expects a `contact_details_id` route param.
@@ -115,7 +118,7 @@ export class ContactDetailsController {
     }
 
     /**
-     * PATCH /organizations/:organization_id/contact-details/:contact_details_id
+     * PATCH /contact-details/:contact_details_id
      * Partially updates a contact-details row.
      *
      * @param c - Hono request context; expects a `contact_details_id` route
@@ -151,7 +154,7 @@ export class ContactDetailsController {
     }
 
     /**
-     * DELETE /organizations/:organization_id/contact-details/:contact_details_id
+     * DELETE /contact-details/:contact_details_id
      * Deletes a contact-details row.
      *
      * @param c - Hono request context; expects a `contact_details_id` route param.

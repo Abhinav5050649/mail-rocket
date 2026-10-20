@@ -54,7 +54,7 @@ try {
 }
 ```
 
-Reference implementations: [src/controllers/UserController.ts](../../../src/controllers/UserController.ts) and [src/services/UserService.ts](../../../src/services/UserService.ts) - every other controller/service in the project (`OrganizationUserService`, `CampaignController`, etc.) follows this identically.
+Reference implementations: [src/controllers/CampaignController.ts](../../../src/controllers/CampaignController.ts) and [src/services/CampaignService.ts](../../../src/services/CampaignService.ts) - every other controller/service in the project (`ApiKeyService`, `TemplateController`, etc.) follows this identically. The one deliberate exception is `src/bootstrap.ts`, which prints the first admin key with `console.log` so the secret never lands in a log file.
 
 ## Rules of thumb
 

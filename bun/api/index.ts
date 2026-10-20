@@ -1,9 +1,10 @@
 import "dotenv/config";
 import { Hono } from "hono";
 import { config } from "./config";
-import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB, startCampaignWorkers, startIdentityVerificationWorker } from "./src";
+import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB, bootstrap, startCampaignWorkers, startIdentityVerificationWorker } from "./src";
 
 await connectDB();
+await bootstrap();
 startCampaignWorkers();
 startIdentityVerificationWorker();
 

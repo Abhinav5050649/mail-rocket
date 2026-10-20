@@ -1,68 +1,150 @@
 "use client";
 
 import * as React from "react";
-import { Code01 } from "@untitledui/icons";
-import { Button as AriaButton } from "react-aria-components";
-import { Dropdown } from "@/components/base/dropdown/dropdown";
-import { Label } from "@/components/base/input/label";
+import { Code02 } from "@untitledui/icons";
+import { Menu } from "@/components/ui/overlay";
 import { TEMPLATE_VARIABLES } from "@/lib/constants/templateVariables";
+import { getDisplayTimeZone } from "@/lib/format";
 import { cx } from "@/utils/cx";
+
+/**
+ * Example values the preview fills variables with. They are labelled as
+ * samples on screen; real values come from each recipient at send time.
+ */
+const SAMPLE_VALUES: Record<string, string> = {
+  recipient_first_name: "Priya",
+  recipient_last_name: "Raman",
+  recipient_full_name: "Priya Raman",
+  recipient_email: "priya@example.com",
+  group_name: "Newsletter subscribers",
+  campaign_name: "Your campaign",
+  // Filled in at render time: today's date in the organization's time zone.
+  campaign_start_date: "",
+  organization_name: "Your organization",
+  sender_email: "hello@example.com",
+};
+
+const VARIABLE_PATTERN = /\{\{\s*([a-z_]+)\s*\}\}/g;
+
+/** Replaces known `{{variables}}` with sample values; unknown ones stay visible. */
+function fillSamples(html: string, organizationName?: string | null) {
+  return html.replace(VARIABLE_PATTERN, (match, token: string) => {
+    if (token === "organization_name" && organizationName) return organizationName;
+    // Same call the send pipeline makes, so the sample reads like the real thing.
+    if (token === "campaign_start_date") return new Date().toLocaleDateString(undefined, { timeZone: getDisplayTimeZone() });
+    return SAMPLE_VALUES[token] ?? match;
+  });
+}
+
+/** `{{variables}}` in the body that the send pipeline doesn't know, so they'd be sent literally. */
+export function unknownVariables(html: string) {
+  const known = new Set<string>(TEMPLATE_VARIABLES.map((variable) => variable.token));
+  return [...new Set([...html.matchAll(VARIABLE_PATTERN)].map((match) => match[1]!))].filter((token) => !known.has(token));
+}
 
 interface TemplateEditorProps {
   value: string;
   onChange: (value: string) => void;
+  organizationName?: string | null;
+  readOnly?: boolean;
 }
 
 /**
- * A plain native `<textarea>` (not the react-aria-components `TextArea`) so
- * the "insert variable" picker can read/set `selectionStart` directly - RAC's
- * wrapper doesn't expose the raw DOM node cleanly for cursor manipulation.
+ * HTML source on the left, the rendered email on the right. A native
+ * textarea so "Insert variable" can read and set the cursor directly. The
+ * preview renders in a sandboxed iframe with scripts disabled.
  */
-export function TemplateEditor({ value, onChange }: TemplateEditorProps) {
+export function TemplateEditor({ value, onChange, organizationName, readOnly }: TemplateEditorProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [previewMode, setPreviewMode] = React.useState<"sample" | "raw">("sample");
+  // Debounce the preview so typing doesn't re-render the iframe on every keystroke.
+  const deferred = React.useDeferredValue(value);
+  const unknown = unknownVariables(value);
 
   const insertVariable = (token: string) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart ?? value.length;
-    const end = el.selectionEnd ?? value.length;
-    const next = `${value.slice(0, start)}{{${token}}}${value.slice(end)}`;
-    onChange(next);
+    const element = textareaRef.current;
+    if (!element) return;
+    const start = element.selectionStart ?? value.length;
+    const end = element.selectionEnd ?? value.length;
+    const insert = `{{${token}}}`;
+    onChange(`${value.slice(0, start)}${insert}${value.slice(end)}`);
     requestAnimationFrame(() => {
-      const cursor = start + token.length + 4;
-      el.focus();
-      el.setSelectionRange(cursor, cursor);
+      element.focus();
+      element.setSelectionRange(start + insert.length, start + insert.length);
     });
   };
 
+  const srcDoc = previewMode === "sample" ? fillSamples(deferred, organizationName) : deferred;
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <Label>HTML body</Label>
-        <Dropdown.Root>
-          <AriaButton className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-brand-secondary outline-focus-ring hover:bg-primary_hover">
-            <Code01 className="size-3.5" />
-            Insert variable
-          </AriaButton>
-          <Dropdown.Popover className="w-80">
-            <Dropdown.Menu onAction={(key) => insertVariable(String(key))}>
-              {TEMPLATE_VARIABLES.map((v) => (
-                <Dropdown.Item key={v.token} id={v.token} label={`{{${v.token}}}`} addon={v.description} unstyled={false} />
-              ))}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown.Root>
-      </div>
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={12}
-        className={cx(
-          "w-full scroll-py-3 rounded-lg bg-primary px-3.5 py-3 font-mono text-sm text-primary shadow-xs ring-1 ring-primary transition duration-100 ease-linear ring-inset placeholder:text-placeholder focus:outline-hidden focus:ring-2 focus:ring-brand",
+    <div className="grid overflow-hidden rounded-card border border-border lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col border-border max-lg:border-b lg:border-r">
+        <div className="flex h-11 items-center justify-between gap-2 border-b border-rule bg-raised px-3">
+          <label htmlFor="template-html" className="text-sm font-medium text-text">
+            HTML
+          </label>
+          {!readOnly && (
+            <Menu
+              triggerLabel="Insert variable"
+              triggerClassName="flex h-7 items-center gap-1.5 rounded-control px-2 text-sm text-muted transition-colors hover:bg-active hover:text-text"
+              trigger={
+                <>
+                  <Code02 className="size-4" />
+                  Insert variable
+                </>
+              }
+              className="max-h-80 w-80"
+              items={TEMPLATE_VARIABLES.map((variable) => ({ id: variable.token, label: `{{${variable.token}}}`, description: variable.description }))}
+              onAction={insertVariable}
+            />
+          )}
+        </div>
+        <textarea
+          id="template-html"
+          ref={textareaRef}
+          value={value}
+          readOnly={readOnly}
+          onChange={(event) => onChange(event.target.value)}
+          spellCheck={false}
+          placeholder={"<p>Hi {{recipient_first_name}},</p>"}
+          className="min-h-[420px] w-full flex-1 resize-y bg-sheet p-4 font-mono text-[13px] leading-5 text-text outline-none placeholder:text-faint focus-visible:outline-none lg:min-h-[540px]"
+        />
+        {unknown.length > 0 && (
+          <p className="border-t border-rule px-4 py-2.5 text-sm text-warning">
+            Not a known variable, so it would be sent as written: {unknown.map((token) => `{{${token}}}`).join(", ")}
+          </p>
         )}
-        placeholder="<html>...</html>"
-      />
+      </div>
+
+      <div className="flex min-w-0 flex-col">
+        <div className="flex h-11 items-center justify-between gap-2 border-b border-rule bg-raised px-3">
+          <span className="text-sm font-medium text-text">Preview</span>
+          <div role="radiogroup" aria-label="Preview variables as" className="flex rounded-control bg-active p-0.5">
+            {(["sample", "raw"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={previewMode === mode}
+                onClick={() => setPreviewMode(mode)}
+                className={cx(
+                  "h-6 rounded-[4px] px-2 text-xs transition-colors",
+                  previewMode === mode ? "bg-sheet font-medium text-text" : "text-muted hover:text-text",
+                )}
+              >
+                {mode === "sample" ? "Sample values" : "Variables"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {value.trim() ? (
+          <iframe title="Email preview" sandbox="" srcDoc={srcDoc} className="min-h-[420px] w-full flex-1 bg-white lg:min-h-[540px]" />
+        ) : (
+          <div className="flex min-h-[420px] flex-1 items-center justify-center p-6 text-center text-sm text-muted lg:min-h-[540px]">
+            The rendered email appears here as you write.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { organizationTable } from "./OrganizationModel";
 import { campaignTable } from "./CampaignModel";
 
 /**
@@ -20,8 +19,6 @@ export const templateTable = pgTable("template", {
     html_body: varchar("html_body"),
     /** ID of campaign the template belongs to. */
     campaign_id: varchar("campaign_id").references(() => campaignTable.id),
-    /** ID of organization the template belongs to. */
-    organization_id: varchar("organization_id").references(() => organizationTable.id),
     /** Normalized name of template. */
     normalized_name: varchar("normalized_name"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
@@ -29,9 +26,8 @@ export const templateTable = pgTable("template", {
     /** Field to store additional metadata about record. */
     description: varchar("description"),
 }, (table) => [
-    // Backs `getByCampaign` and `getByOrganization`.
+    // Backs `getByCampaign`.
     index("template_campaign_id_idx").on(table.campaign_id),
-    index("template_organization_id_idx").on(table.organization_id),
 ]);
 
 /** TS type for a template row, inferred directly from the table schema above. */

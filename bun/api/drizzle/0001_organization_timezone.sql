@@ -1,0 +1,1 @@
+ALTER TABLE "organization" ADD COLUMN "timezone" varchar DEFAULT 'UTC' NOT NULL;

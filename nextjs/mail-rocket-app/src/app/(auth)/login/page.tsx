@@ -1,70 +1,51 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail01, Lock01 } from "@untitledui/icons";
-import { Input } from "@/components/base/input/input";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
+import { FormError } from "@/components/ui/feedback";
 import { signinSchema, type SigninFormValues } from "@/lib/validation/authSchema";
 import { useSigninMutation } from "@/features/auth";
-import { getApiErrorMessage } from "@/lib/redux/api/errors";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [signin, { isLoading, error }] = useSigninMutation();
-
   const {
-    control,
+    register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SigninFormValues>({ resolver: zodResolver(signinSchema), defaultValues: { email: "", password: "" } });
+  } = useForm<SigninFormValues>({ resolver: zodResolver(signinSchema), defaultValues: { key: "" } });
 
   const onSubmit = async (values: SigninFormValues) => {
     const result = await signin(values);
-    if (!("error" in result)) {
-      router.push(searchParams.get("next") || "/orgs");
-    }
+    if (!("error" in result)) router.push(searchParams.get("next") || "/");
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1 text-center">
-        <h1 className="text-lg font-semibold text-primary">Sign in</h1>
-        <p className="text-sm text-tertiary">Welcome back to Mail Rocket.</p>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-title font-semibold tracking-[-0.01em] text-text">Sign in</h1>
+        <p className="text-sm text-muted">Paste an API key issued by this Mail Rocket instance.</p>
       </div>
 
-      {error && <p className="rounded-lg bg-error-primary px-3 py-2 text-sm text-error-primary ring-1 ring-error_subtle">{getApiErrorMessage(error)}</p>}
+      <Field label="API key" error={errors.key?.message}>
+        {(props) => (
+          <Input {...props} {...register("key")} type="password" autoComplete="current-password" autoFocus spellCheck={false} placeholder="mr_…" className="font-mono" />
+        )}
+      </Field>
 
-      <div className="flex flex-col gap-4">
-        <Controller
-          control={control}
-          name="email"
-          render={({ field }) => (
-            <Input {...field} label="Email" type="email" icon={Mail01} isInvalid={!!errors.email} hint={errors.email?.message} />
-          )}
-        />
-        <Controller
-          control={control}
-          name="password"
-          render={({ field }) => (
-            <Input {...field} label="Password" type="password" icon={Lock01} isInvalid={!!errors.password} hint={errors.password?.message} />
-          )}
-        />
-      </div>
+      <FormError error={error} />
 
-      <Button type="submit" size="lg" isLoading={isLoading}>
+      <Button type="submit" variant="primary" isLoading={isLoading} className="h-9 w-full">
         Sign in
       </Button>
 
-      <p className="text-center text-sm text-tertiary">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-semibold text-brand-secondary hover:text-brand-secondary_hover">
-          Sign up
-        </Link>
+      <p className="border-t border-rule pt-4 text-sm text-muted">
+        No key yet? The API prints an admin key the first time it starts. Or run <code className="text-text">bun run key:create</code> on the server.
       </p>
     </form>
   );
