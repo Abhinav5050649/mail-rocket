@@ -1,13 +1,14 @@
 import { pgTable, pgEnum, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { IDENTITY_STATUSES, IDENTITY_TYPES } from "@mail-rocket/shared";
 
 /** Kind of sending identity: a whole domain or a single email address. */
-export const identityTypeEnum = pgEnum("identity_type", ["domain", "email"]);
+export const identityTypeEnum = pgEnum("identity_type", IDENTITY_TYPES);
 
 /** TS union type for an identity's `type` column. */
 export type IdentityType = (typeof identityTypeEnum.enumValues)[number];
 
 /** Lifecycle status of an identity. `pending` = SES verification in flight. */
-export const identityStatusEnum = pgEnum("identity_status", ["created", "pending", "active"]);
+export const identityStatusEnum = pgEnum("identity_status", IDENTITY_STATUSES);
 
 /** TS union type for an identity's `status` column. */
 export type IdentityStatus = (typeof identityStatusEnum.enumValues)[number];

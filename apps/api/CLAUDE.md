@@ -26,6 +26,7 @@ Also:
 - Match the logging pattern used by every controller/service method (the `api-logging` skill) - don't invent a different style.
 - Schema changes go through Drizzle: edit `src/models/*.ts`, run `bun run db:generate`, commit the resulting migration under `drizzle/` - never hand-edit a migration file (the `api-data-model` skill).
 - After any endpoint or schema change, update the repo-root `resources/dbml/mail-rocket.dbml` and `resources/openapi/mail-rocket-api.openapi.json` so they stay the source of truth alongside the code.
+- Response shapes, permission claims, status enums and template variable names are shared with the web app through `@mail-rocket/shared` (`packages/shared`). When a response gains or loses a field, update the shared wire type: `src/contracts.ts` fails `bun run typecheck` until both sides agree.
 - There is no linter configured yet - match the style of the file you're editing. Unit tests for controllers live under `tests/controllers` (mocked services, no DB/Redis/AWS needed - `bun run test`); tests for the AWS-SES-dependent send flows (`SendCampaignService`, `IdentityService`) live under `tests/services` (`bun run test:send-flows`), with `db`/`sesClient`/queue modules mocked via `mock.module`. Add a test alongside any new/changed controller or send-flow method. At minimum confirm `bun run dev` boots cleanly if you touched bootstrap/middleware/queues.
 
 ## Skills

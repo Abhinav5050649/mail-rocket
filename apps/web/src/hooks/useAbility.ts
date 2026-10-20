@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useGetMeQuery } from "@/features/session";
-import { defineAbility, type AppAbility } from "@/lib/auth/abilities";
+import { defineAbility, type AppAbility } from "@mail-rocket/shared";
 import { useHydrated } from "./useHydrated";
 
 export interface CurrentAbility {
@@ -14,7 +14,7 @@ const NO_CLAIMS = defineAbility([]);
 
 /**
  * The signed-in API key's CASL ability, built from the cached `GET /me`
- * result. Mirrors what apps/api's `requireAbility` will allow, so UI gating
+ * result, using the same `@mail-rocket/shared` model as apps/api's `requireAbility`, so UI gating
  * stays consistent with the server - but it's UX only; the server is the
  * authority. Reports loading until hydration finishes so the first client
  * render matches the server's.

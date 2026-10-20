@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Code02 } from "@untitledui/icons";
 import { Menu } from "@/components/ui/overlay";
-import { TEMPLATE_VARIABLES } from "@/lib/constants/templateVariables";
+import { TEMPLATE_VARIABLES } from "@mail-rocket/shared";
 import { getDisplayTimeZone } from "@/lib/format";
 import { cx } from "@/utils/cx";
 

@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mail-rocket/shared": "workspace:*",
     "@casl/ability": "^7.0.2",
     "@hookform/resolvers": "^5.9.1",
     "@internationalized/date": "^3.12.4",

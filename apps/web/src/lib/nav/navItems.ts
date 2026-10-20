@@ -1,5 +1,5 @@
 import { AtSign, Building02, FileCode01, Home02, Key01, MarkerPin01, Phone, Send01, User01, Users01 } from "@untitledui/icons";
-import type { Subject } from "@/lib/auth/abilities";
+import type { Subject } from "@mail-rocket/shared";
 
 export interface NavItem {
   label: string;

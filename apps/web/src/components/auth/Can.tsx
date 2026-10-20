@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAbility } from "@/hooks/useAbility";
-import type { Action, Subject } from "@/lib/auth/abilities";
+import type { Action, Subject } from "@mail-rocket/shared";
 
 interface CanProps {
   /** The action the wrapped control performs. */

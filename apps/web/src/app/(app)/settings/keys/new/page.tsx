@@ -9,7 +9,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Field, Input } from "@/components/ui/field";
 import { FormActions, PageHeader, SettingsSection } from "@/components/ui/page";
 import { FormError, Notice } from "@/components/ui/feedback";
-import { PRESETS, PRESET_DESCRIPTIONS } from "@/lib/auth/abilities";
+import { PRESETS, PRESET_DESCRIPTIONS } from "@mail-rocket/shared";
 import { keyCreateSchema, type KeyCreateFormValues } from "@/lib/validation/authSchema";
 import { capitalize, fromDateTimeLocal, getDisplayTimeZone } from "@/lib/format";
 import { useCreateKeyMutation, type ApiKeyCreated } from "@/features/keys";

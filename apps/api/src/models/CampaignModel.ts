@@ -1,4 +1,5 @@
 import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
+import { CAMPAIGN_STATUSES } from "@mail-rocket/shared";
 import { identityTable } from "./IdentityModel";
 
 /**
@@ -7,7 +8,7 @@ import { identityTable } from "./IdentityModel";
  * `start_time`) -> `sending` (the dispatch job fired and chunk jobs are in
  * flight) -> `sent` | `failed` (every chunk has settled).
  */
-export const campaignStatusEnum = pgEnum("campaign_status", ["draft", "scheduled", "sending", "sent", "failed"]);
+export const campaignStatusEnum = pgEnum("campaign_status", CAMPAIGN_STATUSES);
 
 /** TS union type for a campaign's `status` column. */
 export type CampaignStatus = (typeof campaignStatusEnum.enumValues)[number];

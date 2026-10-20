@@ -1,4 +1,4 @@
-import type { Claim, KeyPreset } from "@/lib/auth/abilities";
+import type { Claim, KeyPreset } from "@mail-rocket/shared";
 export type { ApiKey, ApiKeySummary, ApiKeyCreated } from "@/types/resources";
 
 export interface KeyCreateInput {

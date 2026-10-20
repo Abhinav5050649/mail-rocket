@@ -44,7 +44,10 @@ services:
     restart: always
 
   api:
-    build: ./apps/api
+    # Built from the repo root: the API depends on the workspace's @mail-rocket/shared.
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     ports:
       - "3000:3000"
     env_file:
@@ -56,7 +59,7 @@ services:
       # Bind mount (not a named volume) so logs/app.log lands on the host at
       # apps/api/logs/ and survives `docker compose down` - a named volume
       # would too, but a plain `-v` on that command would delete it.
-      - ./apps/api/logs:/app/logs
+      - ./apps/api/logs:/app/apps/api/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +68,9 @@ services:
     restart: always
 
   web:
-    build: ./apps/web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
     ports:
       - "3001:3001"
     environment:

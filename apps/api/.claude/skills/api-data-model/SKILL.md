@@ -77,5 +77,5 @@ Examples: `identity_type` (domain/email), `identity_status` (created/pending/act
 2. Export it from `src/models/index.ts`.
 3. Run `drizzle-kit generate` (via `npx`/`bunx drizzle-kit generate`) to produce the migration.
 4. Add a `*Service` with CRUD + logging, and a `*Controller`/`*Route` per `api-request-response-flow`.
-5. Add a subject for it to `SUBJECTS` in `src/libs/abilities.ts` (and the presets that should grant it), and mirror it in the Next.js app's `src/lib/auth/abilities.ts`.
+5. Add a subject for it to `SUBJECTS` (and the presets that should grant it) in `packages/shared/src/abilities.ts`, which both the API and the web app import. Add its wire type to `packages/shared/src/resources.ts` and a line to `src/contracts.ts`.
 6. Update the repo-root `resources/dbml/mail-rocket.dbml` and the OpenAPI spec.

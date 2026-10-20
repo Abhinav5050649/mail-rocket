@@ -1,9 +1,10 @@
 import { pgTable, pgEnum, varchar, timestamp, index } from "drizzle-orm/pg-core";
+import { SEND_STATUSES } from "@mail-rocket/shared";
 import { campaignTable } from "./CampaignModel";
 import { recipientsTable } from "./RecipientModel";
 
 /** Per-send delivery status of a `campaign_recipient` row. */
-export const campaignRecipientSendStatusEnum = pgEnum("campaign_recipient_send_status", ["pending", "sent", "failed"]);
+export const campaignRecipientSendStatusEnum = pgEnum("campaign_recipient_send_status", SEND_STATUSES);
 
 /** TS union type for a campaign_recipient's `send_status` column. */
 export type CampaignRecipientSendStatus = (typeof campaignRecipientSendStatusEnum.enumValues)[number];

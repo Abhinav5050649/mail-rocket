@@ -16,7 +16,7 @@ Or from the repo root, `bun run dev` starts the API and this app together.
 - `src/components/ui/`: the component set (see the repo-root `DESIGN.md`)
 - `src/features/<resource>/`: RTK Query endpoints per API resource
 - `src/lib/format.ts`: all date and number formatting, in the organization's time zone
-- `src/lib/auth/`: session cookie and the client mirror of the API's CASL claims
+- `src/lib/auth/`: session cookie and API calls. The permission model and the API's wire types come from `@mail-rocket/shared` (`packages/shared`)
 
 Controls a key can't use are hidden or disabled; the API re-checks every request.
 

@@ -11,7 +11,7 @@
  * sync with `TEMPLATE_VARIABLES` below.
  */
 
-import { DEFAULT_TIME_ZONE } from "./timeZones";
+import { DEFAULT_TIME_ZONE, type TemplateVariableName } from "@mail-rocket/shared";
 
 /** Data available when resolving template variables for one recipient's send. */
 export interface TemplateVariableContext {
@@ -49,12 +49,12 @@ const joinName = (...parts: (string | null | undefined)[]): string | null => {
 };
 
 /**
- * Every placeholder a campaign's subject/template body can reference, and
- * how to resolve it from a `TemplateVariableContext`. To support a new
- * variable, add a resolver here (and to `docs/TEMPLATE_VARIABLES.md`) -
- * never invent one that isn't registered.
+ * How to resolve every placeholder a campaign's subject/template body can
+ * reference. Keyed by the shared `TemplateVariableName`, so a variable added
+ * to `@mail-rocket/shared` without a resolver here (or the reverse) is a
+ * compile error. Also document it in `docs/TEMPLATE_VARIABLES.md`.
  */
-export const TEMPLATE_VARIABLES: Record<string, VariableResolver> = {
+export const TEMPLATE_VARIABLES: Record<TemplateVariableName, VariableResolver> = {
     recipient_first_name: (ctx) => ctx.recipient.first_name,
     recipient_last_name: (ctx) => ctx.recipient.last_name,
     recipient_full_name: (ctx) => joinName(ctx.recipient.first_name, ctx.recipient.last_name),
@@ -92,7 +92,7 @@ export function renderTemplate(text: string, context: TemplateVariableContext): 
     const missing = new Set<string>();
 
     const rendered = text.replace(PLACEHOLDER_PATTERN, (fullMatch, name: string) => {
-        const resolver = TEMPLATE_VARIABLES[name];
+        const resolver = TEMPLATE_VARIABLES[name as TemplateVariableName] as VariableResolver | undefined;
         const value = resolver?.(context);
 
         if (!resolver || value === null || value === undefined || value === "") {

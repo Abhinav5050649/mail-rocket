@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRESETS } from "@/lib/auth/abilities";
+import { PRESETS } from "@mail-rocket/shared";
 
 export const signinSchema = z.object({
   key: z.string().trim().min(1, "API key is required"),

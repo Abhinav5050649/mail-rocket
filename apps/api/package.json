@@ -12,7 +12,8 @@
     "build": "bun build index.ts --bundle --minify --target=bun --external bullmq --external ioredis --external @aws-sdk/client-ses --external pino --external pino-roll --outfile dist/index.js",
     "test": "bun test tests/controllers tests/libs tests/middleware tests/routes",
     "test:send-flows": "bun test tests/services",
-    "test:all": "bun test tests"
+    "test:all": "bun test tests",
+    "typecheck": "tsc --noEmit -p ."
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -23,6 +24,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@mail-rocket/shared": "workspace:*",
     "@aws-sdk/client-ses": "^3.1116.0",
     "@casl/ability": "^7.0.2",
     "@modelcontextprotocol/sdk": "^1.32.1",

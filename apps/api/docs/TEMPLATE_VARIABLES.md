@@ -39,8 +39,12 @@ The unresolved-variable names are also logged at `warn` level
 
 ## Adding a new variable
 
-1. Add a resolver to `TEMPLATE_VARIABLES` in
-   [`src/libs/templateVariables.ts`](../src/libs/templateVariables.ts). It
+1. Add its name and description to `TEMPLATE_VARIABLES` in
+   [`packages/shared/src/templateVariables.ts`](../../../packages/shared/src/templateVariables.ts)
+   (the web app's "Insert variable" menu reads it), then add its resolver to
+   `TEMPLATE_VARIABLES` in
+   [`src/libs/templateVariables.ts`](../src/libs/templateVariables.ts) - the
+   API won't compile until every shared name has one. It
    receives a `TemplateVariableContext` (whatever `sendChunk` already knows
    about the campaign/recipient/organization/etc.) and returns a `string`,
    or `null`/`undefined` if unavailable for this recipient.

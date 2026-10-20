@@ -13,7 +13,7 @@ import { usePaginationParams } from "@/hooks/usePaginationParams";
 import { useAbility } from "@/hooks/useAbility";
 import { useNow } from "@/hooks/useNow";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { PRESETS, PRESET_DESCRIPTIONS, type KeyPreset } from "@/lib/auth/abilities";
+import { PRESETS, PRESET_DESCRIPTIONS, type KeyPreset } from "@mail-rocket/shared";
 import { capitalize, formatDate, formatRelative } from "@/lib/format";
 import { useGetMeQuery } from "@/features/session";
 import {
