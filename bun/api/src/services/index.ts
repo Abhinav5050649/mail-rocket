@@ -9,3 +9,4 @@ export * from "./TemplateService";
 export * from "./GroupService";
 export * from "./RecipientService";
 export * from "./SendCampaignService";
+export * from "./OverviewService";

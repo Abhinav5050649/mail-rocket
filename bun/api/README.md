@@ -45,9 +45,9 @@ A key stores the expanded list, not the preset name, so a custom combination is 
 claude mcp add --transport http mail-rocket https://<host>/mcp --header "Authorization: Bearer mr_..."
 ```
 
-- **Tools:** 43 tools, matching the REST API one-for-one. Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, plus `get_organization`/`update_organization`, the key tools `list_keys`/`get_key`/`create_key`/`update_key`/`delete_key`, and `get_me`. They're defined in `src/mcp/tools.ts`.
+- **Tools:** 44 tools, matching the REST API one-for-one. Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, plus `get_organization`/`update_organization`, the key tools `list_keys`/`get_key`/`create_key`/`update_key`/`delete_key`, `get_me`, and `get_overview` (the dashboard's counts). They're defined in `src/mcp/tools.ts`.
 - **Permissions:** each tool needs the same CASL claim as its REST route, and a key is only *shown* the tools it holds claims for. Give an agent its own key with the narrowest preset that works. A `viewer` key gets a read-only agent.
-- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set over MCP or REST (REST returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set over MCP or REST (REST returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and recipients (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
 - **Stateless:** each request gets a fresh server and a plain JSON response, with no sessions or SSE stream, so it scales like any other route.
 
 ## Architecture
@@ -84,7 +84,7 @@ A request flows top-to-bottom through these layers and never skips one: `routes/
 1. `requestLogger` - logs method/path/duration for every request.
 2. `jsonOnly` - rejects POST/PUT/PATCH requests that aren't `application/json` before any controller tries to parse a body.
 3. Routing into `appRoute`, which applies `authenticate` to every route. There are no public routes. `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
-4. Per-route middleware - every route except `/me` applies `requireAbility(action, subject)`, which returns 403 unless the key's ability grants that action on that subject.
+4. Per-route middleware - every route except `/me` and `/overview` applies `requireAbility(action, subject)`, which returns 403 unless the key's ability grants that action on that subject. `/overview` instead returns each of its sections only when the key can `read` that section's subject, and `null` otherwise.
 5. The matched controller method runs, calls into a service, and returns JSON.
 
 Anything thrown along the way - an `HTTPException` from a controller, a `ValidationError` from a service, or an unexpected error - is caught by the global `errorHandler` (`app.onError`, registered in `index.ts`) and turned into a consistent `{ error: string }` JSON response with an appropriate status code (500 for anything unrecognized, so internals never leak to the client).

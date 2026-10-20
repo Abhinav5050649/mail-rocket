@@ -170,12 +170,14 @@ export class CampaignController {
 
     /**
      * DELETE /campaigns/:campaign_id
-     * Deletes a campaign.
+     * Deletes a campaign and cancels its queued send. Its templates, groups
+     * and recipients are kept, unlinked.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
      * @returns JSON response with the deleted campaign.
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      * @throws {HTTPException} 404 if no campaign matches the given id.
+     * @throws {ValidationError} 400 if the campaign is sending right now.
      */
     delete = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.delete.name}`);

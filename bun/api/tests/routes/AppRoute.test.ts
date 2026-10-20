@@ -67,6 +67,13 @@ describe("appRoute", () => {
         expect(res.status).toBe(403);
     });
 
+    it("serves /overview to a key with no claims, with every section blanked", async () => {
+        authenticateAs([]);
+        const res = await app.request("/overview", { headers: { authorization: "Bearer mr_test" } });
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ campaigns: null, identities: null, templates: null, groups: null, recipients: null, keys: null });
+    });
+
     it("serves /me to a key with no claims at all", async () => {
         authenticateAs([]);
         // `/me` re-reads the calling key by id after authenticating.

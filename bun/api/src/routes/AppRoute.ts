@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { apiKeyRoute, meRoute } from "./ApiKeyRoute";
 import { mcpRoute } from "./McpRoute";
+import { overviewRoute } from "./OverviewRoute";
 import { organizationRoute } from "./OrganizationRoute";
 import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
@@ -30,6 +31,7 @@ appRoute
     .route('/me', meRoute)
     .route('/keys', apiKeyRoute)
     .route('/mcp', mcpRoute)
+    .route('/overview', overviewRoute)
     .route('/organization', organizationRoute)
     .route('/addresses', addressRoute)
     .route('/contact-details', contactDetailsRoute)

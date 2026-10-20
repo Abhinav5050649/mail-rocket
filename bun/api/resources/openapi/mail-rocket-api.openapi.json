@@ -1168,7 +1168,7 @@
       "delete": {
         "summary": "Delete Campaign",
         "deprecated": false,
-        "description": "Deletes a campaign. Requires the `delete Campaign` claim.",
+        "description": "Deletes a campaign and cancels its queued send, if one is pending. Its templates, groups and recipients are kept with `campaign_id` cleared; its per-recipient send history is removed. Requires the `delete Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
@@ -1195,7 +1195,7 @@
             }
           },
           "400": {
-            "description": "A required path parameter is missing.",
+            "description": "The campaign is sending right now; wait for the send to finish.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3733,6 +3733,39 @@
           }
         }
       }
+    },
+    "/overview": {
+      "get": {
+        "summary": "Get Overview",
+        "deprecated": false,
+        "description": "Resource counts, campaign and identity status breakdowns, the next scheduled sends and the latest sends. Any valid key may call it; each section is null unless the key can `read` that section's subject.",
+        "tags": [
+          "Overview"
+        ],
+        "responses": {
+          "200": {
+            "description": "The overview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "overviewGet"
+      }
     }
   },
   "components": {
@@ -4653,6 +4686,207 @@
             "type": "string"
           }
         }
+      },
+      "Overview": {
+        "type": "object",
+        "description": "Dashboard counts. A section is null when the calling key cannot `read` its subject.",
+        "properties": {
+          "campaigns": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "by_status": {
+                "type": "object",
+                "properties": {
+                  "draft": {
+                    "type": "integer"
+                  },
+                  "scheduled": {
+                    "type": "integer"
+                  },
+                  "sending": {
+                    "type": "integer"
+                  },
+                  "sent": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "draft",
+                  "scheduled",
+                  "sending",
+                  "sent",
+                  "failed"
+                ]
+              },
+              "upcoming": {
+                "type": "array",
+                "description": "Next scheduled campaigns, soonest first (max 5).",
+                "items": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              },
+              "recent": {
+                "type": "array",
+                "description": "Latest campaigns whose send has started, newest first (max 5), each with its delivery counts.",
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Campaign"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "deliveries": {
+                          "type": "object",
+                          "properties": {
+                            "pending": {
+                              "type": "integer"
+                            },
+                            "sent": {
+                              "type": "integer"
+                            },
+                            "failed": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "pending",
+                            "sent",
+                            "failed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "deliveries"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "deliveries": {
+                "type": "object",
+                "properties": {
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "sent": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "pending",
+                  "sent",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "total",
+              "by_status",
+              "upcoming",
+              "recent",
+              "deliveries"
+            ]
+          },
+          "identities": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "by_status": {
+                "type": "object",
+                "properties": {
+                  "created": {
+                    "type": "integer"
+                  },
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "active": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "created",
+                  "pending",
+                  "active"
+                ]
+              }
+            },
+            "required": [
+              "total",
+              "by_status"
+            ]
+          },
+          "templates": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "groups": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "recipients": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          },
+          "keys": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "total": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total"
+            ]
+          }
+        },
+        "required": [
+          "campaigns",
+          "identities",
+          "templates",
+          "groups",
+          "recipients",
+          "keys"
+        ]
       }
     },
     "responses": {},

@@ -1,6 +1,6 @@
 import { and, asc, eq, type SQL } from "drizzle-orm";
-import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
-import { campaignTable, type CampaignStatus } from "../models";
+import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
+import { campaignRecipientTable, campaignTable, groupTable, recipientsTable, templateTable, type CampaignStatus } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
 // avoid a circular import: the barrel also re-exports CampaignWorkers.ts,
 // which imports SendCampaignService from the services barrel - which would
@@ -199,10 +199,19 @@ export class CampaignService {
     }
 
     /**
-     * Deletes a campaign row.
+     * Deletes a campaign and cancels its queued send.
+     *
+     * In one transaction it unlinks the campaign's templates, groups and
+     * recipients (they stay, with `campaign_id` cleared, so they can be
+     * reused), drops its per-recipient send history, and deletes the row.
+     * Only after that commits is the pending dispatch job removed. If that
+     * removal fails, the dispatch worker still skips a campaign that no
+     * longer exists, so nothing is sent.
      *
      * @param campaignId - id of the campaign to delete.
      * @returns The deleted campaign row, or `null` if no match exists.
+     * @throws {ValidationError} If the campaign is mid-send - its chunk jobs
+     * are already in flight and would keep writing results for it.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(campaignId: string) {
@@ -210,11 +219,36 @@ export class CampaignService {
         logger.debug({ campaignId }, `Request:`);
 
         try {
-            const [campaign] = await db.delete(campaignTable).where(eq(campaignTable.id, campaignId)).returning();
+            const campaign = await db.transaction(async (tx) => {
+                const [before] = await tx.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
+                if (!before) return null;
+
+                if (before.status === "sending") {
+                    throw new ValidationError("This campaign is sending right now. Wait for the send to finish before deleting it.");
+                }
+
+                // Rows that point at the campaign would otherwise block the delete (no ON DELETE on these FKs).
+                await tx.update(templateTable).set({ campaign_id: null }).where(eq(templateTable.campaign_id, campaignId));
+                await tx.update(groupTable).set({ campaign_id: null }).where(eq(groupTable.campaign_id, campaignId));
+                await tx.update(recipientsTable).set({ campaign_id: null }).where(eq(recipientsTable.campaign_id, campaignId));
+                // Send history only means something alongside its campaign.
+                await tx.delete(campaignRecipientTable).where(eq(campaignRecipientTable.campaign_id, campaignId));
+
+                const [deleted] = await tx.delete(campaignTable).where(eq(campaignTable.id, campaignId)).returning();
+                return deleted!;
+            });
 
             if (!campaign) {
                 logger.warn({ campaignId }, `${this.constructor.name}.${this.delete.name}: Campaign not found`);
                 return null;
+            }
+
+            try {
+                // No-op unless a dispatch job is still pending (scheduled, not yet fired).
+                await cancelCampaignDispatch(campaignId);
+            } catch (error) {
+                // The row is already gone, so the worker will skip this job if it ever fires.
+                logger.warn({ err: error, campaignId }, `${this.constructor.name}.${this.delete.name}: Failed to cancel dispatch job`);
             }
 
             logger.debug({ campaignId }, `Response:`);

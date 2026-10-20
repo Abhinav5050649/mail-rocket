@@ -10,12 +10,14 @@ import {
     GroupService,
     IdentityService,
     OrganizationService,
+    OverviewService,
     RecipientService,
     TemplateService,
 } from "../services";
 // Imported from the file, not the controllers barrel: the barrel also exports
 // McpController, which imports this module - a cycle.
 import { toApiKeyResponse } from "../controllers/ApiKeyController";
+import { overviewSectionsFor } from "../controllers/OverviewController";
 
 // Wired up once per process, same as the singleton services in each *Route.ts file.
 const organizationService = new OrganizationService();
@@ -27,6 +29,7 @@ const templateService = new TemplateService();
 const groupService = new GroupService();
 const recipientService = new RecipientService();
 const apiKeyService = new ApiKeyService();
+const overviewService = new OverviewService();
 
 /**
  * An expected failure a tool reports back to the AI client as a tool error
@@ -201,6 +204,17 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         inputSchema: {},
         annotations: READ,
         handler: async (_args, principal) => toApiKeyResponse(found(await apiKeyService.getById(principal.keyId), "API key")),
+    }),
+
+    // --- Overview -------------------------------------------------------------
+    defineTool({
+        name: "get_overview",
+        title: "Get overview",
+        description: "Returns resource counts, campaign and identity status breakdowns, the next scheduled sends and the latest sends with their delivery outcomes. A section the key can't read comes back null.",
+        claim: null,
+        inputSchema: {},
+        annotations: READ,
+        handler: async (_args, principal) => overviewService.get(overviewSectionsFor(principal.ability)),
     }),
 
     // --- Organization (single row) -----------------------------------------

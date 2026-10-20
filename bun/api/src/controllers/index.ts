@@ -9,3 +9,4 @@ export * from "./CampaignController";
 export * from "./TemplateController";
 export * from "./GroupController";
 export * from "./RecipientController";
+export * from "./OverviewController";
