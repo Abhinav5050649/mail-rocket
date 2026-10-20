@@ -128,7 +128,8 @@ sequenceDiagram
 
 - Claims are closed `{ action, subject }` pairs. CASL's `manage`/`all` wildcards, conditions, field grants and inverted rules are rejected by `claimsSchema`, and every stored list is re-validated on each request. `viewer`/`editor`/`admin` are presets that expand to a list at write time. The preset name itself is never stored.
 - Authentication is one indexed lookup with no join. The secret is never stored, only its SHA-256 hash and a short display `prefix`.
-- Two self-guards in `ApiKeyController`: a key can't change its own claims or revoke itself. Revocation is a real delete.
+- Two self-guards in `ApiKeyController`: a key can't change its own claims or revoke itself. Revocation is a real delete. The MCP key tools enforce the same two guards.
+- `/mcp` (MCP over Streamable HTTP) goes through the same `authenticate`. Instead of `requireAbility` per route, each MCP tool carries its claim. `tools/list` only shows a key the tools it holds claims for, and each call re-checks the claim.
 - A zero-key boot always mints an admin key, so "can restart the process" means "can get an admin key". On a self-hosted instance that's the operator. `bun run key:create` is the no-restart alternative.
 
 ## 4. Data model

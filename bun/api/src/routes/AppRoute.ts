@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { apiKeyRoute, meRoute } from "./ApiKeyRoute";
+import { mcpRoute } from "./McpRoute";
 import { organizationRoute } from "./OrganizationRoute";
 import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
@@ -18,7 +19,7 @@ import { authenticate } from "../middleware";
  * rather than under an organization. Groups and recipients additionally get
  * dedicated routes nested under `/campaigns/:campaign_id/...` (and, for
  * recipients, `/groups/:group_id/...`) instead of relying on query-param
- * filters.
+ * filters. `/mcp` exposes the same operations as MCP tools for AI clients.
  *
  * `.use('*', authenticate)` is registered before any `.route(...)` call, so
  * it always runs ahead of every route mounted below.
@@ -28,6 +29,7 @@ appRoute.use('*', authenticate);
 appRoute
     .route('/me', meRoute)
     .route('/keys', apiKeyRoute)
+    .route('/mcp', mcpRoute)
     .route('/organization', organizationRoute)
     .route('/addresses', addressRoute)
     .route('/contact-details', contactDetailsRoute)

@@ -11,6 +11,10 @@
       "description": "API keys - the only principal. A key's CASL claims decide what it may do."
     },
     {
+      "name": "MCP",
+      "description": "Model Context Protocol endpoint for AI clients."
+    },
+    {
       "name": "Organization",
       "description": "The single profile of the organization running this instance."
     },
@@ -3673,6 +3677,52 @@
           },
           "404": {
             "description": "API key not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "summary": "MCP (Model Context Protocol) endpoint",
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpPost",
+        "description": "JSON-RPC 2.0 over MCP Streamable HTTP, stateless with JSON responses. Exposes 43 tools at parity with this API (see src/mcp/tools.ts). tools/list returns only the tools the key's claims allow, and every tools/call re-checks the claim. Expected failures come back as tool results with isError: true, not as HTTP errors.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "A JSON-RPC 2.0 request, e.g. initialize, tools/list or tools/call."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted (JSON-RPC notification, no body)."
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
             "content": {
               "application/json": {
                 "schema": {

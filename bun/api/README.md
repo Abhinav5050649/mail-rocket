@@ -37,7 +37,18 @@ What a key may do is decided by its **claims**: a list of CASL `{ action, subjec
 
 A key stores the expanded list, not the preset name, so a custom combination is just a different list. A key can't change its own claims or revoke itself.
 
-- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set by clients (the API returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+## MCP server
+
+`/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) endpoint (Streamable HTTP), so AI clients can run mail-rocket directly. It authenticates exactly like the REST API: point the client at `https://<host>/mcp` with an `Authorization: Bearer mr_...` header. For example, in Claude Code:
+
+```bash
+claude mcp add --transport http mail-rocket https://<host>/mcp --header "Authorization: Bearer mr_..."
+```
+
+- **Tools:** 43 tools, matching the REST API one-for-one. Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, plus `get_organization`/`update_organization`, the key tools `list_keys`/`get_key`/`create_key`/`update_key`/`delete_key`, and `get_me`. They're defined in `src/mcp/tools.ts`.
+- **Permissions:** each tool needs the same CASL claim as its REST route, and a key is only *shown* the tools it holds claims for. Give an agent its own key with the narrowest preset that works. A `viewer` key gets a read-only agent.
+- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set over MCP or REST (REST returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+- **Stateless:** each request gets a fresh server and a plain JSON response, with no sessions or SSE stream, so it scales like any other route.
 
 ## Architecture
 
@@ -61,6 +72,8 @@ models/        Drizzle table schemas (source of truth for the DB shape) plus the
 A request flows top-to-bottom through these layers and never skips one: `routes/CampaignRoute.ts` → `controllers/CampaignController.ts` → `services/CampaignService.ts` → `models/CampaignModel.ts`. Each layer directory has a barrel `index.ts` that re-exports everything in it, so callers import from `../services`, `../models`, etc. rather than reaching into individual files. Services are plain classes with no framework dependency, instantiated once per process and shared across requests (routes construct one `XService`/`XController` pair at module load and bind it into the route table - see the top of any `*Route.ts` file).
 
 `libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), CASL claims, presets and ability construction (`abilities.ts`), API-key generation/hashing and the `/keys` request schemas (`apiKeys.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
+
+`src/mcp/` holds the MCP server: `tools.ts` defines every tool (schema, CASL claim, handler calling the services, like the queue workers do) and `server.ts` builds a per-key server exposing only the tools that key may use. `McpController` hands requests to the SDK's Streamable HTTP transport.
 
 `src/bootstrap.ts` runs once at boot, after `connectDB()`. It seeds the single `organization` row and mints the first admin key (see "Access: API keys" above). `src/cli/createKey.ts` backs `bun run key:create`.
 
