@@ -1,0 +1,21 @@
+{
+  "name": "mail-rocket",
+  "private": true,
+  "description": "Self-hosted email campaigns over AWS SES: the API (apps/api) and the web app (apps/web).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "bun install",
+    "dev": "bun run dev:api & bun run dev:web & wait",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "test": "bun run --cwd apps/api test:all",
+    "lint": "bun run --cwd apps/web lint",
+    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && cd apps/web && bunx next typegen && bunx tsc --noEmit -p .",
+    "db:migrate": "bun run --cwd apps/api db:migrate",
+    "stack": "docker compose --env-file apps/api/.env up --build -d",
+    "stack:down": "docker compose --env-file apps/api/.env down"
+  }
+}

@@ -34,7 +34,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 
 ## Capabilities and Constraints
 
-- Backend: Bun + Hono API (`bun/api`); frontend: Next.js app (`nextjs/mail-rocket-app`) talking to it through a BFF proxy that holds the key in an httpOnly cookie.
+- Backend: Bun + Hono API (`apps/api`); frontend: Next.js app (`apps/web`) talking to it through a BFF proxy that holds the key in an httpOnly cookie.
 - UI controls are hidden or disabled by the key's claims; the server is the authority.
 - Not available: open/click tracking, analytics over time, search endpoints, bulk recipient import.
 
