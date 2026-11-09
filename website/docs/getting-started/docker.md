@@ -7,6 +7,10 @@ title: Full stack in Docker
 
 The repo-root `docker-compose.yml` runs everything: `postgres`, `redis`, `api`, `web` and `caddy`.
 
+:::info Coming soon: images on Docker Hub
+We'll soon publish Mail Rocket's images to Docker Hub. You'll then be able to run the stack with just a `docker-compose.yml` and an `.env` file, pulling the images instead of cloning the repository and building them yourself. Until then, use the steps below.
+:::
+
 ```bash
 cp apps/api/example.env apps/api/.env   # fill in AWS credentials
 bun run stack          # docker compose --env-file apps/api/.env up --build -d

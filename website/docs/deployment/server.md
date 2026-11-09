@@ -24,6 +24,10 @@ Create two A records pointing at the server's IP, for example:
 
 ## 3. Configure
 
+:::info Coming soon: images on Docker Hub
+We'll soon publish Mail Rocket's images to Docker Hub. You'll then be able to deploy with just a `docker-compose.yml` and an `.env` file on the server, pulling the images instead of cloning the repository and building them there. Until then, use the steps below.
+:::
+
 ```bash
 git clone https://github.com/Abhinav5050649/mail-rocket.git && cd mail-rocket
 cp apps/api/example.env apps/api/.env
