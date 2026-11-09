@@ -1,17 +1,20 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { logger, ValidationError } from "../libs";
+import { assertNoSystemFields, logger, ValidationError } from "../libs";
 import { SubscriberService } from "../services";
 
 /**
- * Checks a subscriber body's group membership fields. `group_ids`, when
- * present, must be an array of id strings; the old single `group_id` is
- * rejected with a pointer to its replacement rather than silently ignored.
+ * Checks a subscriber body. `unsubscribed_at` is only ever set by the
+ * subscriber, through an email's unsubscribe link, so the API can't set or
+ * clear it. `group_ids`, when present, must be an array of id strings; the
+ * old single `group_id` is rejected with a pointer to its replacement rather
+ * than silently ignored.
  *
  * @param body - The parsed JSON request body.
- * @throws {ValidationError} (-> 400) on `group_id` or a malformed `group_ids`.
+ * @throws {ValidationError} (-> 400) on `unsubscribed_at`, `group_id` or a malformed `group_ids`.
  */
-const assertGroupIdsField = (body: Record<string, unknown>): void => {
+const assertSubscriberBody = (body: Record<string, unknown>): void => {
+    assertNoSystemFields(body, ["unsubscribed_at"], "Subscribers unsubscribe themselves through the link in every email.");
     if ("group_id" in body) {
         throw new ValidationError("group_id was replaced by group_ids: a subscriber can be in several groups. Send group_ids: [\"<group id>\"] instead.");
     }
@@ -72,7 +75,7 @@ export class SubscriberController {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
 
         const body = await c.req.json();
-        assertGroupIdsField(body);
+        assertSubscriberBody(body);
 
         logger.debug({ body }, `Request:`);
 
@@ -138,7 +141,7 @@ export class SubscriberController {
         }
 
         const body = await c.req.json();
-        assertGroupIdsField(body);
+        assertSubscriberBody(body);
 
         logger.debug({ campaignId, body }, `Request:`);
 
@@ -206,7 +209,7 @@ export class SubscriberController {
         }
 
         const body = await c.req.json();
-        assertGroupIdsField(body);
+        assertSubscriberBody(body);
 
         logger.debug({ campaignId, groupId, body }, `Request:`);
 
@@ -276,7 +279,7 @@ export class SubscriberController {
         }
 
         const body = await c.req.json();
-        assertGroupIdsField(body);
+        assertSubscriberBody(body);
 
         logger.debug({ subscriberId, body }, `Request:`);
 

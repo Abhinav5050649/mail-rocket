@@ -10,3 +10,4 @@ export * from "./GroupController";
 export * from "./SubscriberController";
 export * from "./OverviewController";
 export * from "./TrackingController";
+export * from "./UnsubscribeController";

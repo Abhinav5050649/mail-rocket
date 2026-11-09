@@ -46,11 +46,24 @@ Set `PUBLIC_API_URL` (this API's public base URL) and `TRACKING_SECRET` to track
 - **Opens:** a 1x1 pixel at `GET /track/open/:delivery_id` goes before `</body>`. Loading it sets `campaign_delivery.opened_at`.
 - **Clicks:** every absolute `http(s)` link is rewritten to `GET /track/click/:delivery_id?url=...&sig=...`, which sets `clicked_at` (and `opened_at`, since a click implies an open), then redirects with a 302. `sig` is an HMAC of the id and URL, so the endpoint only redirects to links an email actually contained and can't be used as an open redirect.
 - Only the first open and the first click are kept, so each subscriber counts once. `/track` is public: mail clients have no API key.
-- `GET /campaigns/:campaign_id/stats` returns `total`/`pending`/`sent`/`failed`, `opened`/`clicked`, and `open_rate`/`click_rate` (fractions of `sent`).
+- `GET /campaigns/:campaign_id/stats` returns `total`/`pending`/`sent`/`failed`, `opened`/`clicked`/`unsubscribed`, and `open_rate`/`click_rate` (fractions of `sent`).
 
 The tracking is ours, not SES's, so it keeps working if sending moves to another provider or plain SMTP. Bounces and complaints, by contrast, are provider-specific. A provider webhook (e.g. SES → SNS) could record them as more timestamp columns on `campaign_delivery` alongside `opened_at`/`clicked_at`.
 
 With the variables unset, emails go out untouched and stats show only the send counts.
+
+## Unsubscribe
+
+With `PUBLIC_API_URL` set, every sent email also lets the subscriber unsubscribe (`src/libs/unsubscribe.ts`), as marketing-email law and the Gmail/Yahoo bulk-sender rules require:
+
+- **Footer link:** "Don't want these emails? Unsubscribe" goes at the bottom of the body, pointing at `/unsubscribe/:delivery_id`. It's added after click tracking, so it's never routed through `/track/click`.
+- **One-click headers (RFC 8058):** `List-Unsubscribe: <…/unsubscribe/:delivery_id>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, so mail clients show their own Unsubscribe button. Custom headers need the SES **v2** `SendEmail` (`sesV2Client`), which uses the same `ses:SendEmail` IAM action as v1.
+- **`GET /unsubscribe/:delivery_id`** only shows a confirmation page with an Unsubscribe button. Link scanners that prefetch every link in an email therefore can't unsubscribe anyone.
+- **`POST /unsubscribe/:delivery_id`** unsubscribes. It's posted by that button or by a mail client's one-click unsubscribe, with a form body, so `jsonOnly` exempts `/unsubscribe/`. It sets `subscribers.unsubscribed_at` and `campaign_delivery.unsubscribed_at` (for the per-campaign count), keeping the first time.
+- An unsubscribe is **global**: dispatch leaves every unsubscribed subscriber out of every campaign's send (`getSubscriberIdsForCampaign`). They stay in their groups and lists, marked "Unsubscribed". `unsubscribed_at` is read-only through the API (400), so only the subscriber can opt out, and nobody can opt them back in.
+- `/unsubscribe` is public, and the delivery id (a random UUID that only appears in that one person's email) is the only credential, the same as the open pixel.
+
+Without `PUBLIC_API_URL` there is nowhere public to link to, so emails go out without an unsubscribe link. Only do that for local testing.
 
 ## Architecture
 

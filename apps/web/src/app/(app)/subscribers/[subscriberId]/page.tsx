@@ -9,7 +9,8 @@ import { ErrorNotice, Skeleton } from "@/components/ui/feedback";
 import { useAbility } from "@/hooks/useAbility";
 import { useGroupNames } from "@/hooks/useLookups";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { fullName } from "@/lib/format";
+import { formatDate, fullName } from "@/lib/format";
+import { Pill } from "@/components/ui/pill";
 import {
   useGetSubscriberQuery,
   useUpdateSubscriberMutation,
@@ -36,13 +37,16 @@ export default function SubscriberDetailPage({ params }: { params: Promise<{ sub
       <PageHeader
         back={{ href: "/subscribers", label: "Subscribers" }}
         title={subscriber ? subscriber.email_id : isLoading ? <Skeleton className="h-7 w-64" /> : "Subscriber"}
+        status={subscriber?.unsubscribed_at && <Pill tone="warning">Unsubscribed</Pill>}
         description={
           subscriber && (
             <>
               {[
                 fullName(subscriber) ?? "No name on record",
                 subscriber.group_ids.length > 0 ? `in ${groupNames(subscriber.group_ids) ?? `${subscriber.group_ids.length} groups`}` : "in no groups",
-              ].join(" · ")}
+                // Unsubscribed people stay listed but no campaign sends to them.
+                subscriber.unsubscribed_at && `unsubscribed ${formatDate(subscriber.unsubscribed_at)}, so no campaign sends to them`,
+              ].filter(Boolean).join(" · ")}
             </>
           )
         }

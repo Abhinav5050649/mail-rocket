@@ -50,6 +50,13 @@
       "when": 1794242828995,
       "tag": "0006_campaign_delivery_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794244578164,
+      "tag": "0007_unsubscribe",
+      "breakpoints": true
     }
   ]
 }

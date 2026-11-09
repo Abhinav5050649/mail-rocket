@@ -30,6 +30,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 - Templates, groups and subscribers can be linked to a campaign. A subscriber can be in any number of groups (`group_subscriber`). A campaign sends to its directly linked subscribers plus everyone in its linked groups, each person once; `{{group_name}}` lists all of a subscriber's groups.
 - Template variables: subscriber first/last/full name and email, group name, campaign name and start date, organization name, sender email. A subscriber missing a value is skipped at send time.
 - Open and click tracking (when `PUBLIC_API_URL` is set): each sent email gets a tracking pixel and signed click links. A campaign shows sent/failed counts plus open and click rates (unique subscribers ÷ emails sent). Opens are approximate: image blocking hides some, and privacy proxies (e.g. Apple Mail) report some that never happened.
+- Unsubscribe (when `PUBLIC_API_URL` is set): every email has an unsubscribe footer link and one-click `List-Unsubscribe` headers. Unsubscribing is global and only the subscriber can do it; unsubscribed people stay listed, marked "Unsubscribed", and no campaign sends to them. Campaign stats count unsubscribes.
 - Lists paginate by limit/offset with no total count; `/overview` gives counts.
 - The organization has one IANA time zone (default UTC). Every date is shown in it, start times are entered in it, and `{{campaign_start_date}}` is rendered in it. Timestamps are absolute instants, so changing the zone never moves a scheduled send.
 

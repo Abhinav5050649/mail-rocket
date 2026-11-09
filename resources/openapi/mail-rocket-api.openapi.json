@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "mail-rocket-api",
-    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and subscribers. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do, except the public /track endpoints that sent emails point at.",
+    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and subscribers. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do, except the public /track and /unsubscribe endpoints that sent emails point at.",
     "version": "1.0.0"
   },
   "tags": [
@@ -45,6 +45,10 @@
     {
       "name": "Tracking",
       "description": "Public open/click tracking endpoints that sent emails point at."
+    },
+    {
+      "name": "Unsubscribe",
+      "description": "Public unsubscribe page and one-click endpoint that sent emails link to."
     }
   ],
   "paths": {
@@ -3882,6 +3886,110 @@
         "operationId": "trackClick"
       }
     },
+    "/unsubscribe/{delivery_id}": {
+      "get": {
+        "summary": "Unsubscribe Page",
+        "deprecated": false,
+        "description": "Where an email's unsubscribe footer link points. Shows an HTML confirmation page with an Unsubscribe button (or says the subscriber is already unsubscribed) and changes nothing, so link scanners that prefetch email links can't unsubscribe anyone. Public: no API key.",
+        "tags": [
+          "Unsubscribe"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "description": "ID of the campaign_delivery row: the email the link was in.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmation (or already-unsubscribed) page.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No email matches this link.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "unsubscribePage"
+      },
+      "post": {
+        "summary": "Unsubscribe",
+        "deprecated": false,
+        "description": "Unsubscribes the subscriber the email went to: sets subscribers.unsubscribed_at (no campaign sends to them again) and the delivery's unsubscribed_at (counted in campaign stats). Posted by the confirmation page's button, or by mail clients as an RFC 8058 one-click unsubscribe from the List-Unsubscribe header. Any body is accepted and ignored (form data is fine). Idempotent. Public: no API key.",
+        "tags": [
+          "Unsubscribe"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "description": "ID of the campaign_delivery row: the email the link was in.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "List-Unsubscribe": {
+                    "type": "string",
+                    "example": "One-Click"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "You're-unsubscribed page.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No email matches this link.",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "unsubscribe"
+      }
+    },
     "/overview": {
       "get": {
         "summary": "Get Overview",
@@ -4736,6 +4844,13 @@
               "type": "string"
             },
             "description": "Ids of the groups the subscriber is in (many-to-many)."
+          },
+          "unsubscribed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "readOnly": true,
+            "description": "When the subscriber unsubscribed through an email's link; no campaign sends to them after that. Set only by the subscriber - sending it in a create or update body returns 400."
           }
         }
       },
@@ -5142,6 +5257,10 @@
             "type": "integer",
             "description": "Subscribers who clicked at least one link."
           },
+          "unsubscribed": {
+            "type": "integer",
+            "description": "Subscribers who unsubscribed through this campaign's emails."
+          },
           "open_rate": {
             "type": "number",
             "format": "double",
@@ -5164,6 +5283,7 @@
           "failed",
           "opened",
           "clicked",
+          "unsubscribed",
           "open_rate",
           "click_rate"
         ]

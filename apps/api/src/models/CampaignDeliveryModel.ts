@@ -34,6 +34,8 @@ export const campaignDeliveryTable = pgTable("campaign_delivery", {
     opened_at: timestamp("opened_at"),
     /** When the subscriber first clicked a link in this email. */
     clicked_at: timestamp("clicked_at"),
+    /** When the subscriber unsubscribed through this email's link, so stats can count unsubscribes per campaign. */
+    unsubscribed_at: timestamp("unsubscribed_at"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */

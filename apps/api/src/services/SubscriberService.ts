@@ -1,6 +1,6 @@
-import { and, asc, eq, getTableColumns, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
-import { groupSubscriberTable, groupTable, subscribersTable } from "../models";
+import { campaignDeliveryTable, groupSubscriberTable, groupTable, subscribersTable } from "../models";
 
 /** Fields accepted when creating a new subscriber row. */
 export interface CreateSubscriberInput {
@@ -163,6 +163,84 @@ export class SubscriberService {
             return subscriber;
         } catch (error) {
             logger.error({ err: error, subscriberId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get subscriber`);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetches the subscriber a sent email (a `campaign_delivery` row) went
+     * to. Backs the unsubscribe page, whose link carries the delivery id.
+     *
+     * @param deliveryId - id of the `campaign_delivery` row.
+     * @returns The subscriber row, or `null` if no delivery (or subscriber) matches.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getByDelivery(deliveryId: string) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getByDelivery.name}`);
+        logger.debug({ deliveryId }, `Request:`);
+
+        try {
+            const [row] = await db.select({ subscriber: subscribersTable }).from(campaignDeliveryTable)
+                .innerJoin(subscribersTable, eq(subscribersTable.id, campaignDeliveryTable.subscriber_id))
+                .where(eq(campaignDeliveryTable.id, deliveryId));
+
+            if (!row) {
+                logger.warn({ deliveryId }, `${this.constructor.name}.${this.getByDelivery.name}: Subscriber not found`);
+                return null;
+            }
+
+            logger.debug({ deliveryId, subscriberId: row.subscriber.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getByDelivery.name}`);
+
+            return row.subscriber;
+        } catch (error) {
+            logger.error({ err: error, deliveryId }, `Exception in ${this.constructor.name}.${this.getByDelivery.name}: Failed to get subscriber by delivery`);
+            throw error;
+        }
+    }
+
+    /**
+     * Unsubscribes whoever a sent email went to: sets the subscriber's
+     * `unsubscribed_at` (so no future send includes them) and the delivery's
+     * (so the campaign's stats count it). Only the first unsubscribe is kept,
+     * so repeating it changes nothing.
+     *
+     * @param deliveryId - id of the `campaign_delivery` row whose link was used.
+     * @returns The subscriber row, or `null` if no delivery (or subscriber) matches.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async unsubscribe(deliveryId: string) {
+        logger.info(`Start method: ${this.constructor.name}.${this.unsubscribe.name}`);
+        logger.debug({ deliveryId }, `Request:`);
+
+        try {
+            const subscriber = await db.transaction(async (tx) => {
+                const [delivery] = await tx.select({ subscriberId: campaignDeliveryTable.subscriber_id }).from(campaignDeliveryTable)
+                    .where(eq(campaignDeliveryTable.id, deliveryId));
+                if (!delivery?.subscriberId) return null;
+
+                // `isNull` keeps the first unsubscribe time instead of overwriting it on a repeat.
+                const now = new Date();
+                await tx.update(campaignDeliveryTable).set({ unsubscribed_at: now })
+                    .where(and(eq(campaignDeliveryTable.id, deliveryId), isNull(campaignDeliveryTable.unsubscribed_at)));
+                await tx.update(subscribersTable).set({ unsubscribed_at: now })
+                    .where(and(eq(subscribersTable.id, delivery.subscriberId), isNull(subscribersTable.unsubscribed_at)));
+
+                const [updated] = await tx.select().from(subscribersTable).where(eq(subscribersTable.id, delivery.subscriberId));
+                return updated ?? null;
+            });
+
+            if (!subscriber) {
+                logger.warn({ deliveryId }, `${this.constructor.name}.${this.unsubscribe.name}: Subscriber not found`);
+                return null;
+            }
+
+            logger.debug({ deliveryId, subscriberId: subscriber.id }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.unsubscribe.name}`);
+
+            return subscriber;
+        } catch (error) {
+            logger.error({ err: error, deliveryId }, `Exception in ${this.constructor.name}.${this.unsubscribe.name}: Failed to unsubscribe`);
             throw error;
         }
     }

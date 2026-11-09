@@ -12,3 +12,4 @@ export * from "./systemFields";
 export * from "./templateVariables";
 export * from "./timeZones";
 export * from "./tracking";
+export * from "./unsubscribe";

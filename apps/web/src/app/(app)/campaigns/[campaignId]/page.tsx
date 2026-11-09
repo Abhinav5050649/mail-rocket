@@ -56,11 +56,12 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
 
       {hasSent && (
         // Hairlines come from the 1px gaps showing the border colour behind the cells.
-        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-card border border-border bg-border">
+        <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-4 rounded-card border border-border bg-border">
           {[
             { label: "Sent", value: stats && formatCount(stats.sent), detail: stats && `of ${formatCount(stats.total)} · ${formatCount(stats.failed)} failed` },
             { label: "Open rate", value: stats && `${Math.round(stats.open_rate * 100)}%`, detail: stats && `${formatCount(stats.opened)} opened` },
             { label: "Click rate", value: stats && `${Math.round(stats.click_rate * 100)}%`, detail: stats && `${formatCount(stats.clicked)} clicked` },
+            { label: "Unsubscribed", value: stats && formatCount(stats.unsubscribed), detail: stats && "stopped all emails" },
           ].map((cell) => (
             <div key={cell.label} className="flex flex-col gap-1 bg-sheet p-4">
               <span className="text-sm text-muted">{cell.label}</span>

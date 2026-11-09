@@ -1,5 +1,6 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { chain, createMockDb } from "../helpers/mockDb";
+import { config } from "../../config";
 
 /**
  * Unit tests for the campaign-send pipeline (`SendCampaignService`), which
@@ -18,7 +19,7 @@ const mockDb = createMockDb();
 const mockSesSend = mock(async () => ({ MessageId: "mock-message-id" }));
 
 mock.module("../../src/libs/db", () => ({ db: mockDb }));
-mock.module("../../src/libs/ses", () => ({ sesClient: { send: mockSesSend } }));
+mock.module("../../src/libs/ses", () => ({ sesClient: { send: mockSesSend }, sesV2Client: { send: mockSesSend } }));
 
 const { SendCampaignService } = await import("../../src/services/SendCampaignService");
 
@@ -193,9 +194,37 @@ describe("SendCampaignService", () => {
 
             expect(mockSesSend).toHaveBeenCalledTimes(1);
             const command = (mockSesSend.mock.calls[0] as any)[0];
-            expect(command.input.Message.Subject.Data).toBe("Hi Ada");
-            expect(command.input.Message.Body.Html.Data).toBe("<p>Hello Ada from Acme Inc</p>");
+            expect(command.input.Content.Simple.Subject.Data).toBe("Hi Ada");
+            expect(command.input.Content.Simple.Body.Html.Data).toBe("<p>Hello Ada from Acme Inc</p>");
+            expect(command.input.Content.Simple.Headers).toBeUndefined();
             expect(mockDb.update).toHaveBeenCalledTimes(1);
+        });
+
+        it("adds an unsubscribe footer and one-click List-Unsubscribe headers when PUBLIC_API_URL is set", async () => {
+            config.publicApiUrl = "https://api.example.com";
+            config.trackingSecret = "test-secret";
+            mockDb.select
+                .mockImplementationOnce(() => chain([campaign]))
+                .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([
+                    { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                ]));
+
+            try {
+                await service.sendChunk("campaign-1", ["cr-1"]);
+            } finally {
+                config.publicApiUrl = "";
+                config.trackingSecret = "";
+            }
+
+            const { Body, Headers } = (mockSesSend.mock.calls[0] as any)[0].input.Content.Simple;
+            expect(Body.Html.Data).toContain(`<a href="https://api.example.com/unsubscribe/cr-1"`);
+            expect(Headers).toEqual([
+                { Name: "List-Unsubscribe", Value: "<https://api.example.com/unsubscribe/cr-1>" },
+                { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" },
+            ]);
         });
 
         it("skips a subscriber without calling SES when a placeholder can't be resolved for them", async () => {

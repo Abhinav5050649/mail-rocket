@@ -10,7 +10,7 @@ import { chain, createMockDb } from "../helpers/mockDb";
 const mockDb = createMockDb();
 mock.module("../../src/libs/db", () => ({ db: mockDb, connectDB: async () => {} }));
 
-const { appRoute, claimsForPreset, errorHandler } = await import("../../src");
+const { appRoute, claimsForPreset, errorHandler, jsonOnly } = await import("../../src");
 const { Hono } = await import("hono");
 
 const app = new Hono().onError(errorHandler).route("/", appRoute);
@@ -92,6 +92,24 @@ describe("appRoute", () => {
     it("400s an unsigned click-tracking link without a key, instead of 401ing", async () => {
         const res = await app.request("/track/click/cs-1?url=https%3A%2F%2Fevil.example");
         expect(res.status).toBe(400);
+    });
+
+    it("serves the unsubscribe page without a key", async () => {
+        // The mocked db finds no delivery, so the page says the link isn't valid - but auth didn't stop it.
+        const res = await app.request("/unsubscribe/d-1");
+        expect(res.status).toBe(404);
+        expect(res.headers.get("content-type")).toContain("text/html");
+    });
+
+    it("accepts a one-click unsubscribe POST (form body, no key) past jsonOnly", async () => {
+        const withJsonOnly = new Hono().use("*", jsonOnly).onError(errorHandler).route("/", appRoute);
+        const res = await withJsonOnly.request("/unsubscribe/d-1", {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: "List-Unsubscribe=One-Click",
+        });
+        expect(res.status).toBe(404);
+        expect(res.headers.get("content-type")).toContain("text/html");
     });
 
     it("lets a viewer key read a campaign's stats", async () => {

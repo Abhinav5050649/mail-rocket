@@ -205,6 +205,12 @@ describe("SubscriberController", () => {
             expect(subscriberService.update).toHaveBeenCalledWith("subscriber-1", { email_id: "new@example.com" });
             expect(result.body).toEqual(subscriber);
         });
+
+        it("400s when the body sets unsubscribed_at, which only the subscriber can set", async () => {
+            const ctx = createMockContext({ params: { subscriber_id: "subscriber-1" }, body: { unsubscribed_at: null } });
+            await expect(controller.update(ctx)).rejects.toThrow("unsubscribed_at is managed by the system");
+            expect(subscriberService.update).not.toHaveBeenCalled();
+        });
     });
 
     describe("delete", () => {

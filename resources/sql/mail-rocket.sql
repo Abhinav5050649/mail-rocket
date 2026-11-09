@@ -209,6 +209,7 @@ CREATE TABLE "subscribers" (
     "normalized_name" varchar,
     "email_id"        varchar,
     "campaign_id"     varchar,
+    "unsubscribed_at" timestamp,                                     -- Set via an email's unsubscribe link; never sent to after
     "created_at"      timestamp,
     "updated_at"      timestamp,
     "description"     varchar,
@@ -258,6 +259,7 @@ CREATE TABLE "campaign_delivery" (
     "sent_at"      timestamp,
     "opened_at"    timestamp,                                        -- First open (tracking pixel or a click)
     "clicked_at"   timestamp,                                        -- First click on a tracked link
+    "unsubscribed_at" timestamp,                                     -- Unsubscribed through this email
     "created_at"   timestamp,
     "updated_at"   timestamp,
     "description"  varchar,                                          -- Failure detail when status is `failed`

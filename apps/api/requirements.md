@@ -12,7 +12,7 @@ The SDK calls actually made against SES, and where each one is made:
 | `ses:VerifyDomainIdentity` | `src/services/IdentityService.ts` (`verifyWithSes`) | Registers a `domain`-type identity and returns the TXT ownership token. |
 | `ses:VerifyDomainDkim` | `src/services/IdentityService.ts` (`verifyWithSes`) | Starts DKIM verification for a `domain`-type identity and returns the 3 CNAME tokens. |
 | `ses:GetIdentityVerificationAttributes` | `src/queues/IdentityVerificationWorker.ts` | Polled by the identity-verification worker until SES reports `Success`. |
-| `ses:SendEmail` | `src/services/SendCampaignService.ts` (`sendChunk`) | Sends one campaign email per subscriber. |
+| `ses:SendEmail` | `src/services/SendCampaignService.ts` (`sendChunk`) | Sends one campaign email per subscriber, through the SES v2 API (the same IAM action as v1) so it can set `List-Unsubscribe` headers. |
 
 The policy document for these is [resources/aws/ses-local-test-user-policy.json](../../resources/aws/ses-local-test-user-policy.json) (repo root). To configure a local IAM user (e.g. `local-test-user`) for local dev/testing:
 

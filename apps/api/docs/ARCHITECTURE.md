@@ -93,7 +93,7 @@ sequenceDiagram
 
 ## 3. Auth & access
 
-There are no users and no passwords, and the only public routes are `/track` (open/click tracking, loaded by mail clients). An API key is the only principal, and its CASL claims are the only authority.
+There are no users and no passwords, and the only public routes are `/track` and `/unsubscribe` (open/click tracking and unsubscribe links, reached from subscribers' mail). An API key is the only principal, and its CASL claims are the only authority.
 
 ```mermaid
 sequenceDiagram
@@ -163,6 +163,7 @@ erDiagram
         enum status "pending, sent, failed"
         timestamp opened_at "first open (tracking)"
         timestamp clicked_at "first click (tracking)"
+        timestamp unsubscribed_at "unsubscribed via this email"
     }
 ```
 
@@ -251,4 +252,5 @@ flowchart TD
 - Subject/body support `{{variable_name}}` placeholders (subscriber name, organization, group, etc.), resolved per subscriber - see [TEMPLATE_VARIABLES.md](TEMPLATE_VARIABLES.md). A subscriber with an unresolved placeholder is marked `failed` and skipped rather than sent broken content.
 - Partial delivery isn't total failure: `finalizeCampaign` only marks `failed` when *zero* subscribers succeeded — routine per-subscriber bounces don't flip the whole campaign's status; `campaign_delivery.status` is the accurate per-subscriber record.
 - With `PUBLIC_API_URL` set, each body gets an open pixel and signed click links tied to its `campaign_delivery` row (`addTracking`). Mail clients hit the public `/track/open` and `/track/click` routes, which set `opened_at`/`clicked_at`; `GET /campaigns/:campaign_id/stats` counts them.
+- With `PUBLIC_API_URL` set, each body also gets an unsubscribe footer and one-click `List-Unsubscribe` headers (sent through the SES v2 API, which allows custom headers). Unsubscribing sets `subscribers.unsubscribed_at`, and dispatch leaves those subscribers out of every later send.
 - Queue-orchestration stays out of the service layer: `CampaignWorkers.ts` owns the `FlowProducer` wiring; `SendCampaignService` never imports from `src/queues/`, so it stays callable and testable independent of BullMQ.

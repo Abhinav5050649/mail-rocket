@@ -21,6 +21,8 @@ export const subscribersTable = pgTable("subscribers", {
     email_id: varchar("email_id"),
     /** ID of campaign the subscriber is associated with. */
     campaign_id: varchar("campaign_id").references(() => campaignTable.id),
+    /** When the subscriber unsubscribed; no campaign sends to them after that. Set only by the subscriber, via an email's unsubscribe link. */
+    unsubscribed_at: timestamp("unsubscribed_at"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */

@@ -133,12 +133,14 @@ export interface Subscriber extends BaseFields {
     /** Every group the subscriber is in (many-to-many, via `group_subscriber`). */
     group_ids: string[];
     campaign_id: string | null;
+    /** When they unsubscribed (via an email link); no campaign sends to them after. Read-only. */
+    unsubscribed_at: string | null;
 }
 
 /**
  * GET /campaigns/:campaign_id/stats. Counts are emails (one per subscriber);
- * `opened`/`clicked` count each subscriber once. Rates are fractions (0-1)
- * of the emails `sent`, and 0 before anything is sent.
+ * `opened`/`clicked`/`unsubscribed` count each subscriber once. Rates are
+ * fractions (0-1) of the emails `sent`, and 0 before anything is sent.
  */
 export interface CampaignStats {
     total: number;
@@ -147,6 +149,8 @@ export interface CampaignStats {
     failed: number;
     opened: number;
     clicked: number;
+    /** Subscribers who unsubscribed through this campaign's emails. */
+    unsubscribed: number;
     open_rate: number;
     click_rate: number;
 }

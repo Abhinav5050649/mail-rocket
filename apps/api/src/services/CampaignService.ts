@@ -115,7 +115,7 @@ export class CampaignService {
     /**
      * Counts how a campaign's send went, from its `campaign_delivery`
      * rows: how many emails are pending, sent or failed, how many
-     * subscribers opened one or clicked a link (each counted once), and the
+     * subscribers opened one, clicked a link or unsubscribed (each counted once), and the
      * open and click rates as a fraction of the emails sent.
      *
      * @param campaignId - id of the campaign.
@@ -142,6 +142,7 @@ export class CampaignService {
                 failed: count(sql`case when ${campaignDeliveryTable.status} = 'failed' then 1 end`),
                 opened: count(campaignDeliveryTable.opened_at),
                 clicked: count(campaignDeliveryTable.clicked_at),
+                unsubscribed: count(campaignDeliveryTable.unsubscribed_at),
             }).from(campaignDeliveryTable).where(eq(campaignDeliveryTable.campaign_id, campaignId));
 
             const stats = {

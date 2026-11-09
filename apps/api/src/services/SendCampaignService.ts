@@ -1,6 +1,6 @@
-import { SendEmailCommand } from "@aws-sdk/client-ses";
-import { count, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, logger, sesClient, renderTemplate, addTracking, type TemplateVariableContext } from "../libs";
+import { SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { db, logger, sesV2Client, renderTemplate, addTracking, addUnsubscribeFooter, unsubscribeUrl, type TemplateVariableContext } from "../libs";
 import { subscribersTable, templateTable, campaignDeliveryTable, groupTable, groupSubscriberTable } from "../models";
 import { CampaignService } from "./CampaignService";
 import { campaignAudience, outerSubscriberId } from "./SubscriberService";
@@ -24,7 +24,7 @@ export class SendCampaignService {
     /**
      * Fetches every subscriber id in a campaign's audience: subscribers linked
      * to it directly plus members of the groups linked to it, each once (see
-     * `campaignAudience`). Unpaginated,
+     * `campaignAudience`), minus anyone who has unsubscribed. Unpaginated,
      * unlike other list methods in this codebase - a send must see every
      * subscriber, not one page of them.
      *
@@ -37,7 +37,7 @@ export class SendCampaignService {
 
         try {
             const rows = await db.select({ id: subscribersTable.id }).from(subscribersTable)
-                .where(campaignAudience(campaignId));
+                .where(and(campaignAudience(campaignId), isNull(subscribersTable.unsubscribed_at)));
             const subscriberIds = rows.map(row => row.id);
 
             logger.debug({ campaignId, count: subscriberIds.length }, `Response:`);
@@ -161,7 +161,8 @@ export class SendCampaignService {
      *
      * When `PUBLIC_API_URL` is set, each body also gets an open-tracking
      * pixel and click-tracking links tied to its `campaign_delivery` row
-     * (see `src/libs/tracking.ts`).
+     * (see `src/libs/tracking.ts`), plus an unsubscribe footer and the
+     * `List-Unsubscribe` headers (see `src/libs/unsubscribe.ts`).
      *
      * @param campaignId - id of the campaign being sent.
      * @param deliveryIds - ids of the `campaign_delivery` rows in this chunk.
@@ -230,13 +231,25 @@ export class SendCampaignService {
                 continue;
             }
 
+            // Footer goes on after tracking, so the unsubscribe link isn't routed through click tracking.
+            const html = addUnsubscribeFooter(addTracking(body.rendered, row.deliveryId), row.deliveryId);
+            const unsubscribe = unsubscribeUrl(row.deliveryId);
+
             try {
-                await sesClient.send(new SendEmailCommand({
-                    Source: identity.identity,
+                await sesV2Client.send(new SendEmailCommand({
+                    FromEmailAddress: identity.identity,
                     Destination: { ToAddresses: [row.email] },
-                    Message: {
-                        Subject: { Data: subject.rendered },
-                        Body: { Html: { Data: addTracking(body.rendered, row.deliveryId) } },
+                    Content: {
+                        Simple: {
+                            Subject: { Data: subject.rendered },
+                            Body: { Html: { Data: html } },
+                            // RFC 8058 one-click unsubscribe: mail clients show their own
+                            // "Unsubscribe" button, which POSTs to this URL.
+                            Headers: unsubscribe ? [
+                                { Name: "List-Unsubscribe", Value: `<${unsubscribe}>` },
+                                { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" },
+                            ] : undefined,
+                        },
                     },
                 }));
                 await db.update(campaignDeliveryTable).set({ status: "sent", sent_at: new Date() }).where(eq(campaignDeliveryTable.id, row.deliveryId));
