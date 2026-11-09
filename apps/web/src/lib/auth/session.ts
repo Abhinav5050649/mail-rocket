@@ -13,3 +13,13 @@ export async function getSessionKey(): Promise<string | null> {
   const store = await cookies();
   return store.get(SESSION_COOKIE_NAME)?.value ?? null;
 }
+
+/**
+ * Forgets the session key once apps/api has rejected it (401). Without this
+ * a stale cookie loops forever: apiSlice bounces the client to /login, and
+ * proxy.ts - which only sees that a cookie is present - bounces it back.
+ */
+export async function clearSessionKey(): Promise<void> {
+  const store = await cookies();
+  store.delete(SESSION_COOKIE_NAME);
+}

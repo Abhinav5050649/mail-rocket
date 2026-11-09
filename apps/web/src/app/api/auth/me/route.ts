@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionKey } from "@/lib/auth/session";
+import { clearSessionKey, getSessionKey } from "@/lib/auth/session";
 import { bunApiFetch } from "@/lib/auth/bunApi";
 
 /** Resolves the signed-in API key (with its claims) by calling GET /me on apps/api. */
@@ -10,6 +10,9 @@ export async function GET() {
   }
 
   const backendRes = await bunApiFetch("/me", { headers: { Authorization: `Bearer ${key}` } });
+  if (backendRes.status === 401) {
+    await clearSessionKey();
+  }
   const data = await backendRes.json();
   return NextResponse.json(data, { status: backendRes.status });
 }
