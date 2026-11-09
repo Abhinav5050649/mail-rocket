@@ -135,10 +135,10 @@ bun run db:studio    # browse data in Drizzle Studio
 
 ## Deployment (Docker on EC2)
 
-The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: the repo-root `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), alongside `redis`, `api` and the `web` app. Run compose from the repo root and pass this app's env file, so the `POSTGRES_*` values are read from it:
+The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: the repo-root `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), alongside `redis`, `api`, the `web` app and `caddy`. Run compose from the repo root and pass this app's env file, so the `POSTGRES_*` and domain values are read from it:
 
 ```bash
-docker compose --env-file apps/api/.env up --build -d   # build and start postgres, redis, api, web (`bun run stack` at the root)
+docker compose --env-file apps/api/.env up --build -d   # build and start postgres, redis, api, web, caddy (`bun run stack` at the root)
 docker compose logs -f api                               # follow logs
 docker compose down                                      # stop everything (add -v to also wipe the postgres volume)
 ```
@@ -150,3 +150,14 @@ The repo-root `docker-compose.yml` reads secrets from this app's `.env` file (`a
 Migrations aren't run automatically. The `postgres` container publishes its port to `127.0.0.1:5432` on the host only (not public), so after the containers are up, run `bun run db:migrate` directly on the EC2 instance with `DB_URL=postgres://<user>:<password>@localhost:5432/<db>` (matching the `POSTGRES_*` values in `.env`).
 
 To deploy a change: SSH into the instance, `git pull`, then run the `docker compose --env-file apps/api/.env up --build -d` line above again from the repo root.
+
+### HTTPS (caddy)
+
+`caddy` (repo-root `Caddyfile`) is the only service the internet reaches. It serves the web app at `APP_DOMAIN` and this API at `API_DOMAIN`, and gets and renews their TLS certificates from Let's Encrypt automatically. `api` and `web` publish their ports to `127.0.0.1` only. HTTPS isn't optional: in production the web app's session cookie is `secure`, so signing in over plain HTTP silently fails. Email clients also want HTTPS for the tracking and unsubscribe links. To set it up:
+
+1. Point DNS A records for both domains at the instance (use an Elastic IP so the address survives a restart).
+2. Open ports 80 and 443 in the security group (80 is needed for the certificate challenge and redirects to 443). Keep 22 limited to your IP, and don't open 3000, 3001 or 5432.
+3. In `.env`, set `APP_DOMAIN`, `API_DOMAIN` and `PUBLIC_API_URL=https://<API_DOMAIN>`, plus a `TRACKING_SECRET`.
+4. Start the stack. Caddy requests the certificates on first start (`docker compose logs -f caddy` to watch). They're kept in the `caddydata` volume.
+
+Sign in at `https://<APP_DOMAIN>` with the admin key printed on first boot (`docker compose logs api`).
