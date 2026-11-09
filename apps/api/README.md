@@ -27,28 +27,43 @@ mail-rocket is self-hosted and has no users, passwords or tenants. Every request
 - **CLI:** `bun run key:create --name ops --preset admin [--expires 2027-01-01]` mints a key without a restart.
 - **API:** `POST /keys` with `{ "name": "...", "preset": "editor" }` or an explicit `claims` list. The secret appears once, in that response. `GET /me` returns the calling key.
 
-What a key may do is decided by its **claims**: a list of CASL `{ action, subject }` grants (`src/libs/abilities.ts`) that every route checks via `requireAbility(action, subject)`. Actions are `read`/`create`/`update`/`delete`. Subjects are `Organization`, `Address`, `ContactDetails`, `Identity`, `Campaign`, `Template`, `Group`, `Recipient` and `Key`. Three presets expand to claim lists:
+What a key may do is decided by its **claims**: a list of CASL `{ action, subject }` grants (`src/libs/abilities.ts`) that every route checks via `requireAbility(action, subject)`. Actions are `read`/`create`/`update`/`delete`. Subjects are `Organization`, `Address`, `ContactDetails`, `Identity`, `Campaign`, `Template`, `Group`, `Subscriber` and `Key`. Three presets expand to claim lists:
 
 | Preset | Grants |
 | --- | --- |
 | `viewer` | `read` on every subject |
-| `editor` | viewer + `create`/`update`/`delete` on `Campaign`, `Template`, `Group`, `Recipient` (identities stay read-only) |
+| `editor` | viewer + `create`/`update`/`delete` on `Campaign`, `Template`, `Group`, `Subscriber` (identities stay read-only) |
 | `admin` | editor + `update Organization`, and `create`/`update`/`delete` on `Identity`, `Address`, `ContactDetails`, `Key` |
 
 A key stores the expanded list, not the preset name, so a custom combination is just a different list. A key can't change its own claims or revoke itself.
 
-## MCP server
+**System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and subscribers (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
 
-`/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) endpoint (Streamable HTTP), so AI clients can run mail-rocket directly. It authenticates exactly like the REST API: point the client at `https://<host>/mcp` with an `Authorization: Bearer mr_...` header. For example, in Claude Code:
+## Open and click tracking
 
-```bash
-claude mcp add --transport http mail-rocket https://<host>/mcp --header "Authorization: Bearer mr_..."
-```
+Set `PUBLIC_API_URL` (this API's public base URL) and `TRACKING_SECRET` to track opens and clicks. With them set, `SendCampaignService.sendChunk` passes each subscriber's rendered body through `addTracking` (`src/libs/tracking.ts`):
 
-- **Tools:** 46 tools, matching the REST API one-for-one. Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, plus `get_organization`/`update_organization`, the key tools `list_keys`/`get_key`/`create_key`/`update_key`/`delete_key`, `get_me`, `get_overview` (the dashboard's counts), and `add_recipient_to_group`/`remove_recipient_from_group` (a recipient can be in several groups). They're defined in `src/mcp/tools.ts`.
-- **Permissions:** each tool needs the same CASL claim as its REST route, and a key is only *shown* the tools it holds claims for. Give an agent its own key with the narrowest preset that works. A `viewer` key gets a read-only agent.
-- **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set over MCP or REST (REST returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and recipients (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
-- **Stateless:** each request gets a fresh server and a plain JSON response, with no sessions or SSE stream, so it scales like any other route.
+- **Opens:** a 1x1 pixel at `GET /track/open/:delivery_id` goes before `</body>`. Loading it sets `campaign_delivery.opened_at`.
+- **Clicks:** every absolute `http(s)` link is rewritten to `GET /track/click/:delivery_id?url=...&sig=...`, which sets `clicked_at` (and `opened_at`, since a click implies an open), then redirects with a 302. `sig` is an HMAC of the id and URL, so the endpoint only redirects to links an email actually contained and can't be used as an open redirect.
+- Only the first open and the first click are kept, so each subscriber counts once. `/track` is public: mail clients have no API key.
+- `GET /campaigns/:campaign_id/stats` returns `total`/`pending`/`sent`/`failed`, `opened`/`clicked`/`unsubscribed`, and `open_rate`/`click_rate` (fractions of `sent`).
+
+The tracking is ours, not SES's, so it keeps working if sending moves to another provider or plain SMTP. Bounces and complaints, by contrast, are provider-specific. A provider webhook (e.g. SES → SNS) could record them as more timestamp columns on `campaign_delivery` alongside `opened_at`/`clicked_at`.
+
+With the variables unset, emails go out untouched and stats show only the send counts.
+
+## Unsubscribe
+
+With `PUBLIC_API_URL` set, every sent email also lets the subscriber unsubscribe (`src/libs/unsubscribe.ts`), as marketing-email law and the Gmail/Yahoo bulk-sender rules require:
+
+- **Footer link:** "Don't want these emails? Unsubscribe" goes at the bottom of the body, pointing at `/unsubscribe/:delivery_id`. It's added after click tracking, so it's never routed through `/track/click`.
+- **One-click headers (RFC 8058):** `List-Unsubscribe: <…/unsubscribe/:delivery_id>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, so mail clients show their own Unsubscribe button. Custom headers need the SES **v2** `SendEmail` (`sesV2Client`), which uses the same `ses:SendEmail` IAM action as v1.
+- **`GET /unsubscribe/:delivery_id`** only shows a confirmation page with an Unsubscribe button. Link scanners that prefetch every link in an email therefore can't unsubscribe anyone.
+- **`POST /unsubscribe/:delivery_id`** unsubscribes. It's posted by that button or by a mail client's one-click unsubscribe, with a form body, so `jsonOnly` exempts `/unsubscribe/`. It sets `subscribers.unsubscribed_at` and `campaign_delivery.unsubscribed_at` (for the per-campaign count), keeping the first time.
+- An unsubscribe is **global**: dispatch leaves every unsubscribed subscriber out of every campaign's send (`getSubscriberIdsForCampaign`). They stay in their groups and lists, marked "Unsubscribed". `unsubscribed_at` is read-only through the API (400), so only the subscriber can opt out, and nobody can opt them back in.
+- `/unsubscribe` is public, and the delivery id (a random UUID that only appears in that one person's email) is the only credential, the same as the open pixel.
+
+Without `PUBLIC_API_URL` there is nowhere public to link to, so emails go out without an unsubscribe link. Only do that for local testing.
 
 ## Architecture
 
@@ -73,8 +88,6 @@ A request flows top-to-bottom through these layers and never skips one: `routes/
 
 `libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), CASL claims, presets and ability construction (`abilities.ts`), API-key generation/hashing and the `/keys` request schemas (`apiKeys.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
 
-`src/mcp/` holds the MCP server: `tools.ts` defines every tool (schema, CASL claim, handler calling the services, like the queue workers do) and `server.ts` builds a per-key server exposing only the tools that key may use. `McpController` hands requests to the SDK's Streamable HTTP transport.
-
 `src/bootstrap.ts` runs once at boot, after `connectDB()`. It seeds the single `organization` row and mints the first admin key (see "Access: API keys" above). `src/cli/createKey.ts` backs `bun run key:create`.
 
 ### Request lifecycle
@@ -83,7 +96,7 @@ A request flows top-to-bottom through these layers and never skips one: `routes/
 
 1. `requestLogger` - logs method/path/duration for every request.
 2. `jsonOnly` - rejects POST/PUT/PATCH requests that aren't `application/json` before any controller tries to parse a body.
-3. Routing into `appRoute`, which applies `authenticate` to every route. There are no public routes. `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
+3. Routing into `appRoute`, which applies `authenticate` to every route except the public `/track` open/click endpoints (mounted ahead of it). `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
 4. Per-route middleware - every route except `/me` and `/overview` applies `requireAbility(action, subject)`, which returns 403 unless the key's ability grants that action on that subject. `/overview` instead returns each of its sections only when the key can `read` that section's subject, and `null` otherwise.
 5. The matched controller method runs, calls into a service, and returns JSON.
 
@@ -93,13 +106,13 @@ Anything thrown along the way - an `HTTPException` from a controller, a `Validat
 
 One instance serves one organization, so there's no tenancy and resources live at the top level (`/campaigns`, `/templates`, ...; see `routes/AppRoute.ts`). `organization` is a single row: the profile of whoever runs the instance. It's seeded at boot, read and updated via `/organization`, and never created or deleted over the API. `address` and `contact_details` link to it as the organization's own postal/contact details. Nothing else carries an `organization_id`. `api_key` is the principal and has no relation to any other table.
 
-`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`recipient` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
+`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`subscriber` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
 
 ### Background jobs (`src/queues/`)
 
 Two independent BullMQ pipelines run as in-process workers, started once at boot from `index.ts` (`startCampaignWorkers`, `startIdentityVerificationWorker`):
 
-- **Campaign send** (`CampaignQueues.ts`, `CampaignDispatch.ts`, `CampaignWorkers.ts`): creating/updating a campaign with a `start_time` schedules a `campaign-dispatch` job (via `scheduleCampaignDispatch`) using the campaign's own id as the BullMQ job id, so rescheduling replaces rather than duplicates it. When the job fires, the dispatch worker builds the recipient manifest and fans it out through a `FlowProducer` into many `campaign-send-chunk` jobs (rate-limited against SES, one SES `SendEmail` call per recipient) plus one `campaign-finalize` parent job that only runs once every chunk has settled and rolls the results up into the campaign's final `status`.
+- **Campaign send** (`CampaignQueues.ts`, `CampaignDispatch.ts`, `CampaignWorkers.ts`): creating/updating a campaign with a `start_time` schedules a `campaign-dispatch` job (via `scheduleCampaignDispatch`) using the campaign's own id as the BullMQ job id, so rescheduling replaces rather than duplicates it. When the job fires, the dispatch worker builds the subscriber manifest and fans it out through a `FlowProducer` into many `campaign-send-chunk` jobs (rate-limited against SES, one SES `SendEmail` call per subscriber) plus one `campaign-finalize` parent job that only runs once every chunk has settled and rolls the results up into the campaign's final `status`.
 - **Identity verification** (`IdentityVerificationQueues.ts`, `IdentityVerificationScheduler.ts`, `IdentityVerificationWorker.ts`): creating an identity registers it with SES and schedules a poll job (identity's own id as the job id) that checks SES's verification status every `IDENTITY_VERIFY_POLL_INTERVAL_MS`, reschedules itself if still pending, and flips the identity to `active` once SES confirms it.
 
 Queue-definition files (`*Queues.ts`) intentionally import no services, so both the scheduling side and the worker side can depend on them without an import cycle. Worker processors stay thin and delegate all DB/SES logic to services (`SendCampaignService`, `IdentityService`) - the same layering rule as the HTTP path, just triggered by a job instead of a request.
@@ -108,7 +121,7 @@ Queue-definition files (`*Queues.ts`) intentionally import no services, so both 
 
 - Every service method logs `info` at start/end and `debug` for its request/response payload, and wraps its query in `try { ... } catch { logger.error(...); throw; }` - follow this pattern for consistency (see `services/IdentityService.ts` for a representative example).
 - Throw `ValidationError` (`libs/errors.ts`) from a service for an expected business-rule violation (→ 400); throw `HTTPException` from a controller for a request-shape problem (missing param, 404); let anything truly unexpected propagate to the global handler (→ 500).
-- List endpoints accept `limit`/`offset` query params and default to `DEFAULT_PAGE_SIZE` (`libs/pagination.ts`) - background jobs that must see every row (e.g. `SendCampaignService.getRecipientIdsForCampaign`) deliberately skip pagination instead.
+- List endpoints accept `limit`/`offset` query params and default to `DEFAULT_PAGE_SIZE` (`libs/pagination.ts`) - background jobs that must see every row (e.g. `SendCampaignService.getSubscriberIdsForCampaign`) deliberately skip pagination instead.
 
 ## Database
 
@@ -122,10 +135,10 @@ bun run db:studio    # browse data in Drizzle Studio
 
 ## Deployment (Docker on EC2)
 
-The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: the repo-root `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), alongside `redis`, `api` and the `web` app. Run compose from the repo root and pass this app's env file, so the `POSTGRES_*` values are read from it:
+The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: the repo-root `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), alongside `redis`, `api`, the `web` app and `caddy`. Run compose from the repo root and pass this app's env file, so the `POSTGRES_*` and domain values are read from it:
 
 ```bash
-docker compose --env-file apps/api/.env up --build -d   # build and start postgres, redis, api, web (`bun run stack` at the root)
+docker compose --env-file apps/api/.env up --build -d   # build and start postgres, redis, api, web, caddy (`bun run stack` at the root)
 docker compose logs -f api                               # follow logs
 docker compose down                                      # stop everything (add -v to also wipe the postgres volume)
 ```
@@ -137,3 +150,14 @@ The repo-root `docker-compose.yml` reads secrets from this app's `.env` file (`a
 Migrations aren't run automatically. The `postgres` container publishes its port to `127.0.0.1:5432` on the host only (not public), so after the containers are up, run `bun run db:migrate` directly on the EC2 instance with `DB_URL=postgres://<user>:<password>@localhost:5432/<db>` (matching the `POSTGRES_*` values in `.env`).
 
 To deploy a change: SSH into the instance, `git pull`, then run the `docker compose --env-file apps/api/.env up --build -d` line above again from the repo root.
+
+### HTTPS (caddy)
+
+`caddy` (repo-root `Caddyfile`) is the only service the internet reaches. It serves the web app at `APP_DOMAIN` and this API at `API_DOMAIN`, and gets and renews their TLS certificates from Let's Encrypt automatically. `api` and `web` publish their ports to `127.0.0.1` only. HTTPS isn't optional: in production the web app's session cookie is `secure`, so signing in over plain HTTP silently fails. Email clients also want HTTPS for the tracking and unsubscribe links. To set it up:
+
+1. Point DNS A records for both domains at the instance (use an Elastic IP so the address survives a restart).
+2. Open ports 80 and 443 in the security group (80 is needed for the certificate challenge and redirects to 443). Keep 22 limited to your IP, and don't open 3000, 3001 or 5432.
+3. In `.env`, set `APP_DOMAIN`, `API_DOMAIN` and `PUBLIC_API_URL=https://<API_DOMAIN>`, plus a `TRACKING_SECRET`.
+4. Start the stack. Caddy requests the certificates on first start (`docker compose logs -f caddy` to watch). They're kept in the `caddydata` volume.
+
+Sign in at `https://<APP_DOMAIN>` with the admin key printed on first boot (`docker compose logs api`).

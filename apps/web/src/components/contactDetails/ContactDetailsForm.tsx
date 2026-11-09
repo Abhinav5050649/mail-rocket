@@ -44,7 +44,7 @@ export function ContactDetailsForm({ mode, initialData, onSubmit, isSubmitting, 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <SettingsSection title="Contact" description="How recipients can reach the organization.">
+      <SettingsSection title="Contact" description="How subscribers can reach the organization.">
         <fieldset disabled={readOnly} className="flex flex-col gap-4">
           <Field label="Email" optional error={errors.email_id?.message}>
             {(props) => <Input {...props} {...register("email_id")} type="email" placeholder="hello@yourdomain.com" />}

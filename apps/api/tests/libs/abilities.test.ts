@@ -26,7 +26,7 @@ describe("presets", () => {
 
     it("editor writes campaign content but only reads identities, and can't touch the organization profile or keys", () => {
         const ability = defineAbility(claimsForPreset.editor);
-        expect(ability.can("delete", "Recipient")).toBe(true);
+        expect(ability.can("delete", "Subscriber")).toBe(true);
         expect(ability.can("read", "Identity")).toBe(true);
         expect(ability.can("create", "Identity")).toBe(false);
         expect(ability.can("update", "Identity")).toBe(false);

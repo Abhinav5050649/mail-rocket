@@ -49,7 +49,7 @@ Examples: `identity_type` (domain/email), `identity_status` (created/pending/act
 - mail-rocket is self-hosted: one instance, one organization, no tenants and no users. **Don't add an `organization_id` to new tables** - nothing is scoped by organization.
 - `organization` is a single row (the instance's profile), seeded by `bootstrap()` via `OrganizationService.ensureExists()` and read with `OrganizationService.get()`. Only `address` and `contact_details` reference it (the organization's own postal/contact details); their controllers resolve the id from the singleton rather than taking it from the request.
 - `api_key` ([src/models/ApiKeyModel.ts](../../../src/models/ApiKeyModel.ts)) is the only principal: `name`, `claims` (JSONB CASL `{action, subject}` list, typed by `Claim` from `src/libs/abilities.ts`), unique `key_hash` (SHA-256 of the secret - the secret itself is never stored), `prefix`, `expires_at`. Nothing references it - resources don't record which key created them.
-- Nesting follows the domain: `campaign` -> `group` -> `recipients`, each carrying its immediate parent's FK.
+- Nesting follows the domain: `campaign` -> `group` -> `subscribers`, each carrying its immediate parent's FK.
 - FKs use plain `.references(() => otherTable.id)` by default. Only add `{ onDelete: "cascade" }` where a child row is meaningless without its parent.
 
 ## Indexes & constraints
@@ -68,7 +68,7 @@ Examples: `identity_type` (domain/email), `identity_status` (created/pending/act
 - No repository/model methods - all reads/writes happen inline in `*Service` classes via `db.select()/insert()/update()/delete()`.
 - Single-row lookups: `db.select().from(xTable).where(eq(xTable.id, id))`, destructure `const [row] = ...`.
 - Lists: always paginated and ordered - `.orderBy(asc(xTable.id)).limit(options?.limit ?? DEFAULT_PAGE_SIZE).offset(options?.offset ?? 0)` (see `api-request-response-flow` skill for the pagination contract).
-- Cross-entity reads use `.innerJoin`/`.leftJoin(otherTable, eq(a.fk, otherTable.id))` and select shaped objects - see `SendCampaignService.sendChunk` (`campaign_recipient` joined to `recipients` and `group`) as the reference pattern.
+- Cross-entity reads use `.innerJoin`/`.leftJoin(otherTable, eq(a.fk, otherTable.id))` and select shaped objects - see `SendCampaignService.sendChunk` (`campaign_delivery` joined to `subscribers` and `group`) as the reference pattern.
 - Every query is wrapped in the try/catch + logging pattern from the `api-logging` skill.
 
 ## Adding a new table - checklist

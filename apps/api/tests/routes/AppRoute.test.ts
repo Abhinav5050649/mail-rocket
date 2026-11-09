@@ -10,7 +10,7 @@ import { chain, createMockDb } from "../helpers/mockDb";
 const mockDb = createMockDb();
 mock.module("../../src/libs/db", () => ({ db: mockDb, connectDB: async () => {} }));
 
-const { appRoute, claimsForPreset, errorHandler } = await import("../../src");
+const { appRoute, claimsForPreset, errorHandler, jsonOnly } = await import("../../src");
 const { Hono } = await import("hono");
 
 const app = new Hono().onError(errorHandler).route("/", appRoute);
@@ -71,7 +71,7 @@ describe("appRoute", () => {
         authenticateAs([]);
         const res = await app.request("/overview", { headers: { authorization: "Bearer mr_test" } });
         expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ campaigns: null, identities: null, templates: null, groups: null, recipients: null, keys: null });
+        expect(await res.json()).toEqual({ campaigns: null, identities: null, templates: null, groups: null, subscribers: null, keys: null });
     });
 
     it("serves /me to a key with no claims at all", async () => {
@@ -81,6 +81,42 @@ describe("appRoute", () => {
         const res = await app.request("/me", { headers: { authorization: "Bearer mr_test" } });
         expect(res.status).toBe(200);
         expect(((await res.json()) as { id: string }).id).toBe("key-1");
+    });
+
+    it("serves the open-tracking pixel without a key", async () => {
+        const res = await app.request("/track/open/cs-1");
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/gif");
+    });
+
+    it("400s an unsigned click-tracking link without a key, instead of 401ing", async () => {
+        const res = await app.request("/track/click/cs-1?url=https%3A%2F%2Fevil.example");
+        expect(res.status).toBe(400);
+    });
+
+    it("serves the unsubscribe page without a key", async () => {
+        // The mocked db finds no delivery, so the page says the link isn't valid - but auth didn't stop it.
+        const res = await app.request("/unsubscribe/d-1");
+        expect(res.status).toBe(404);
+        expect(res.headers.get("content-type")).toContain("text/html");
+    });
+
+    it("accepts a one-click unsubscribe POST (form body, no key) past jsonOnly", async () => {
+        const withJsonOnly = new Hono().use("*", jsonOnly).onError(errorHandler).route("/", appRoute);
+        const res = await withJsonOnly.request("/unsubscribe/d-1", {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: "List-Unsubscribe=One-Click",
+        });
+        expect(res.status).toBe(404);
+        expect(res.headers.get("content-type")).toContain("text/html");
+    });
+
+    it("lets a viewer key read a campaign's stats", async () => {
+        authenticateAs(claimsForPreset.viewer);
+        const res = await app.request("/campaigns/campaign-1/stats", { headers: { authorization: "Bearer mr_test" } });
+        // The mocked db finds no campaign, so the route got past auth to the controller.
+        expect(res.status).toBe(404);
     });
 
     it("no longer serves the removed tenant-scoped routes", async () => {

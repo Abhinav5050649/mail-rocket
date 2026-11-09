@@ -9,13 +9,13 @@ import { cx } from "@/utils/cx";
 
 /**
  * Example values the preview fills variables with. They are labelled as
- * samples on screen; real values come from each recipient at send time.
+ * samples on screen; real values come from each subscriber at send time.
  */
 const SAMPLE_VALUES: Record<string, string> = {
-  recipient_first_name: "Priya",
-  recipient_last_name: "Raman",
-  recipient_full_name: "Priya Raman",
-  recipient_email: "priya@example.com",
+  subscriber_first_name: "Priya",
+  subscriber_last_name: "Raman",
+  subscriber_full_name: "Priya Raman",
+  subscriber_email: "priya@example.com",
   group_name: "Newsletter subscribers",
   campaign_name: "Your campaign",
   // Filled in at render time: today's date in the organization's time zone.
@@ -106,7 +106,7 @@ export function TemplateEditor({ value, onChange, organizationName, readOnly }: 
           readOnly={readOnly}
           onChange={(event) => onChange(event.target.value)}
           spellCheck={false}
-          placeholder={"<p>Hi {{recipient_first_name}},</p>"}
+          placeholder={"<p>Hi {{subscriber_first_name}},</p>"}
           className="min-h-[420px] w-full flex-1 resize-y bg-sheet p-4 font-mono text-[13px] leading-5 text-text outline-none placeholder:text-faint focus-visible:outline-none lg:min-h-[540px]"
         />
         {unknown.length > 0 && (

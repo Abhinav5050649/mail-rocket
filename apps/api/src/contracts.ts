@@ -19,12 +19,12 @@ import type {
     IIdentity,
     IOrganization,
     ITemplate,
-    campaignRecipientSendStatusEnum,
+    campaignDeliveryStatusEnum,
     campaignStatusEnum,
     identityStatusEnum,
     identityTypeEnum,
 } from "./models";
-import type { Overview, RecipientService } from "./services";
+import type { CampaignService, Overview, SubscriberService } from "./services";
 
 /** Passes only for `true`; anything else is a compile error that names the mismatch. */
 type Expect<T extends true> = T;
@@ -40,8 +40,8 @@ type SameUnion<A, B> = [A] extends [B] ? ([B] extends [A] ? true : { missingFrom
 /** A Drizzle enum's values as a union. */
 type EnumValues<E extends { enumValues: readonly string[] }> = E["enumValues"][number];
 
-/** A recipient as the API returns it: the row plus its `group_ids`. */
-type ApiRecipient = NonNullable<Awaited<ReturnType<RecipientService["getById"]>>>;
+/** A subscriber as the API returns it: the row plus its `group_ids`. */
+type ApiSubscriber = NonNullable<Awaited<ReturnType<SubscriberService["getById"]>>>;
 
 /** Each line fails to compile, naming the fields or values, when the two sides drift. */
 export type ContractChecks = [
@@ -52,7 +52,8 @@ export type ContractChecks = [
     Expect<SameKeys<ICampaign, Wire.Campaign>>,
     Expect<SameKeys<ITemplate, Wire.Template>>,
     Expect<SameKeys<IGroup, Wire.Group>>,
-    Expect<SameKeys<ApiRecipient, Wire.Recipient>>,
+    Expect<SameKeys<ApiSubscriber, Wire.Subscriber>>,
+    Expect<SameKeys<NonNullable<Awaited<ReturnType<CampaignService["getStats"]>>>, Wire.CampaignStats>>,
     Expect<SameKeys<ReturnType<typeof toApiKeyResponse>, Wire.ApiKey>>,
     Expect<SameKeys<Overview, Wire.Overview>>,
     Expect<SameKeys<NonNullable<Overview["campaigns"]>, NonNullable<Wire.Overview["campaigns"]>>>,
@@ -60,5 +61,5 @@ export type ContractChecks = [
     Expect<SameUnion<EnumValues<typeof campaignStatusEnum>, Wire.CampaignStatus>>,
     Expect<SameUnion<EnumValues<typeof identityStatusEnum>, Wire.IdentityStatus>>,
     Expect<SameUnion<EnumValues<typeof identityTypeEnum>, Wire.IdentityType>>,
-    Expect<SameUnion<EnumValues<typeof campaignRecipientSendStatusEnum>, Wire.SendStatus>>,
+    Expect<SameUnion<EnumValues<typeof campaignDeliveryStatusEnum>, Wire.DeliveryStatus>>,
 ];

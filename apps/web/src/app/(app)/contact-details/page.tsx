@@ -25,7 +25,7 @@ export default function ContactDetailsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Contact details" description="Email addresses and phone numbers recipients can reach the organization on." actions={action} />
+      <PageHeader title="Contact details" description="Email addresses and phone numbers subscribers can reach the organization on." actions={action} />
       <div>
         <DataTable<ContactDetails>
           noun="contact details"

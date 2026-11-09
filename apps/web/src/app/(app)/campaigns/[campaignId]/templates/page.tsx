@@ -40,7 +40,7 @@ export default function CampaignTemplatesPage({ params }: { params: Promise<{ ca
           { header: "Updated", cell: (template) => <span className="tabular">{formatDateTime(template.updated_at ?? template.created_at)}</span>, align: "right", className: "w-48" },
         ]}
         mobile={{ title: (template) => template.name || "Untitled template", subtitle: (template) => `Updated ${formatDateTime(template.updated_at ?? template.created_at)}` }}
-        empty={<EmptyState title="No template linked yet" action={action}>Write the email this campaign sends. Variables like {"{{recipient_first_name}}"} are filled per recipient.</EmptyState>}
+        empty={<EmptyState title="No template linked yet" action={action}>Write the email this campaign sends. Variables like {"{{subscriber_first_name}}"} are filled per subscriber.</EmptyState>}
       />
     </div>
   );

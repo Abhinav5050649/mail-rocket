@@ -56,7 +56,7 @@ export default function CampaignLayout({ children, params }: { children: React.R
               { label: "Overview", href: base, exact: true },
               { label: "Templates", href: `${base}/templates` },
               { label: "Groups", href: `${base}/groups` },
-              { label: "Recipients", href: `${base}/recipients` },
+              { label: "Subscribers", href: `${base}/subscribers` },
             ]}
           />
           {children}

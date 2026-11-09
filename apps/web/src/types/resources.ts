@@ -17,9 +17,10 @@ export type {
   Identity,
   CampaignStatus,
   Campaign,
+  CampaignStats,
   Template,
   Group,
-  Recipient,
+  Subscriber,
   PageArgs,
 } from "@mail-rocket/shared";
 

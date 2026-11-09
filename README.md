@@ -1,6 +1,6 @@
 # Mail Rocket
 
-Self-hosted email campaigns sent through your own AWS SES account. Schedule campaigns, verify sending identities, write HTML templates with `{{variables}}`, and send to recipients and groups. Every request authenticates with an API key whose claims decide what it can do, and every operation is also available to AI clients over MCP.
+Self-hosted email campaigns sent through your own AWS SES account. Schedule campaigns, verify sending identities, write HTML templates with `{{variables}}`, and send to subscribers and groups. Every request authenticates with an API key whose claims decide what it can do.
 
 ## Layout
 
@@ -11,7 +11,8 @@ apps/
 packages/
   shared/     Code both apps import: permissions, wire types, template variables
 resources/    Shared docs: OpenAPI spec, DBML + SQL schema, AWS IAM policies
-docker-compose.yml   Full stack: postgres, redis, api, web
+docker-compose.yml   Full stack: postgres, redis, api, web, caddy
+Caddyfile     HTTPS reverse proxy in front of the web app and API
 PRODUCT.md    Who it's for and how it behaves
 DESIGN.md     The web app's design system
 ```
@@ -42,7 +43,9 @@ bun run db:migrate     # migrations aren't applied automatically
 bun run stack:down
 ```
 
-Compose is run with `--env-file apps/api/.env` so the `POSTGRES_*` values come from the API's env file. Without it, compose silently uses the defaults.
+Compose is run with `--env-file apps/api/.env` so the `POSTGRES_*` and domain values come from the API's env file. Without it, compose silently uses the defaults.
+
+Caddy is the only public entry point, on ports 80 and 443. It serves the web app at `APP_DOMAIN` and the API at `API_DOMAIN` over HTTPS, getting certificates on its own. The api and web containers only listen on localhost. With the domains unset, the stack runs at https://app.localhost and https://api.localhost with a local certificate the browser warns about. Deploying to a server is covered in [apps/api/README.md](apps/api/README.md#deployment-docker-on-ec2).
 
 ## Common tasks
 

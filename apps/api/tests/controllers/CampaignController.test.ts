@@ -9,6 +9,7 @@ describe("CampaignController", () => {
     let controller: CampaignController;
 
     const campaign = { id: "campaign-1", name: "Launch", status: "draft", start_time: null };
+    const stats = { total: 4, pending: 0, sent: 4, failed: 0, opened: 2, clicked: 1, open_rate: 0.5, click_rate: 0.25 };
 
     beforeEach(() => {
         campaignService = {
@@ -17,6 +18,7 @@ describe("CampaignController", () => {
             getById: mock(async () => campaign),
             update: mock(async () => campaign),
             delete: mock(async () => campaign),
+            getStats: mock(async () => stats),
         } as unknown as CampaignService;
 
         controller = new CampaignController(campaignService);
@@ -61,6 +63,22 @@ describe("CampaignController", () => {
         it("400s when start_time is not a valid date string", async () => {
             const ctx = createMockContext({ body: { name: "Launch", start_time: "not-a-date" } });
             await expectHttpException(controller.post(ctx), 400, "Invalid start_time");
+        });
+    });
+
+    describe("getStats", () => {
+        it("returns the campaign's stats", async () => {
+            const ctx = createMockContext({ params: { campaign_id: "campaign-1" } });
+            const result: any = await controller.getStats(ctx);
+
+            expect(campaignService.getStats).toHaveBeenCalledWith("campaign-1");
+            expect(result.body).toEqual(stats);
+        });
+
+        it("404s when the campaign doesn't exist", async () => {
+            (campaignService.getStats as any).mockImplementationOnce(async () => null);
+            const ctx = createMockContext({ params: { campaign_id: "missing" } });
+            await expectHttpException(controller.getStats(ctx), 404, "Campaign not found");
         });
     });
 

@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "MailRocketSesOnlyFromServer",
+      "Effect": "Deny",
+      "Action": "ses:*",
+      "Resource": "*",
+      "Condition": {
+        "NotIpAddress": {
+          "aws:SourceIp": "<SERVER_PUBLIC_IP>/32"
+        }
+      }
+    }
+  ]
+}

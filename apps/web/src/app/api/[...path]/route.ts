@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionKey } from "@/lib/auth/session";
+import { clearSessionKey, getSessionKey } from "@/lib/auth/session";
 import { bunApiFetch } from "@/lib/auth/bunApi";
 
 /**
@@ -25,6 +25,9 @@ async function forward(request: NextRequest, { params }: { params: Promise<Param
     headers: { Authorization: `Bearer ${key}` },
     body: hasBody ? await request.text() : undefined,
   });
+  if (backendRes.status === 401) {
+    await clearSessionKey();
+  }
 
   // 204/empty bodies (e.g. some DELETE responses) can't be parsed as JSON.
   const text = await backendRes.text();

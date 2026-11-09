@@ -1,7 +1,7 @@
 import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
 import { campaignTable } from "./CampaignModel";
 
-/** Drizzle schema for `group`: a recipient list within a campaign. */
+/** Drizzle schema for `group`: a subscriber list within a campaign. */
 export const groupTable = pgTable("group", {
     /** UUID to uniquely identify group. */
     id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

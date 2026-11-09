@@ -7,6 +7,7 @@ export * from "./IdentityService";
 export * from "./CampaignService";
 export * from "./TemplateService";
 export * from "./GroupService";
-export * from "./RecipientService";
+export * from "./SubscriberService";
 export * from "./SendCampaignService";
 export * from "./OverviewService";
+export * from "./TrackingService";

@@ -33,14 +33,14 @@ describe("CampaignService.delete", () => {
         expect(mockCancel).not.toHaveBeenCalled();
     });
 
-    it("unlinks templates, groups and recipients, removes send history, deletes, then cancels the queued send", async () => {
+    it("unlinks templates, groups and subscribers, removes send history, deletes, then cancels the queued send", async () => {
         mockDb.select.mockImplementationOnce(() => chain([scheduled]));
         const result = await service.delete("campaign-1");
 
         expect(result).toEqual(scheduled as any);
-        // template, group, recipients each get campaign_id cleared.
+        // template, group, subscribers each get campaign_id cleared.
         expect(mockDb.update).toHaveBeenCalledTimes(3);
-        // campaign_recipient history, then the campaign row itself.
+        // campaign_delivery history, then the campaign row itself.
         expect(mockDb.delete).toHaveBeenCalledTimes(2);
         expect(mockCancel).toHaveBeenCalledWith("campaign-1");
     });

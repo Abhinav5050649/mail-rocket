@@ -4,8 +4,7 @@ import { OverviewService, type OverviewSections } from "../services";
 
 /**
  * Maps a key's ability to the overview sections it may see: one section per
- * subject it can `read`. Shared with the MCP `get_overview` tool so both
- * surfaces hide the same sections.
+ * subject it can `read`.
  *
  * @param ability - The calling key's CASL ability.
  * @returns The sections to compute.
@@ -15,7 +14,7 @@ export const overviewSectionsFor = (ability: AppAbility): OverviewSections => ({
     identities: ability.can("read", "Identity"),
     templates: ability.can("read", "Template"),
     groups: ability.can("read", "Group"),
-    recipients: ability.can("read", "Recipient"),
+    subscribers: ability.can("read", "Subscriber"),
     keys: ability.can("read", "Key"),
 });
 

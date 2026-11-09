@@ -22,9 +22,9 @@ export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent", "failed"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 
-/** One recipient's outcome within one send. */
-export const SEND_STATUSES = ["pending", "sent", "failed"] as const;
-export type SendStatus = (typeof SEND_STATUSES)[number];
+/** One subscriber's outcome within one send. */
+export const DELIVERY_STATUSES = ["pending", "sent", "failed"] as const;
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
 /** Columns every table carries. */
 interface BaseFields {
@@ -125,18 +125,38 @@ export interface Group extends BaseFields {
     normalized_name: string | null;
 }
 
-export interface Recipient extends BaseFields {
+export interface Subscriber extends BaseFields {
     first_name: string | null;
     last_name: string | null;
     normalized_name: string | null;
     email_id: string | null;
-    /** Every group the recipient is in (many-to-many, via `group_recipient`). */
+    /** Every group the subscriber is in (many-to-many, via `group_subscriber`). */
     group_ids: string[];
     campaign_id: string | null;
+    /** When they unsubscribed (via an email link); no campaign sends to them after. Read-only. */
+    unsubscribed_at: string | null;
 }
 
-/** Per-recipient delivery outcomes of one send, or of every send together. */
-export type DeliveryCounts = Record<SendStatus, number>;
+/**
+ * GET /campaigns/:campaign_id/stats. Counts are emails (one per subscriber);
+ * `opened`/`clicked`/`unsubscribed` count each subscriber once. Rates are
+ * fractions (0-1) of the emails `sent`, and 0 before anything is sent.
+ */
+export interface CampaignStats {
+    total: number;
+    pending: number;
+    sent: number;
+    failed: number;
+    opened: number;
+    clicked: number;
+    /** Subscribers who unsubscribed through this campaign's emails. */
+    unsubscribed: number;
+    open_rate: number;
+    click_rate: number;
+}
+
+/** Per-subscriber delivery outcomes of one send, or of every send together. */
+export type DeliveryCounts = Record<DeliveryStatus, number>;
 
 /** A campaign whose send has started, with how its deliveries went. */
 export type RecentCampaign = Campaign & { deliveries: DeliveryCounts };
@@ -155,7 +175,7 @@ export interface Overview {
     identities: { total: number; by_status: Record<IdentityStatus, number> } | null;
     templates: { total: number } | null;
     groups: { total: number } | null;
-    recipients: { total: number } | null;
+    subscribers: { total: number } | null;
     keys: { total: number } | null;
 }
 

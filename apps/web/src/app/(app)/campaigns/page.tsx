@@ -48,7 +48,7 @@ export default function CampaignsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Campaigns"
-        description="Each campaign sends one template to its recipients, from one identity, at its start time."
+        description="Each campaign sends one template to its subscribers, from one identity, at its start time."
         actions={
           <Can I="create" a="Campaign">
             <Button href="/campaigns/new" variant="primary" icon={Plus}>
@@ -106,7 +106,7 @@ export default function CampaignsPage() {
             >
               {status
                 ? "Campaigns move between these tabs as their sends are scheduled and go out."
-                : "Create a campaign, give it a template, recipients and a verified sender, then set a start time to schedule it."}
+                : "Create a campaign, give it a template, subscribers and a verified sender, then set a start time to schedule it."}
             </EmptyState>
           }
         />

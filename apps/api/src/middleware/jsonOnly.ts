@@ -12,6 +12,9 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * mis-parsed body) into a clear, uniform 415 up front.
  *
  * Registered via `app.use('*', jsonOnly)` in `index.ts`, ahead of routing.
+ * `/unsubscribe` is exempt: browsers post its confirmation form, and mail
+ * clients post one-click unsubscribes, as form data - and it never reads
+ * the body.
  *
  * @param c - Hono request context.
  * @param next - Calls the next middleware/handler in the chain.
@@ -19,7 +22,7 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * is missing or isn't `application/json`.
  */
 export const jsonOnly: MiddlewareHandler = async (c, next) => {
-    if (BODY_METHODS.has(c.req.method)) {
+    if (BODY_METHODS.has(c.req.method) && !c.req.path.startsWith("/unsubscribe/")) {
         const contentType = c.req.header("content-type");
 
         if (!contentType || !contentType.toLowerCase().startsWith("application/json")) {

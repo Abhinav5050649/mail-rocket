@@ -49,13 +49,12 @@ Reference chain for a full example: [src/routes/CampaignRoute.ts](../../../src/r
 
 ## Route nesting / mounting
 
-All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. `appRoute.use('*', authenticate)` puts every route behind an API key - there are no public routes.
+All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. `appRoute.use('*', authenticate)` puts every route behind an API key. The one exception is `/track` (open/click tracking loaded by mail clients), which is mounted before it.
 
 - There's no tenancy, so resources live at the top level: `/campaigns`, `/templates`, `/identities`, ...
 - `/organization` (singular) is the single organization profile: `GET`/`PATCH` only.
 - `/keys` manages API keys; `/me` returns the calling key (no `requireAbility` - any valid key may read itself).
-- `/mcp` is the MCP endpoint (`McpRoute` -> `McpController` -> `src/mcp/`). Its tools call services directly, the same way queue workers do, and each tool declares its own CASL claim instead of using `requireAbility`. **When you add or change a REST operation, add or change the matching tool in `src/mcp/tools.ts`**, because the two are kept at parity.
-- Campaign children nest one level deeper: `/campaigns/:campaign_id/groups` and `.../recipients`, plus a further `/groups/:group_id/recipients`.
+- Campaign children nest one level deeper: `/campaigns/:campaign_id/groups` and `.../subscribers`, plus a further `/groups/:group_id/subscribers`.
 
 When adding a new resource, mount it here rather than inventing a separate app-level route table.
 

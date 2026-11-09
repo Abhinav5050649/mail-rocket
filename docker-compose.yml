@@ -1,4 +1,4 @@
-# Full stack: postgres, redis, the API and the web app.
+# Full stack: postgres, redis, the API, the web app and caddy (HTTPS in front).
 #
 # Run from the repo root with the API's env file, so the ${POSTGRES_*}
 # values below come from it (compose otherwise looks for a .env beside this
@@ -48,8 +48,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    # Localhost only: the outside world reaches the API through caddy (HTTPS).
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - ./apps/api/.env
     environment:
@@ -71,8 +72,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    # Localhost only: the outside world reaches the web app through caddy (HTTPS).
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       # Server-side only: the web app's BFF proxy reaches the API over the
       # Docker network; the browser only ever talks to the web app.
@@ -82,6 +84,29 @@ services:
       - api
     restart: always
 
+  caddy:
+    # The only public entry point: HTTPS for both domains, with certificates
+    # obtained and renewed automatically (see the repo-root Caddyfile).
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-app.localhost}
+      API_DOMAIN: ${API_DOMAIN:-api.localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account, kept so a restart doesn't request new ones.
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+      - web
+    restart: always
+
 volumes:
   pgdata:
   redisdata:
+  caddydata:
+  caddyconfig:

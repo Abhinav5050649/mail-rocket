@@ -1,0 +1,21 @@
+# Reverse proxy in front of the stack (the `caddy` service in
+# docker-compose.yml). Caddy gets and renews TLS certificates on its own, so
+# both sites are HTTPS with nothing else to set up.
+#
+# APP_DOMAIN and API_DOMAIN come from apps/api/.env and must have DNS A
+# records pointing at this server, with ports 80 and 443 open. Unset, they
+# default to *.localhost names, which Caddy serves with its own local
+# certificate (the browser will warn) so the stack still runs on a laptop.
+
+# The web app: what people sign in to.
+{$APP_DOMAIN:app.localhost} {
+	encode gzip
+	reverse_proxy web:3001
+}
+
+# The API: what API clients call, and where sent emails' tracking pixel,
+# click links and unsubscribe links point (PUBLIC_API_URL=https://<API_DOMAIN>).
+{$API_DOMAIN:api.localhost} {
+	encode gzip
+	reverse_proxy api:3000
+}

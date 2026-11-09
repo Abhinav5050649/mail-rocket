@@ -19,7 +19,8 @@ A single long-lived Bun process serves HTTP and runs the BullMQ workers side by 
 
 ```mermaid
 flowchart LR
-    Client(["Client"])
+    Client(["Client<br/>web app . API clients . mail clients"])
+    Caddy["caddy<br/>HTTPS, API_DOMAIN"]
 
     subgraph Proc["Bun process — index.ts"]
         direction TB
@@ -32,7 +33,8 @@ flowchart LR
     Redis[("Redis<br/>BullMQ job store")]
     SES[["AWS SES"]]
 
-    Client -- "HTTPS / JSON, Bearer API key" --> API
+    Client -- "HTTPS / JSON, Bearer API key" --> Caddy
+    Caddy -- "HTTP, Docker network" --> API
     API -- "drizzle queries" --> PG
     API -- "enqueue jobs" --> Redis
     Redis -- "deliver jobs" --> W1
@@ -49,6 +51,7 @@ flowchart LR
 - `connectDB()` runs `select 1` before `Bun.serve()` starts — an unreachable database stops the process instead of surfacing as request-time errors.
 - `startCampaignWorkers()` / `startIdentityVerificationWorker()` are called directly from the root `index.ts`, reusing the same pg pool and Redis connection as the HTTP layer rather than a separate deployable.
 - The pooled TCP client is a deliberate fit for a long-lived process — the pool is created once at boot and shared across every request instead of being opened per call.
+- In the Docker stack, `caddy` (repo-root `Caddyfile`) is the only public entry point: it terminates TLS for `API_DOMAIN` (and the web app's `APP_DOMAIN`) and proxies to the API, which listens on localhost only.
 
 ## 2. Request flow
 
@@ -93,7 +96,7 @@ sequenceDiagram
 
 ## 3. Auth & access
 
-There are no users, no passwords and no public routes. An API key is the only principal, and its CASL claims are the only authority.
+There are no users and no passwords, and the only public routes are `/track` and `/unsubscribe` (open/click tracking and unsubscribe links, reached from subscribers' mail). An API key is the only principal, and its CASL claims are the only authority.
 
 ```mermaid
 sequenceDiagram
@@ -128,8 +131,7 @@ sequenceDiagram
 
 - Claims are closed `{ action, subject }` pairs. CASL's `manage`/`all` wildcards, conditions, field grants and inverted rules are rejected by `claimsSchema`, and every stored list is re-validated on each request. `viewer`/`editor`/`admin` are presets that expand to a list at write time. The preset name itself is never stored.
 - Authentication is one indexed lookup with no join. The secret is never stored, only its SHA-256 hash and a short display `prefix`.
-- Two self-guards in `ApiKeyController`: a key can't change its own claims or revoke itself. Revocation is a real delete. The MCP key tools enforce the same two guards.
-- `/mcp` (MCP over Streamable HTTP) goes through the same `authenticate`. Instead of `requireAbility` per route, each MCP tool carries its claim. `tools/list` only shows a key the tools it holds claims for, and each call re-checks the claim.
+- Two self-guards in `ApiKeyController`: a key can't change its own claims or revoke itself. Revocation is a real delete.
 - A zero-key boot always mints an admin key, so "can restart the process" means "can get an admin key". On a self-hosted instance that's the operator. `bun run key:create` is the no-restart alternative.
 
 ## 4. Data model
@@ -142,12 +144,12 @@ erDiagram
     ORGANIZATION ||--o{ CONTACT_DETAILS : "contact details"
     IDENTITY ||--o{ CAMPAIGN : "sends as (From)"
     CAMPAIGN ||--o{ TEMPLATE : revisions
-    CAMPAIGN ||--o{ GROUP : "recipient lists"
-    GROUP ||--o{ GROUP_RECIPIENT : members
-    RECIPIENTS ||--o{ GROUP_RECIPIENT : "in groups"
-    CAMPAIGN ||--o{ RECIPIENTS : targets
-    CAMPAIGN ||--o{ CAMPAIGN_RECIPIENT : "one send"
-    RECIPIENTS ||--o{ CAMPAIGN_RECIPIENT : "per-send outcome"
+    CAMPAIGN ||--o{ GROUP : "subscriber lists"
+    GROUP ||--o{ GROUP_SUBSCRIBER : members
+    SUBSCRIBERS ||--o{ GROUP_SUBSCRIBER : "in groups"
+    CAMPAIGN ||--o{ SUBSCRIBERS : targets
+    CAMPAIGN ||--o{ CAMPAIGN_DELIVERY : "one send"
+    SUBSCRIBERS ||--o{ CAMPAIGN_DELIVERY : "per-send outcome"
 
     API_KEY {
         jsonb claims "CASL action/subject pairs"
@@ -160,16 +162,19 @@ erDiagram
     CAMPAIGN {
         enum status "draft, scheduled, sending, sent, failed"
     }
-    CAMPAIGN_RECIPIENT {
-        enum send_status "pending, sent, failed"
+    CAMPAIGN_DELIVERY {
+        enum status "pending, sent, failed"
+        timestamp opened_at "first open (tracking)"
+        timestamp clicked_at "first click (tracking)"
+        timestamp unsubscribed_at "unsubscribed via this email"
     }
 ```
 
 **Notes**
 
-- Group membership is many-to-many through `group_recipient`: a recipient can be in any number of groups, and deleting either side removes the membership (cascade).
-- A campaign's audience is its directly linked recipients plus every member of its linked groups, each once (`campaignAudience` in `RecipientService`). That set is what dispatch writes into `campaign_recipient`.
-- `campaign_recipient` is an audit trail, not a mutation: a send creates one row per recipient per send; the underlying `recipients` row is never touched, so the same recipient stays reusable across future campaigns.
+- Group membership is many-to-many through `group_subscriber`: a subscriber can be in any number of groups, and deleting either side removes the membership (cascade).
+- A campaign's audience is its directly linked subscribers plus every member of its linked groups, each once (`campaignAudience` in `SubscriberService`). That set is what dispatch writes into `campaign_delivery`.
+- `campaign_delivery` is an audit trail, not a mutation: a send creates one row per subscriber per send; the underlying `subscribers` row is never touched, so the same subscriber stays reusable across future campaigns.
 - Templates are revisions, not slots: a campaign can hold several `template` rows; `SendCampaignService` picks "the" one to send by `updated_at desc` — there's no `is_final` flag today.
 - Every row id is an app-generated UUID string (`varchar`, not Postgres's native `uuid` type), kept consistent so FK columns match without a cast.
 
@@ -215,14 +220,14 @@ sequenceDiagram
 
 ## 6. Campaign send pipeline
 
-A scheduled campaign is one delayed BullMQ job. When it fires, the dispatch worker builds the recipient manifest and hands it to a `FlowProducer`, which fans the send out into rate-limited chunk jobs that all report back to a single finalize job.
+A scheduled campaign is one delayed BullMQ job. When it fires, the dispatch worker builds the subscriber manifest and hands it to a `FlowProducer`, which fans the send out into rate-limited chunk jobs that all report back to a single finalize job.
 
 ```mermaid
 flowchart TD
     A["Campaign create/update<br/>status + start_time + identity_id set"] --> B["scheduleCampaignDispatch<br/>dispatch queue . jobId = campaignId . delay until start_time"]
     B -- "start_time arrives" --> C["dispatch worker: processDispatch"]
-    C --> D["build recipient manifest<br/>insert campaign_recipient rows (pending)"]
-    D --> E["chunk recipient ids<br/>CHUNK_SIZE = 25"]
+    C --> D["build subscriber manifest<br/>insert campaign_delivery rows (pending)"]
+    D --> E["chunk subscriber ids<br/>CHUNK_SIZE = 25"]
     E --> F["campaignFlowProducer.add<br/>1 finalize parent + N send-chunk children"]
 
     F --> G1["send-chunk worker<br/>chunk 1"]
@@ -237,7 +242,7 @@ flowchart TD
     G2 -. settled .-> H
     G3 -. settled .-> H
 
-    H --> I{"any recipient<br/>send_status = sent ?"}
+    H --> I{"any subscriber<br/>status = sent ?"}
     I -- yes --> J["campaign.status = sent"]
     I -- no --> K["campaign.status = failed"]
 ```
@@ -246,7 +251,9 @@ flowchart TD
 
 - Rescheduling is idempotent by design: `scheduleCampaignDispatch` reuses `jobId = campaignId`; editing a campaign's `start_time` removes and re-adds the same job instead of creating a duplicate — but only while it's still `delayed`/`waiting`. An already-firing job is left alone.
 - A stuck chunk can't block the campaign: chunk jobs carry `ignoreDependencyOnFailure`, so a chunk that exhausts all 5 retries still lets the finalize parent run rather than hanging the whole send.
-- Chunk jobs re-fetch everything fresh: `sendChunk` re-reads the campaign, identity, and template by id rather than trusting the job payload, and skips recipients already marked `sent`, so a BullMQ retry of a partially-sent chunk is safe.
-- Subject/body support `{{variable_name}}` placeholders (recipient name, organization, group, etc.), resolved per recipient - see [TEMPLATE_VARIABLES.md](TEMPLATE_VARIABLES.md). A recipient with an unresolved placeholder is marked `failed` and skipped rather than sent broken content.
-- Partial delivery isn't total failure: `finalizeCampaign` only marks `failed` when *zero* recipients succeeded — routine per-recipient bounces don't flip the whole campaign's status; `campaign_recipient.send_status` is the accurate per-recipient record.
+- Chunk jobs re-fetch everything fresh: `sendChunk` re-reads the campaign, identity, and template by id rather than trusting the job payload, and skips subscribers already marked `sent`, so a BullMQ retry of a partially-sent chunk is safe.
+- Subject/body support `{{variable_name}}` placeholders (subscriber name, organization, group, etc.), resolved per subscriber - see [TEMPLATE_VARIABLES.md](TEMPLATE_VARIABLES.md). A subscriber with an unresolved placeholder is marked `failed` and skipped rather than sent broken content.
+- Partial delivery isn't total failure: `finalizeCampaign` only marks `failed` when *zero* subscribers succeeded — routine per-subscriber bounces don't flip the whole campaign's status; `campaign_delivery.status` is the accurate per-subscriber record.
+- With `PUBLIC_API_URL` set, each body gets an open pixel and signed click links tied to its `campaign_delivery` row (`addTracking`). Mail clients hit the public `/track/open` and `/track/click` routes, which set `opened_at`/`clicked_at`; `GET /campaigns/:campaign_id/stats` counts them.
+- With `PUBLIC_API_URL` set, each body also gets an unsubscribe footer and one-click `List-Unsubscribe` headers (sent through the SES v2 API, which allows custom headers). Unsubscribing sets `subscribers.unsubscribed_at`, and dispatch leaves those subscribers out of every later send.
 - Queue-orchestration stays out of the service layer: `CampaignWorkers.ts` owns the `FlowProducer` wiring; `SendCampaignService` never imports from `src/queues/`, so it stays callable and testable independent of BullMQ.

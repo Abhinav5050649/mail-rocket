@@ -6,7 +6,7 @@ import { useGetGroupsQuery } from "@/features/groups";
 
 /**
  * Id -> display name maps for the resources other rows point at (a
- * template's campaign, a campaign's sender, a recipient's group). Each list
+ * template's campaign, a campaign's sender, a subscriber's group). Each list
  * is fetched once (first 100 rows, the API's practical page) and only when
  * the key can read it; an unknown id resolves to null.
  */
@@ -35,7 +35,7 @@ export function useGroupNames() {
   const { ability } = useAbility();
   const { data } = useGetGroupsQuery({ limit: 100 }, { skip: !ability.can("read", "Group") });
   const groupName = useNameMap(data, (row) => row.name);
-  /** "Newsletter, VIP" for a recipient's `group_ids`, alphabetical; null when in none. */
+  /** "Newsletter, VIP" for a subscriber's `group_ids`, alphabetical; null when in none. */
   const groupNames = (ids: string[]) =>
     ids
       .map((id) => groupName(id))

@@ -130,6 +130,39 @@ export class CampaignController {
     }
 
     /**
+     * GET /campaigns/:campaign_id/stats
+     * Returns a campaign's send counts and its open and click rates.
+     *
+     * @param c - Hono request context; expects a `campaign_id` route param.
+     * @returns JSON response with the campaign's stats.
+     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
+     * @throws {HTTPException} 404 if no campaign matches the given id.
+     */
+    getStats = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.getStats.name}`);
+
+        const campaignId = c.req.param('campaign_id');
+
+        if (!campaignId) {
+            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
+        }
+
+        logger.debug({ campaignId }, `Request:`);
+
+        const stats = await this.campaignService.getStats(campaignId);
+
+        if (!stats) {
+            logger.warn({ campaignId }, `${this.constructor.name}.${this.getStats.name}: Campaign not found`);
+            throw new HTTPException(404, { message: "Campaign not found" });
+        }
+
+        logger.debug({ stats }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.getStats.name}`);
+
+        return c.json(stats);
+    }
+
+    /**
      * PATCH /campaigns/:campaign_id
      * Partially updates a campaign.
      *
@@ -171,7 +204,7 @@ export class CampaignController {
     /**
      * DELETE /campaigns/:campaign_id
      * Deletes a campaign and cancels its queued send. Its templates, groups
-     * and recipients are kept, unlinked.
+     * and subscribers are kept, unlinked.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
      * @returns JSON response with the deleted campaign.

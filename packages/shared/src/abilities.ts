@@ -22,7 +22,7 @@ export const SUBJECTS = [
     "Campaign",
     "Template",
     "Group",
-    "Recipient",
+    "Subscriber",
     "Key",
 ] as const;
 /** A resource a claim may target. */
@@ -57,7 +57,7 @@ export type KeyPreset = (typeof PRESETS)[number];
 const viewer: Claim[] = SUBJECTS.map((subject) => ({ action: "read", subject }));
 
 /** Subjects an editor may create, update and delete - the day-to-day campaign work. */
-const EDITOR_SUBJECTS: Subject[] = ["Campaign", "Template", "Group", "Recipient"];
+const EDITOR_SUBJECTS: Subject[] = ["Campaign", "Template", "Group", "Subscriber"];
 
 /** Editor: viewer, plus full write access to campaign content. Sending identities stay read-only. */
 const editor: Claim[] = [
@@ -85,7 +85,7 @@ export const claimsForPreset: Record<KeyPreset, readonly Claim[]> = { viewer, ed
 /** One-line summary of each preset, for choosing one. */
 export const PRESET_DESCRIPTIONS: Record<KeyPreset, string> = {
     viewer: "Read everything.",
-    editor: "Viewer, plus create/edit/delete campaigns, templates, groups and recipients. Sending identities are read-only.",
+    editor: "Viewer, plus create/edit/delete campaigns, templates, groups and subscribers. Sending identities are read-only.",
     admin: "Editor, plus sending identities, the organization profile, addresses, contact details and API keys.",
 };
 

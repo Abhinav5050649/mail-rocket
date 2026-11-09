@@ -27,7 +27,7 @@ export default function GroupsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Groups" description="Lists of recipients a campaign sends to together." actions={action} />
+      <PageHeader title="Groups" description="Lists of subscribers a campaign sends to together." actions={action} />
       <div>
         <DataTable<Group>
           noun="groups"
@@ -42,7 +42,7 @@ export default function GroupsPage() {
             { header: "Created", cell: (group) => <span className="tabular">{formatDate(group.created_at)}</span>, align: "right", className: "w-36" },
           ]}
           mobile={{ title: (group) => group.name || "Untitled group", subtitle: (group) => campaignName(group.campaign_id) ?? "Not linked to a campaign" }}
-          empty={<EmptyState title="No groups yet" action={action}>Group recipients so a campaign can send to all of them at once.</EmptyState>}
+          empty={<EmptyState title="No groups yet" action={action}>Group subscribers so a campaign can send to all of them at once.</EmptyState>}
         />
         <Pagination noun="groups" limit={limit} offset={offset} rowCount={groups?.length ?? 0} onOffsetChange={setOffset} />
       </div>

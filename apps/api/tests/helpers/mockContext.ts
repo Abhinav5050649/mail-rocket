@@ -5,7 +5,7 @@ import { HTTPException } from "hono/http-exception";
  * Minimal stand-in for Hono's `Context`, covering exactly what controllers
  * in this codebase touch: route params (`c.req.param`), query params
  * (`c.req.query`), the JSON body (`c.req.json`), stored variables (`c.get`,
- * set by middleware like `authenticate`), and `c.json` responses.
+ * set by middleware like `authenticate`), and `c.json`/`c.body`/`c.redirect`/`c.html` responses.
  * Controllers receive this directly instead of a real Hono `Context` - no
  * HTTP layer or routing is exercised, so these stay true unit tests of the
  * controller methods.
@@ -31,6 +31,9 @@ export function createMockContext(options: MockContextOptions = {}) {
         get: mock((key: string) => variables[key]),
         set: mock(() => {}),
         json: mock((data: unknown, status?: number) => ({ body: data, status: status ?? 200 })),
+        body: mock((data: unknown, status?: number, headers?: Record<string, string>) => ({ body: data, status: status ?? 200, headers })),
+        redirect: mock((location: string, status?: number) => ({ location, status: status ?? 302 })),
+        html: mock((data: string, status?: number) => ({ body: data, status: status ?? 200 })),
     } as any;
 }
 

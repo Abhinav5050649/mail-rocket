@@ -16,6 +16,7 @@ const campaignController = new CampaignController(campaignService);
  * - GET    /             - list all campaigns.
  * - POST   /             - create a campaign.
  * - GET    /:campaign_id - fetch a single campaign.
+ * - GET    /:campaign_id/stats - fetch a campaign's send counts and open/click rates.
  * - PATCH  /:campaign_id - partially update a campaign.
  * - DELETE /:campaign_id - delete a campaign.
  */
@@ -23,5 +24,6 @@ export const campaignRoute = new Hono()
     .get('/', requireAbility('read', 'Campaign'), campaignController.getAll)
     .post('/', requireAbility('create', 'Campaign'), campaignController.post)
     .get('/:campaign_id', requireAbility('read', 'Campaign'), campaignController.get)
+    .get('/:campaign_id/stats', requireAbility('read', 'Campaign'), campaignController.getStats)
     .patch('/:campaign_id', requireAbility('update', 'Campaign'), campaignController.update)
     .delete('/:campaign_id', requireAbility('delete', 'Campaign'), campaignController.delete)

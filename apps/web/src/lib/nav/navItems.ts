@@ -32,7 +32,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Audience",
     items: [
       { label: "Groups", href: "/groups", icon: Users01, subject: "Group" },
-      { label: "Recipients", href: "/recipients", icon: User01, subject: "Recipient" },
+      { label: "Subscribers", href: "/subscribers", icon: User01, subject: "Subscriber" },
     ],
   },
   {

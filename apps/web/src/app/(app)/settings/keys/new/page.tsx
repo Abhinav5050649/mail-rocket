@@ -39,7 +39,7 @@ export default function NewKeyPage() {
           <CopyButton value={created.secret} label="Copy key" className="size-8" />
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          Sign in with it here, send it as <code className="text-text">Authorization: Bearer …</code> to the API, or add it to an MCP client.
+          Sign in with it here, send it as <code className="text-text">Authorization: Bearer …</code> to the API.
         </p>
         <div>
           <Button variant="primary" onClick={() => router.push("/settings/keys")}>

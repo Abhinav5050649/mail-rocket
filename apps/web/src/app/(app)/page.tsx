@@ -142,7 +142,7 @@ function CountStrip({ overview, isLoading }: { overview?: Overview; isLoading: b
     );
   }
 
-  const { campaigns, identities, templates, groups, recipients } = overview;
+  const { campaigns, identities, templates, groups, subscribers } = overview;
   const cells: CountCell[] = [];
   if (campaigns) {
     cells.push({
@@ -175,8 +175,8 @@ function CountStrip({ overview, isLoading }: { overview?: Overview; isLoading: b
     });
   }
   if (templates) cells.push({ label: "Templates", href: "/templates", value: templates.total, detail: "HTML bodies" });
-  if (groups) cells.push({ label: "Groups", href: "/groups", value: groups.total, detail: "Recipient lists" });
-  if (recipients) cells.push({ label: "Recipients", href: "/recipients", value: recipients.total, detail: "Email addresses" });
+  if (groups) cells.push({ label: "Groups", href: "/groups", value: groups.total, detail: "Subscriber lists" });
+  if (subscribers) cells.push({ label: "Subscribers", href: "/subscribers", value: subscribers.total, detail: "Email addresses" });
 
   if (cells.length === 0) return null;
 
@@ -214,13 +214,13 @@ const STRIP_COLUMNS: Record<number, string> = {
 
 /** First run: the steps between an empty instance and a first send, at their true progress. */
 function SetupChecklist({ overview }: { overview: Overview }) {
-  const { campaigns, identities, templates, recipients } = overview;
-  if (!campaigns || !identities || !templates || !recipients) return null;
+  const { campaigns, identities, templates, subscribers } = overview;
+  if (!campaigns || !identities || !templates || !subscribers) return null;
 
   const steps = [
     { label: "Verify a sending identity", href: "/identities/new", done: identities.by_status.active > 0 },
     { label: "Write a template", href: "/templates/new", done: templates.total > 0 },
-    { label: "Add recipients", href: "/recipients/new", done: recipients.total > 0 },
+    { label: "Add subscribers", href: "/subscribers/new", done: subscribers.total > 0 },
     { label: "Schedule a campaign", href: "/campaigns/new", done: campaigns.by_status.scheduled + campaigns.by_status.sent > 0 },
   ];
   const doneCount = steps.filter((step) => step.done).length;

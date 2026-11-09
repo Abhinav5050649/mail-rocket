@@ -42,7 +42,7 @@ export const apiSlice = createApi({
     "Campaign",
     "Template",
     "Group",
-    "Recipient",
+    "Subscriber",
   ],
   endpoints: () => ({}),
 });

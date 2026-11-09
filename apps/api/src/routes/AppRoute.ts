@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { apiKeyRoute, meRoute } from "./ApiKeyRoute";
-import { mcpRoute } from "./McpRoute";
 import { overviewRoute } from "./OverviewRoute";
 import { organizationRoute } from "./OrganizationRoute";
 import { addressRoute } from "./AddressRoute";
@@ -9,28 +8,36 @@ import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
 import { templateRoute, campaignTemplateRoute } from "./TemplateRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
-import { recipientRoute, campaignRecipientRoute, groupRecipientRoute, groupMembershipRoute } from "./RecipientRoute";
+import { subscriberRoute, campaignSubscriberRoute, groupSubscriberRoute, groupMembershipRoute } from "./SubscriberRoute";
+import { trackingRoute } from "./TrackingRoute";
+import { unsubscribeRoute } from "./UnsubscribeRoute";
 import { authenticate } from "../middleware";
 
 /**
  * Root route table; `index.ts` mounts this whole thing at `/`. Every
- * endpoint requires an API key - there are no public routes, since keys are
- * minted at boot or via `bun run key:create`, not through the API. A
+ * endpoint requires an API key (keys are minted at boot or via
+ * `bun run key:create`, not through the API), except `/track` and
+ * `/unsubscribe`: the open/click tracking and unsubscribe links that
+ * subscribers reach from their mail. A
  * self-hosted instance has no tenants, so resources live at the top level
- * rather than under an organization. Groups and recipients additionally get
+ * rather than under an organization. Groups and subscribers additionally get
  * dedicated routes nested under `/campaigns/:campaign_id/...` (and, for
- * recipients, `/groups/:group_id/...`) instead of relying on query-param
- * filters. `/mcp` exposes the same operations as MCP tools for AI clients.
+ * subscribers, `/groups/:group_id/...`) instead of relying on query-param
+ * filters.
  *
- * `.use('*', authenticate)` is registered before any `.route(...)` call, so
- * it always runs ahead of every route mounted below.
+ * `/track` and `/unsubscribe` are mounted before `.use('*', authenticate)`:
+ * Hono runs handlers in registration order and their handlers answer
+ * without calling `next`, so `authenticate` never runs for them.
+ * `authenticate` is registered before every other `.route(...)` call, so it
+ * always runs ahead of those.
  */
 export const appRoute = new Hono();
+appRoute.route('/track', trackingRoute);
+appRoute.route('/unsubscribe', unsubscribeRoute);
 appRoute.use('*', authenticate);
 appRoute
     .route('/me', meRoute)
     .route('/keys', apiKeyRoute)
-    .route('/mcp', mcpRoute)
     .route('/overview', overviewRoute)
     .route('/organization', organizationRoute)
     .route('/addresses', addressRoute)
@@ -39,9 +46,9 @@ appRoute
     .route('/campaigns', campaignRoute)
     .route('/templates', templateRoute)
     .route('/groups', groupRoute)
-    .route('/recipients', recipientRoute)
-    .route('/groups/:group_id/recipients', groupMembershipRoute)
+    .route('/subscribers', subscriberRoute)
+    .route('/groups/:group_id/subscribers', groupMembershipRoute)
     .route('/campaigns/:campaign_id/templates', campaignTemplateRoute)
     .route('/campaigns/:campaign_id/groups', campaignGroupRoute)
-    .route('/campaigns/:campaign_id/recipients', campaignRecipientRoute)
-    .route('/campaigns/:campaign_id/groups/:group_id/recipients', groupRecipientRoute);
+    .route('/campaigns/:campaign_id/subscribers', campaignSubscriberRoute)
+    .route('/campaigns/:campaign_id/groups/:group_id/subscribers', groupSubscriberRoute);

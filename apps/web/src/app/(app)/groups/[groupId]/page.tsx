@@ -16,7 +16,7 @@ import { useAbility } from "@/hooks/useAbility";
 import { useCampaignNames } from "@/hooks/useLookups";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fullName } from "@/lib/format";
-import { useAddRecipientToGroupMutation, useGetGroupRecipientsQuery, useGetRecipientsQuery, useRemoveRecipientFromGroupMutation } from "@/features/recipients";
+import { useAddSubscriberToGroupMutation, useGetGroupSubscribersQuery, useGetSubscribersQuery, useRemoveSubscriberFromGroupMutation } from "@/features/subscribers";
 import {
   useGetGroupQuery,
   useUpdateGroupMutation,
@@ -25,38 +25,38 @@ import {
   groupDeleteDialogOpened,
   groupDialogClosed,
 } from "@/features/groups";
-import type { Recipient } from "@/types/resources";
+import type { Subscriber } from "@/types/resources";
 
-/** Picks an existing recipient who isn't in the group yet and adds them. */
-function AddExistingRecipient({ groupId, memberIds }: { groupId: string; memberIds: Set<string> }) {
-  const [recipientId, setRecipientId] = useState("");
-  const { data: recipients } = useGetRecipientsQuery({ limit: 100 });
-  const [addRecipient, { isLoading, error }] = useAddRecipientToGroupMutation();
-  const candidates = (recipients ?? []).filter((recipient) => !memberIds.has(recipient.id));
-  if (recipients && candidates.length === 0) return null;
+/** Picks an existing subscriber who isn't in the group yet and adds them. */
+function AddExistingSubscriber({ groupId, memberIds }: { groupId: string; memberIds: Set<string> }) {
+  const [subscriberId, setSubscriberId] = useState("");
+  const { data: subscribers } = useGetSubscribersQuery({ limit: 100 });
+  const [addSubscriber, { isLoading, error }] = useAddSubscriberToGroupMutation();
+  const candidates = (subscribers ?? []).filter((subscriber) => !memberIds.has(subscriber.id));
+  if (subscribers && candidates.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Select
-          aria-label="Recipient to add"
+          aria-label="Subscriber to add"
           size="sm"
           className="sm:max-w-sm"
-          value={recipientId}
-          onChange={(event) => setRecipientId(event.target.value)}
+          value={subscriberId}
+          onChange={(event) => setSubscriberId(event.target.value)}
           options={[
-            { label: recipients ? "Add an existing recipient…" : "Loading recipients…", value: "" },
-            ...candidates.map((recipient) => ({ label: [recipient.email_id, fullName(recipient)].filter(Boolean).join(" · "), value: recipient.id })),
+            { label: subscribers ? "Add an existing subscriber…" : "Loading subscribers…", value: "" },
+            ...candidates.map((subscriber) => ({ label: [subscriber.email_id, fullName(subscriber)].filter(Boolean).join(" · "), value: subscriber.id })),
           ]}
         />
         <Button
           size="sm"
           icon={Plus}
-          disabled={!recipientId}
+          disabled={!subscriberId}
           isLoading={isLoading}
           onClick={async () => {
-            const result = await addRecipient({ groupId, recipientId });
-            if (!("error" in result)) setRecipientId("");
+            const result = await addSubscriber({ groupId, subscriberId });
+            if (!("error" in result)) setSubscriberId("");
           }}
         >
           Add to group
@@ -68,46 +68,46 @@ function AddExistingRecipient({ groupId, memberIds }: { groupId: string; memberI
 }
 
 /** The group's members, with remove and add controls for keys that can edit the group. */
-function GroupRecipients({ groupId }: { groupId: string }) {
+function GroupSubscribers({ groupId }: { groupId: string }) {
   const { ability } = useAbility();
   const canEdit = ability.can("update", "Group");
-  const { data: recipients, isLoading, error, refetch } = useGetGroupRecipientsQuery({ groupId, limit: 100 });
-  const [removeRecipient, { isLoading: isRemoving, originalArgs }] = useRemoveRecipientFromGroupMutation();
-  const memberIds = new Set((recipients ?? []).map((recipient) => recipient.id));
+  const { data: subscribers, isLoading, error, refetch } = useGetGroupSubscribersQuery({ groupId, limit: 100 });
+  const [removeSubscriber, { isLoading: isRemoving, originalArgs }] = useRemoveSubscriberFromGroupMutation();
+  const memberIds = new Set((subscribers ?? []).map((subscriber) => subscriber.id));
 
   const create = (
-    <Can I="create" a="Recipient">
-      <Button href={`/recipients/new?groupId=${groupId}`} size="sm" icon={Plus} variant="ghost">
-        New recipient
+    <Can I="create" a="Subscriber">
+      <Button href={`/subscribers/new?groupId=${groupId}`} size="sm" icon={Plus} variant="ghost">
+        New subscriber
       </Button>
     </Can>
   );
 
   return (
     <div className="flex flex-col gap-4">
-      {canEdit && <AddExistingRecipient groupId={groupId} memberIds={memberIds} />}
-      <DataTable<Recipient>
+      {canEdit && <AddExistingSubscriber groupId={groupId} memberIds={memberIds} />}
+      <DataTable<Subscriber>
         noun="members"
-        rows={recipients}
+        rows={subscribers}
         isLoading={isLoading}
         error={error}
         onRetry={refetch}
         skeletonRows={3}
-        href={(recipient) => `/recipients/${recipient.id}`}
+        href={(subscriber) => `/subscribers/${subscriber.id}`}
         columns={[
-          { header: "Email", cell: (recipient) => recipient.email_id, className: "w-[45%]" },
-          { header: "Name", cell: (recipient) => fullName(recipient) ?? <Dash /> },
+          { header: "Email", cell: (subscriber) => subscriber.email_id, className: "w-[45%]" },
+          { header: "Name", cell: (subscriber) => fullName(subscriber) ?? <Dash /> },
           {
             header: "",
             align: "right",
             className: "w-28",
-            cell: (recipient) =>
+            cell: (subscriber) =>
               canEdit && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  isLoading={isRemoving && originalArgs?.recipientId === recipient.id}
-                  onClick={() => removeRecipient({ groupId, recipientId: recipient.id })}
+                  isLoading={isRemoving && originalArgs?.subscriberId === subscriber.id}
+                  onClick={() => removeSubscriber({ groupId, subscriberId: subscriber.id })}
                 >
                   Remove
                 </Button>
@@ -115,18 +115,18 @@ function GroupRecipients({ groupId }: { groupId: string }) {
           },
         ]}
         mobile={{
-          title: (recipient) => recipient.email_id,
-          subtitle: (recipient) => fullName(recipient) ?? "No name",
-          trailing: (recipient) =>
+          title: (subscriber) => subscriber.email_id,
+          subtitle: (subscriber) => fullName(subscriber) ?? "No name",
+          trailing: (subscriber) =>
             canEdit && (
-              <Button size="sm" variant="ghost" onClick={() => removeRecipient({ groupId, recipientId: recipient.id })}>
+              <Button size="sm" variant="ghost" onClick={() => removeSubscriber({ groupId, subscriberId: subscriber.id })}>
                 Remove
               </Button>
             ),
         }}
-        empty={<EmptyState title="No one in this group yet" action={create}>Add existing recipients above, or create a new one in this group.</EmptyState>}
+        empty={<EmptyState title="No one in this group yet" action={create}>Add existing subscribers above, or create a new one in this group.</EmptyState>}
       />
-      {recipients && recipients.length > 0 && <div>{create}</div>}
+      {subscribers && subscribers.length > 0 && <div>{create}</div>}
     </div>
   );
 }
@@ -180,13 +180,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
             error={updateError}
             onSubmit={(values) => updateGroup({ groupId, ...values, campaign_id: values.campaign_id || undefined })}
           />
-          {ability.can("read", "Recipient") && (
+          {ability.can("read", "Subscriber") && (
             <SettingsSection
               wide
               title="Members"
-              description="Recipients can be in several groups. Removing someone here keeps them and their other groups. First 100 shown."
+              description="Subscribers can be in several groups. Removing someone here keeps them and their other groups. First 100 shown."
             >
-              <GroupRecipients groupId={groupId} />
+              <GroupSubscribers groupId={groupId} />
             </SettingsSection>
           )}
           {ability.can("delete", "Group") && (
