@@ -2,6 +2,8 @@
 
 Self-hosted email campaigns sent through your own AWS SES account. Schedule campaigns, verify sending identities, write HTML templates with `{{variables}}`, and send to subscribers and groups. Every request authenticates with an API key whose claims decide what it can do.
 
+Docs: https://abhinav5050649.github.io/mail-rocket/ (source in [website/](website/)).
+
 ## Layout
 
 ```
@@ -11,6 +13,7 @@ apps/
 packages/
   shared/     Code both apps import: permissions, wire types, template variables
 resources/    Shared docs: OpenAPI spec, DBML + SQL schema, AWS IAM policies
+website/      Docusaurus site (landing page + docs), deployed to GitHub Pages
 docker-compose.yml   Full stack: postgres, redis, api, web, caddy
 Caddyfile     HTTPS reverse proxy in front of the web app and API
 PRODUCT.md    Who it's for and how it behaves
