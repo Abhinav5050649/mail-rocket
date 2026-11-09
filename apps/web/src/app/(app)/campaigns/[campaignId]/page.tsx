@@ -85,7 +85,7 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
         <DeleteSection
           noun="campaign"
           name={campaign.name || "Untitled campaign"}
-          consequence="Permanently removes the campaign and cancels its scheduled send. Its templates, groups and recipients stay, unlinked; its delivery history is removed."
+          consequence="Permanently removes the campaign and cancels its scheduled send. Its templates, groups and subscribers stay, unlinked; its delivery history is removed."
           isOpen={dialog?.type === "delete"}
           onOpenChange={(open) => dispatch(open ? campaignDeleteDialogOpened(campaignId) : campaignDialogClosed())}
           isDeleting={isDeleting}

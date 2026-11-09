@@ -2,16 +2,16 @@ import { and, asc, count, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db, logger } from "../libs";
 import {
     apiKeyTable,
-    campaignRecipientTable,
+    campaignDeliveryTable,
     campaignStatusEnum,
-    campaignRecipientSendStatusEnum,
+    campaignDeliveryStatusEnum,
     campaignTable,
     groupTable,
     identityStatusEnum,
     identityTable,
-    recipientsTable,
+    subscribersTable,
     templateTable,
-    type CampaignRecipientSendStatus,
+    type CampaignDeliveryStatus,
     type CampaignStatus,
     type ICampaign,
     type IdentityStatus,
@@ -29,12 +29,12 @@ export interface OverviewSections {
     identities: boolean;
     templates: boolean;
     groups: boolean;
-    recipients: boolean;
+    subscribers: boolean;
     keys: boolean;
 }
 
-/** Per-recipient delivery outcome counts for one campaign's send (or all sends together). */
-export type DeliveryCounts = Record<CampaignRecipientSendStatus, number>;
+/** Per-subscriber delivery outcome counts for one campaign's send (or all sends together). */
+export type DeliveryCounts = Record<CampaignDeliveryStatus, number>;
 
 /** A campaign whose send has started, with how its deliveries went. */
 export type RecentCampaign = ICampaign & { deliveries: DeliveryCounts };
@@ -60,7 +60,7 @@ export interface Overview {
     identities: IdentityOverview | null;
     templates: { total: number } | null;
     groups: { total: number } | null;
-    recipients: { total: number } | null;
+    subscribers: { total: number } | null;
     keys: { total: number } | null;
 }
 
@@ -99,16 +99,16 @@ export class OverviewService {
         logger.debug({ sections }, `Request:`);
 
         try {
-            const [campaigns, identities, templates, groups, recipients, keys] = await Promise.all([
+            const [campaigns, identities, templates, groups, subscribers, keys] = await Promise.all([
                 sections.campaigns ? this.getCampaigns() : null,
                 sections.identities ? this.getIdentities() : null,
                 sections.templates ? this.countRows(templateTable) : null,
                 sections.groups ? this.countRows(groupTable) : null,
-                sections.recipients ? this.countRows(recipientsTable) : null,
+                sections.subscribers ? this.countRows(subscribersTable) : null,
                 sections.keys ? this.countRows(apiKeyTable) : null,
             ]);
 
-            const overview: Overview = { campaigns, identities, templates, groups, recipients, keys };
+            const overview: Overview = { campaigns, identities, templates, groups, subscribers, keys };
 
             logger.debug({ overview }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.get.name}`);
@@ -121,7 +121,7 @@ export class OverviewService {
     }
 
     /** Counts every row of a table. */
-    private async countRows(table: typeof templateTable | typeof groupTable | typeof recipientsTable | typeof apiKeyTable) {
+    private async countRows(table: typeof templateTable | typeof groupTable | typeof subscribersTable | typeof apiKeyTable) {
         const [row] = await db.select({ count: count() }).from(table);
         return { total: Number(row?.count ?? 0) };
     }
@@ -147,9 +147,9 @@ export class OverviewService {
                 .where(inArray(campaignTable.status, SENT_STATUSES))
                 .orderBy(desc(campaignTable.start_time))
                 .limit(OVERVIEW_LIST_SIZE),
-            db.select({ key: campaignRecipientTable.send_status, count: count() })
-                .from(campaignRecipientTable)
-                .groupBy(campaignRecipientTable.send_status),
+            db.select({ key: campaignDeliveryTable.status, count: count() })
+                .from(campaignDeliveryTable)
+                .groupBy(campaignDeliveryTable.status),
         ]);
 
         const by_status = tally(campaignStatusEnum.enumValues, statusRows);
@@ -159,23 +159,23 @@ export class OverviewService {
             by_status,
             upcoming,
             recent: await this.withDeliveries(recentRows),
-            deliveries: tally(campaignRecipientSendStatusEnum.enumValues, deliveryRows),
+            deliveries: tally(campaignDeliveryStatusEnum.enumValues, deliveryRows),
         };
     }
 
-    /** Attaches each campaign's per-recipient delivery outcome counts, in one grouped query. */
+    /** Attaches each campaign's per-subscriber delivery outcome counts, in one grouped query. */
     private async withDeliveries(campaigns: ICampaign[]): Promise<RecentCampaign[]> {
         if (campaigns.length === 0) return [];
 
         const rows = await db
-            .select({ campaign_id: campaignRecipientTable.campaign_id, key: campaignRecipientTable.send_status, count: count() })
-            .from(campaignRecipientTable)
-            .where(inArray(campaignRecipientTable.campaign_id, campaigns.map((campaign) => campaign.id)))
-            .groupBy(campaignRecipientTable.campaign_id, campaignRecipientTable.send_status);
+            .select({ campaign_id: campaignDeliveryTable.campaign_id, key: campaignDeliveryTable.status, count: count() })
+            .from(campaignDeliveryTable)
+            .where(inArray(campaignDeliveryTable.campaign_id, campaigns.map((campaign) => campaign.id)))
+            .groupBy(campaignDeliveryTable.campaign_id, campaignDeliveryTable.status);
 
         return campaigns.map((campaign) => ({
             ...campaign,
-            deliveries: tally(campaignRecipientSendStatusEnum.enumValues, rows.filter((row) => row.campaign_id === campaign.id)),
+            deliveries: tally(campaignDeliveryStatusEnum.enumValues, rows.filter((row) => row.campaign_id === campaign.id)),
         }));
     }
 }

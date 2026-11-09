@@ -83,12 +83,12 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
       <fieldset disabled={readOnly} className="contents">
-        <SettingsSection title="Message" description="The name is for your team; recipients see the subject line.">
+        <SettingsSection title="Message" description="The name is for your team; subscribers see the subject line.">
           <div className="flex flex-col gap-4">
             <Field label="Campaign name" error={errors.name?.message}>
               {(props) => <Input {...props} {...register("name")} placeholder="Autumn product update" />}
             </Field>
-            <Field label="Subject line" optional hint="Template variables work here too, e.g. {{recipient_first_name}}.">
+            <Field label="Subject line" optional hint="Template variables work here too, e.g. {{subscriber_first_name}}.">
               {(props) => <Input {...props} {...register("subject")} placeholder="What's new this autumn" />}
             </Field>
           </div>

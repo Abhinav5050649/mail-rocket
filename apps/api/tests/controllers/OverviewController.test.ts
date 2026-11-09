@@ -8,7 +8,7 @@ describe("OverviewController", () => {
     let overviewService: OverviewService;
     let controller: OverviewController;
 
-    const overview = { campaigns: null, identities: null, templates: { total: 3 }, groups: null, recipients: null, keys: null };
+    const overview = { campaigns: null, identities: null, templates: { total: 3 }, groups: null, subscribers: null, keys: null };
 
     /** A context whose authenticated key holds `claims`. */
     const contextWith = (claims: Parameters<typeof defineAbility>[0]) =>
@@ -25,7 +25,7 @@ describe("OverviewController", () => {
     it("asks for every section a viewer key can read", async () => {
         const result: any = await controller.get(contextWith(claimsForPreset.viewer));
         expect(overviewService.get).toHaveBeenCalledWith({
-            campaigns: true, identities: true, templates: true, groups: true, recipients: true, keys: true,
+            campaigns: true, identities: true, templates: true, groups: true, subscribers: true, keys: true,
         });
         expect(result.body).toEqual(overview);
     });
@@ -33,7 +33,7 @@ describe("OverviewController", () => {
     it("leaves out the sections a key can't read", async () => {
         await controller.get(contextWith([{ action: "read", subject: "Template" }]));
         expect(overviewService.get).toHaveBeenCalledWith({
-            campaigns: false, identities: false, templates: true, groups: false, recipients: false, keys: false,
+            campaigns: false, identities: false, templates: true, groups: false, subscribers: false, keys: false,
         });
     });
 });

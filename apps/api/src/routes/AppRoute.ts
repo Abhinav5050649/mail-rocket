@@ -8,7 +8,7 @@ import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
 import { templateRoute, campaignTemplateRoute } from "./TemplateRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
-import { recipientRoute, campaignRecipientRoute, groupRecipientRoute, groupMembershipRoute } from "./RecipientRoute";
+import { subscriberRoute, campaignSubscriberRoute, groupSubscriberRoute, groupMembershipRoute } from "./SubscriberRoute";
 import { authenticate } from "../middleware";
 
 /**
@@ -16,9 +16,9 @@ import { authenticate } from "../middleware";
  * endpoint requires an API key - there are no public routes, since keys are
  * minted at boot or via `bun run key:create`, not through the API. A
  * self-hosted instance has no tenants, so resources live at the top level
- * rather than under an organization. Groups and recipients additionally get
+ * rather than under an organization. Groups and subscribers additionally get
  * dedicated routes nested under `/campaigns/:campaign_id/...` (and, for
- * recipients, `/groups/:group_id/...`) instead of relying on query-param
+ * subscribers, `/groups/:group_id/...`) instead of relying on query-param
  * filters.
  *
  * `.use('*', authenticate)` is registered before any `.route(...)` call, so
@@ -37,9 +37,9 @@ appRoute
     .route('/campaigns', campaignRoute)
     .route('/templates', templateRoute)
     .route('/groups', groupRoute)
-    .route('/recipients', recipientRoute)
-    .route('/groups/:group_id/recipients', groupMembershipRoute)
+    .route('/subscribers', subscriberRoute)
+    .route('/groups/:group_id/subscribers', groupMembershipRoute)
     .route('/campaigns/:campaign_id/templates', campaignTemplateRoute)
     .route('/campaigns/:campaign_id/groups', campaignGroupRoute)
-    .route('/campaigns/:campaign_id/recipients', campaignRecipientRoute)
-    .route('/campaigns/:campaign_id/groups/:group_id/recipients', groupRecipientRoute);
+    .route('/campaigns/:campaign_id/subscribers', campaignSubscriberRoute)
+    .route('/campaigns/:campaign_id/groups/:group_id/subscribers', groupSubscriberRoute);

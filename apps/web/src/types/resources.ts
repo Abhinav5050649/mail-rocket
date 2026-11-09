@@ -19,7 +19,7 @@ export type {
   Campaign,
   Template,
   Group,
-  Recipient,
+  Subscriber,
   PageArgs,
 } from "@mail-rocket/shared";
 

@@ -25,20 +25,20 @@ export default function CampaignGroupsPage({ params }: { params: Promise<{ campa
 
   return (
     <div className="flex flex-col gap-4">
-      <SubsectionHeader title="Groups" note="Recipient lists this campaign sends to. Open one to see its recipients." action={action} />
+      <SubsectionHeader title="Groups" note="Subscriber lists this campaign sends to. Open one to see its subscribers." action={action} />
       <DataTable<Group>
         noun="groups"
         rows={groups}
         isLoading={isLoading}
         error={error}
         onRetry={refetch}
-        href={(group) => `/campaigns/${campaignId}/groups/${group.id}/recipients`}
+        href={(group) => `/campaigns/${campaignId}/groups/${group.id}/subscribers`}
         columns={[
           { header: "Group", cell: (group) => group.name || "Untitled group" },
           { header: "Created", cell: (group) => <span className="tabular">{formatDate(group.created_at)}</span>, align: "right", className: "w-40" },
         ]}
         mobile={{ title: (group) => group.name || "Untitled group", subtitle: (group) => `Created ${formatDate(group.created_at)}` }}
-        empty={<EmptyState title="No groups linked yet" action={action}>Groups collect recipients so the campaign can send to all of them, and fill {"{{group_name}}"}.</EmptyState>}
+        empty={<EmptyState title="No groups linked yet" action={action}>Groups collect subscribers so the campaign can send to all of them, and fill {"{{group_name}}"}.</EmptyState>}
       />
     </div>
   );

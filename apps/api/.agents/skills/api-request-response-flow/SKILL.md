@@ -54,7 +54,7 @@ All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes
 - There's no tenancy, so resources live at the top level: `/campaigns`, `/templates`, `/identities`, ...
 - `/organization` (singular) is the single organization profile: `GET`/`PATCH` only.
 - `/keys` manages API keys; `/me` returns the calling key (no `requireAbility` - any valid key may read itself).
-- Campaign children nest one level deeper: `/campaigns/:campaign_id/groups` and `.../recipients`, plus a further `/groups/:group_id/recipients`.
+- Campaign children nest one level deeper: `/campaigns/:campaign_id/groups` and `.../subscribers`, plus a further `/groups/:group_id/subscribers`.
 
 When adding a new resource, mount it here rather than inventing a separate app-level route table.
 

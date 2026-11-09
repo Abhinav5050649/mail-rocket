@@ -19,7 +19,7 @@ export interface ListFeatureState<Filters> {
 /**
  * Factory for a per-resource "list feature" slice: filters (e.g. campaign
  * status, identity type) plus dialog visibility. Every list-view feature
- * (campaigns, templates, groups, recipients, identities, addresses,
+ * (campaigns, templates, groups, subscribers, identities, addresses,
  * contact details, keys) builds its slice.ts on this, so the
  * actions/reducers stay consistent instead of hand-rolling the same shape
  * eight times.

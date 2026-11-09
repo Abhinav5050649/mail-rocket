@@ -14,7 +14,7 @@ export const overviewSectionsFor = (ability: AppAbility): OverviewSections => ({
     identities: ability.can("read", "Identity"),
     templates: ability.can("read", "Template"),
     groups: ability.can("read", "Group"),
-    recipients: ability.can("read", "Recipient"),
+    subscribers: ability.can("read", "Subscriber"),
     keys: ability.can("read", "Key"),
 });
 

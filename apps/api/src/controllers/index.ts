@@ -7,5 +7,5 @@ export * from "./IdentityController";
 export * from "./CampaignController";
 export * from "./TemplateController";
 export * from "./GroupController";
-export * from "./RecipientController";
+export * from "./SubscriberController";
 export * from "./OverviewController";

@@ -36,6 +36,13 @@
       "when": 1792520444977,
       "tag": "0004_drop_recipient_group_id",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794241403523,
+      "tag": "0005_rename_recipients_to_subscribers",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ The SDK calls actually made against SES, and where each one is made:
 | `ses:VerifyDomainIdentity` | `src/services/IdentityService.ts` (`verifyWithSes`) | Registers a `domain`-type identity and returns the TXT ownership token. |
 | `ses:VerifyDomainDkim` | `src/services/IdentityService.ts` (`verifyWithSes`) | Starts DKIM verification for a `domain`-type identity and returns the 3 CNAME tokens. |
 | `ses:GetIdentityVerificationAttributes` | `src/queues/IdentityVerificationWorker.ts` | Polled by the identity-verification worker until SES reports `Success`. |
-| `ses:SendEmail` | `src/services/SendCampaignService.ts` (`sendChunk`) | Sends one campaign email per recipient. |
+| `ses:SendEmail` | `src/services/SendCampaignService.ts` (`sendChunk`) | Sends one campaign email per subscriber. |
 
 The policy document for these is [resources/aws/ses-local-test-user-policy.json](../../resources/aws/ses-local-test-user-policy.json) (repo root). To configure a local IAM user (e.g. `local-test-user`) for local dev/testing:
 
@@ -27,7 +27,7 @@ Replace `<AWS_ACCOUNT_ID>` in the policy file with the real account id first. Th
 
 Notes:
 - The `Verify*`/`GetIdentityVerificationAttributes` actions are scoped to `Resource: "*"` because a `VerifyEmailIdentity`/`VerifyDomainIdentity` call creates the identity - there's no ARN to scope to beforehand. `SendEmail` is scoped to `identity/*` in the account so the user can only send from identities that account owns.
-- A brand-new SES account is in the **sandbox**: `SendEmail` only succeeds if both the sender identity and every recipient are verified. Moving to production sending (arbitrary recipients) requires a one-time SES sending-limits increase request in the AWS console/Support - that's an AWS account setting, not an IAM permission, so it isn't in the policy file.
+- A brand-new SES account is in the **sandbox**: `SendEmail` only succeeds if both the sender identity and every subscriber are verified. Moving to production sending (arbitrary subscribers) requires a one-time SES sending-limits increase request in the AWS console/Support - that's an AWS account setting, not an IAM permission, so it isn't in the policy file.
 - `SES_SEND_RATE_PER_SECOND` (see [example.env](example.env)) should track the account's actual SES send-rate quota, not an IAM concept.
 
 ## Trust relationships

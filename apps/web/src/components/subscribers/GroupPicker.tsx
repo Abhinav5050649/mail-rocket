@@ -26,7 +26,7 @@ export function GroupPicker({ groups, value, onChange, campaignName, disabled, i
         <Link href="/groups/new" className="text-text underline-offset-3 hover:underline">
           Create one
         </Link>{" "}
-        to send to many recipients at once.
+        to send to many subscribers at once.
       </p>
     );
   }

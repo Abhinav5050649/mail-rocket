@@ -18,7 +18,7 @@ export interface UpdateGroupInput {
 }
 
 /**
- * Data-access layer for `group` rows (recipient lists within a campaign).
+ * Data-access layer for `group` rows (subscriber lists within a campaign).
  * Wraps `groupTable` (Drizzle) and adds structured logging around every
  * operation: `info` logs marking method start/end, `debug` logs of the
  * request params and response payload, `warn` if no matching row is

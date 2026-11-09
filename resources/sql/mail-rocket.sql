@@ -31,8 +31,8 @@ CREATE TYPE "public"."identity_status" AS ENUM ('created', 'pending', 'active');
 -- Lifecycle of a campaign's send; driven by `start_time` and the send pipeline.
 CREATE TYPE "public"."campaign_status" AS ENUM ('draft', 'scheduled', 'sending', 'sent', 'failed');
 
--- Outcome of sending one campaign to one recipient.
-CREATE TYPE "public"."campaign_recipient_send_status" AS ENUM ('pending', 'sent', 'failed');
+-- Outcome of sending one campaign to one subscriber.
+CREATE TYPE "public"."campaign_delivery_status" AS ENUM ('pending', 'sent', 'failed');
 
 
 -- -----------------------------------------------------------------------------
@@ -179,7 +179,7 @@ CREATE INDEX "template_campaign_id_idx" ON "template" USING btree ("campaign_id"
 
 
 -- -----------------------------------------------------------------------------
--- group - a recipient list within a campaign. (Quoted: GROUP is a keyword.)
+-- group - a subscriber list within a campaign. (Quoted: GROUP is a keyword.)
 -- -----------------------------------------------------------------------------
 CREATE TABLE "group" (
     "id"              varchar PRIMARY KEY NOT NULL,                  -- UUID
@@ -199,11 +199,11 @@ CREATE INDEX "group_campaign_id_idx" ON "group" USING btree ("campaign_id");
 
 
 -- -----------------------------------------------------------------------------
--- recipients - a person targeted by a campaign/group.
+-- subscribers - a person targeted by a campaign/group.
 -- -----------------------------------------------------------------------------
-CREATE TABLE "recipients" (
+CREATE TABLE "subscribers" (
     "id"              varchar PRIMARY KEY NOT NULL,                  -- UUID
-    "entity"          varchar DEFAULT 'mail_rocket.recipients',
+    "entity"          varchar DEFAULT 'mail_rocket.subscribers',
     "first_name"      varchar,
     "last_name"       varchar,
     "normalized_name" varchar,
@@ -212,61 +212,61 @@ CREATE TABLE "recipients" (
     "created_at"      timestamp,
     "updated_at"      timestamp,
     "description"     varchar,
-    CONSTRAINT "recipients_campaign_id_campaign_id_fk"
+    CONSTRAINT "subscribers_campaign_id_campaign_id_fk"
         FOREIGN KEY ("campaign_id") REFERENCES "public"."campaign" ("id")
         ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
-CREATE INDEX "recipients_campaign_id_idx" ON "recipients" USING btree ("campaign_id");
+CREATE INDEX "subscribers_campaign_id_idx" ON "subscribers" USING btree ("campaign_id");
 
 
 -- -----------------------------------------------------------------------------
--- group_recipient - many-to-many: which recipients are in which groups.
--- Deleting a group or a recipient removes its memberships.
+-- group_subscriber - many-to-many: which subscribers are in which groups.
+-- Deleting a group or a subscriber removes its memberships.
 -- -----------------------------------------------------------------------------
-CREATE TABLE "group_recipient" (
+CREATE TABLE "group_subscriber" (
     "id"           varchar PRIMARY KEY NOT NULL,                     -- UUID
-    "entity"       varchar DEFAULT 'mail_rocket.group_recipient',
+    "entity"       varchar DEFAULT 'mail_rocket.group_subscriber',
     "group_id"     varchar NOT NULL,
-    "recipient_id" varchar NOT NULL,
+    "subscriber_id" varchar NOT NULL,
     "created_at"   timestamp,
     "updated_at"   timestamp,
     "description"  varchar,
-    CONSTRAINT "group_recipient_group_id_recipient_id_unique" UNIQUE ("group_id", "recipient_id"),
-    CONSTRAINT "group_recipient_group_id_group_id_fk"
+    CONSTRAINT "group_subscriber_group_id_subscriber_id_unique" UNIQUE ("group_id", "subscriber_id"),
+    CONSTRAINT "group_subscriber_group_id_group_id_fk"
         FOREIGN KEY ("group_id") REFERENCES "public"."group" ("id")
         ON DELETE CASCADE ON UPDATE NO ACTION,
-    CONSTRAINT "group_recipient_recipient_id_recipients_id_fk"
-        FOREIGN KEY ("recipient_id") REFERENCES "public"."recipients" ("id")
+    CONSTRAINT "group_subscriber_subscriber_id_subscribers_id_fk"
+        FOREIGN KEY ("subscriber_id") REFERENCES "public"."subscribers" ("id")
         ON DELETE CASCADE ON UPDATE NO ACTION
 );
 
-CREATE INDEX "group_recipient_recipient_id_idx" ON "group_recipient" USING btree ("recipient_id");
+CREATE INDEX "group_subscriber_subscriber_id_idx" ON "group_subscriber" USING btree ("subscriber_id");
 
 
 -- -----------------------------------------------------------------------------
--- campaign_recipient - one recipient's send outcome within one campaign's
--- send. Created by the dispatch job (one row per recipient, per send), kept
--- apart from `recipients` so a recipient stays reusable across campaigns.
+-- campaign_delivery - one subscriber's send outcome within one campaign's
+-- send. Created by the dispatch job (one row per subscriber, per send), kept
+-- apart from `subscribers` so a subscriber stays reusable across campaigns.
 -- -----------------------------------------------------------------------------
-CREATE TABLE "campaign_recipient" (
+CREATE TABLE "campaign_delivery" (
     "id"           varchar PRIMARY KEY NOT NULL,                     -- UUID
-    "entity"       varchar DEFAULT 'mail_rocket.campaign_recipient',
+    "entity"       varchar DEFAULT 'mail_rocket.campaign_delivery',
     "campaign_id"  varchar,
-    "recipient_id" varchar,
-    "send_status"  "campaign_recipient_send_status" DEFAULT 'pending',
+    "subscriber_id" varchar,
+    "status"  "campaign_delivery_status" DEFAULT 'pending',
     "sent_at"      timestamp,
     "created_at"   timestamp,
     "updated_at"   timestamp,
-    "description"  varchar,                                          -- Failure detail when send_status is `failed`
-    CONSTRAINT "campaign_recipient_campaign_id_campaign_id_fk"
+    "description"  varchar,                                          -- Failure detail when status is `failed`
+    CONSTRAINT "campaign_delivery_campaign_id_campaign_id_fk"
         FOREIGN KEY ("campaign_id") REFERENCES "public"."campaign" ("id")
         ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "campaign_recipient_recipient_id_recipients_id_fk"
-        FOREIGN KEY ("recipient_id") REFERENCES "public"."recipients" ("id")
+    CONSTRAINT "campaign_delivery_subscriber_id_subscribers_id_fk"
+        FOREIGN KEY ("subscriber_id") REFERENCES "public"."subscribers" ("id")
         ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
-CREATE INDEX "campaign_recipient_campaign_id_idx" ON "campaign_recipient" USING btree ("campaign_id");
-CREATE INDEX "campaign_recipient_recipient_id_idx" ON "campaign_recipient" USING btree ("recipient_id");
-CREATE INDEX "campaign_recipient_campaign_id_send_status_idx" ON "campaign_recipient" USING btree ("campaign_id", "send_status");
+CREATE INDEX "campaign_delivery_campaign_id_idx" ON "campaign_delivery" USING btree ("campaign_id");
+CREATE INDEX "campaign_delivery_subscriber_id_idx" ON "campaign_delivery" USING btree ("subscriber_id");
+CREATE INDEX "campaign_delivery_campaign_id_status_idx" ON "campaign_delivery" USING btree ("campaign_id", "status");

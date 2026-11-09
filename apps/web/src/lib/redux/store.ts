@@ -4,7 +4,7 @@ import { keysReducer } from "@/features/keys/slice";
 import { campaignsReducer } from "@/features/campaigns/slice";
 import { templatesReducer } from "@/features/templates/slice";
 import { groupsReducer } from "@/features/groups/slice";
-import { recipientsReducer } from "@/features/recipients/slice";
+import { subscribersReducer } from "@/features/subscribers/slice";
 import { identitiesReducer } from "@/features/identities/slice";
 import { addressesReducer } from "@/features/addresses/slice";
 import { contactDetailsReducer } from "@/features/contactDetails/slice";
@@ -17,7 +17,7 @@ export function makeStore() {
       campaigns: campaignsReducer,
       templates: templatesReducer,
       groups: groupsReducer,
-      recipients: recipientsReducer,
+      subscribers: subscribersReducer,
       identities: identitiesReducer,
       addresses: addressesReducer,
       contactDetails: contactDetailsReducer,

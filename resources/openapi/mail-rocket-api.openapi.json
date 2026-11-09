@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "mail-rocket-api",
-    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and recipients. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do.",
+    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and subscribers. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do.",
     "version": "1.0.0"
   },
   "tags": [
@@ -32,10 +32,10 @@
     },
     {
       "name": "Groups",
-      "description": "Recipient lists within a campaign."
+      "description": "Subscriber lists within a campaign."
     },
     {
-      "name": "Recipients",
+      "name": "Subscribers",
       "description": "People targeted by a campaign/group."
     },
     {
@@ -1174,7 +1174,7 @@
       "delete": {
         "summary": "Delete Campaign",
         "deprecated": false,
-        "description": "Deletes a campaign and cancels its queued send, if one is pending. Its templates, groups and recipients are kept with `campaign_id` cleared; its per-recipient send history is removed. Requires the `delete Campaign` claim.",
+        "description": "Deletes a campaign and cancels its queued send, if one is pending. Its templates, groups and subscribers are kept with `campaign_id` cleared; its per-subscriber send history is removed. Requires the `delete Campaign` claim.",
         "tags": [
           "Campaigns"
         ],
@@ -1938,13 +1938,13 @@
         "operationId": "templatesDelete"
       }
     },
-    "/recipients": {
+    "/subscribers": {
       "get": {
-        "summary": "List Recipients",
+        "summary": "List Subscribers",
         "deprecated": false,
-        "description": "Lists every recipient, across all campaigns and groups. For narrower listing, use the dedicated campaign/group-scoped endpoints instead. Requires the `read Recipient` claim.",
+        "description": "Lists every subscriber, across all campaigns and groups. For narrower listing, use the dedicated campaign/group-scoped endpoints instead. Requires the `read Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -1970,13 +1970,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Recipients matching the query.",
+            "description": "Subscribers matching the query.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                    "$ref": "#/components/schemas/Subscriber"
                   }
                 }
               }
@@ -1993,7 +1993,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `read Recipient`.",
+            "description": "The key's claims don't include `read Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2003,32 +2003,32 @@
             }
           }
         },
-        "operationId": "recipientsGetAll"
+        "operationId": "subscribersGetAll"
       },
       "post": {
-        "summary": "Create Recipient",
+        "summary": "Create Subscriber",
         "deprecated": false,
-        "description": "Creates a new recipient. Requires the `create Recipient` claim.",
+        "description": "Creates a new subscriber. Requires the `create Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RecipientCreate"
+                "$ref": "#/components/schemas/SubscriberCreate"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created recipient.",
+            "description": "The created subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2044,7 +2044,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `create Recipient`.",
+            "description": "The key's claims don't include `create Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2064,22 +2064,22 @@
             }
           }
         },
-        "operationId": "recipientsPost"
+        "operationId": "subscribersPost"
       }
     },
-    "/recipients/{recipient_id}": {
+    "/subscribers/{subscriber_id}": {
       "get": {
-        "summary": "Get Recipient",
+        "summary": "Get Subscriber",
         "deprecated": false,
-        "description": "Fetches a single recipient by id. Requires the `read Recipient` claim.",
+        "description": "Fetches a single subscriber by id. Requires the `read Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
-            "name": "recipient_id",
+            "name": "subscriber_id",
             "in": "path",
-            "description": "ID of the recipient.",
+            "description": "ID of the subscriber.",
             "required": true,
             "schema": {
               "type": "string"
@@ -2088,11 +2088,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The requested recipient.",
+            "description": "The requested subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2108,7 +2108,7 @@
             }
           },
           "404": {
-            "description": "Recipient not found.",
+            "description": "Subscriber not found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2128,7 +2128,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `read Recipient`.",
+            "description": "The key's claims don't include `read Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2138,20 +2138,20 @@
             }
           }
         },
-        "operationId": "recipientsGet"
+        "operationId": "subscribersGet"
       },
       "patch": {
-        "summary": "Update Recipient",
+        "summary": "Update Subscriber",
         "deprecated": false,
-        "description": "Partially updates a recipient. Requires the `update Recipient` claim.",
+        "description": "Partially updates a subscriber. Requires the `update Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
-            "name": "recipient_id",
+            "name": "subscriber_id",
             "in": "path",
-            "description": "ID of the recipient.",
+            "description": "ID of the subscriber.",
             "required": true,
             "schema": {
               "type": "string"
@@ -2163,18 +2163,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RecipientUpdate"
+                "$ref": "#/components/schemas/SubscriberUpdate"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The updated recipient.",
+            "description": "The updated subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2190,7 +2190,7 @@
             }
           },
           "404": {
-            "description": "Recipient not found.",
+            "description": "Subscriber not found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2210,7 +2210,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `update Recipient`.",
+            "description": "The key's claims don't include `update Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2220,20 +2220,20 @@
             }
           }
         },
-        "operationId": "recipientsUpdate"
+        "operationId": "subscribersUpdate"
       },
       "delete": {
-        "summary": "Delete Recipient",
+        "summary": "Delete Subscriber",
         "deprecated": false,
-        "description": "Deletes a recipient. Requires the `delete Recipient` claim.",
+        "description": "Deletes a subscriber. Requires the `delete Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
-            "name": "recipient_id",
+            "name": "subscriber_id",
             "in": "path",
-            "description": "ID of the recipient.",
+            "description": "ID of the subscriber.",
             "required": true,
             "schema": {
               "type": "string"
@@ -2242,11 +2242,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The deleted recipient.",
+            "description": "The deleted subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2262,7 +2262,7 @@
             }
           },
           "404": {
-            "description": "Recipient not found.",
+            "description": "Subscriber not found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2282,7 +2282,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `delete Recipient`.",
+            "description": "The key's claims don't include `delete Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2292,7 +2292,7 @@
             }
           }
         },
-        "operationId": "recipientsDelete"
+        "operationId": "subscribersDelete"
       }
     },
     "/campaigns/{campaign_id}/groups": {
@@ -2613,13 +2613,13 @@
         "operationId": "campaignTemplatesPost"
       }
     },
-    "/campaigns/{campaign_id}/recipients": {
+    "/campaigns/{campaign_id}/subscribers": {
       "get": {
-        "summary": "List Recipients by Campaign",
+        "summary": "List Subscribers by Campaign",
         "deprecated": false,
-        "description": "Lists the campaign's audience: recipients linked to it directly plus members of the groups linked to it, each once. This is who a send goes to. Requires the `read Recipient` claim.",
+        "description": "Lists the campaign's audience: subscribers linked to it directly plus members of the groups linked to it, each once. This is who a send goes to. Requires the `read Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -2654,13 +2654,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Recipients in the campaign.",
+            "description": "Subscribers in the campaign.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                    "$ref": "#/components/schemas/Subscriber"
                   }
                 }
               }
@@ -2687,7 +2687,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `read Recipient`.",
+            "description": "The key's claims don't include `read Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2697,14 +2697,14 @@
             }
           }
         },
-        "operationId": "campaignRecipientsGetAll"
+        "operationId": "campaignSubscribersGetAll"
       },
       "post": {
-        "summary": "Create Recipient in Campaign",
+        "summary": "Create Subscriber in Campaign",
         "deprecated": false,
-        "description": "Creates a new recipient within a campaign. Requires the `create Recipient` claim.",
+        "description": "Creates a new subscriber within a campaign. Requires the `create Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -2722,18 +2722,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RecipientCreate"
+                "$ref": "#/components/schemas/SubscriberCreate"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created recipient.",
+            "description": "The created subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2759,7 +2759,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `create Recipient`.",
+            "description": "The key's claims don't include `create Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2769,16 +2769,16 @@
             }
           }
         },
-        "operationId": "campaignRecipientsPost"
+        "operationId": "campaignSubscribersPost"
       }
     },
-    "/campaigns/{campaign_id}/groups/{group_id}/recipients": {
+    "/campaigns/{campaign_id}/groups/{group_id}/subscribers": {
       "get": {
-        "summary": "List Recipients by Group",
+        "summary": "List Subscribers by Group",
         "deprecated": false,
-        "description": "Lists recipients belonging to a single group. Requires the `read Recipient` claim.",
+        "description": "Lists subscribers belonging to a single group. Requires the `read Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -2822,13 +2822,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Recipients in the group.",
+            "description": "Subscribers in the group.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                    "$ref": "#/components/schemas/Subscriber"
                   }
                 }
               }
@@ -2855,7 +2855,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `read Recipient`.",
+            "description": "The key's claims don't include `read Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2865,14 +2865,14 @@
             }
           }
         },
-        "operationId": "groupRecipientsGetAll"
+        "operationId": "groupSubscribersGetAll"
       },
       "post": {
-        "summary": "Create Recipient in Group",
+        "summary": "Create Subscriber in Group",
         "deprecated": false,
-        "description": "Creates a new recipient within a group. Requires the `create Recipient` claim.",
+        "description": "Creates a new subscriber within a group. Requires the `create Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -2899,18 +2899,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RecipientCreate"
+                "$ref": "#/components/schemas/SubscriberCreate"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The created recipient.",
+            "description": "The created subscriber.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -2936,7 +2936,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `create Recipient`.",
+            "description": "The key's claims don't include `create Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2946,7 +2946,7 @@
             }
           }
         },
-        "operationId": "groupRecipientsPost"
+        "operationId": "groupSubscribersPost"
       }
     },
     "/identities": {
@@ -3737,13 +3737,13 @@
         "operationId": "overviewGet"
       }
     },
-    "/groups/{group_id}/recipients": {
+    "/groups/{group_id}/subscribers": {
       "get": {
         "summary": "List Group Members",
         "deprecated": false,
-        "description": "Lists the recipients in a group. Requires the `read Recipient` claim.",
+        "description": "Lists the subscribers in a group. Requires the `read Subscriber` claim.",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
         "parameters": [
           {
@@ -3778,13 +3778,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Recipients in the group.",
+            "description": "Subscribers in the group.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Recipient"
+                    "$ref": "#/components/schemas/Subscriber"
                   }
                 }
               }
@@ -3811,7 +3811,7 @@
             }
           },
           "403": {
-            "description": "The key's claims don't include `read Recipient`.",
+            "description": "The key's claims don't include `read Subscriber`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3824,12 +3824,12 @@
         "operationId": "groupMembersList"
       },
       "post": {
-        "summary": "Add Recipient to Group",
+        "summary": "Add Subscriber to Group",
         "operationId": "groupMembersAdd",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
-        "description": "Adds an existing recipient to the group; they keep their other groups. Adding someone already in the group is a no-op. Requires the `update Group` claim.",
+        "description": "Adds an existing subscriber to the group; they keep their other groups. Adding someone already in the group is a no-op. Requires the `update Group` claim.",
         "parameters": [
           {
             "name": "group_id",
@@ -3848,12 +3848,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "recipient_id": {
+                  "subscriber_id": {
                     "type": "string"
                   }
                 },
                 "required": [
-                  "recipient_id"
+                  "subscriber_id"
                 ]
               }
             }
@@ -3861,17 +3861,17 @@
         },
         "responses": {
           "200": {
-            "description": "The recipient with updated group_ids.",
+            "description": "The subscriber with updated group_ids.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
           },
           "400": {
-            "description": "`recipient_id` is missing.",
+            "description": "`subscriber_id` is missing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3901,7 +3901,7 @@
             }
           },
           "404": {
-            "description": "The group or recipient doesn't exist.",
+            "description": "The group or subscriber doesn't exist.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3913,14 +3913,14 @@
         }
       }
     },
-    "/groups/{group_id}/recipients/{recipient_id}": {
+    "/groups/{group_id}/subscribers/{subscriber_id}": {
       "delete": {
-        "summary": "Remove Recipient from Group",
+        "summary": "Remove Subscriber from Group",
         "operationId": "groupMembersRemove",
         "tags": [
-          "Recipients"
+          "Subscribers"
         ],
-        "description": "Removes the recipient from this group only; the recipient and their other groups are kept. Requires the `update Group` claim.",
+        "description": "Removes the subscriber from this group only; the subscriber and their other groups are kept. Requires the `update Group` claim.",
         "parameters": [
           {
             "name": "group_id",
@@ -3932,10 +3932,10 @@
             }
           },
           {
-            "name": "recipient_id",
+            "name": "subscriber_id",
             "in": "path",
             "required": true,
-            "description": "ID of the recipient.",
+            "description": "ID of the subscriber.",
             "schema": {
               "type": "string"
             }
@@ -3943,11 +3943,11 @@
         ],
         "responses": {
           "200": {
-            "description": "The recipient with updated group_ids.",
+            "description": "The subscriber with updated group_ids.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Recipient"
+                  "$ref": "#/components/schemas/Subscriber"
                 }
               }
             }
@@ -3973,7 +3973,7 @@
             }
           },
           "404": {
-            "description": "The recipient isn't in this group.",
+            "description": "The subscriber isn't in this group.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4294,7 +4294,7 @@
               "failed"
             ],
             "readOnly": true,
-            "description": "Lifecycle, managed by the system: draft (nothing scheduled) -> scheduled (a send is queued for start_time) -> sending -> sent (at least one recipient succeeded) | failed (none did, or the send couldn't start; see failure_reason)."
+            "description": "Lifecycle, managed by the system: draft (nothing scheduled) -> scheduled (a send is queued for start_time) -> sending -> sent (at least one subscriber succeeded) | failed (none did, or the send couldn't start; see failure_reason)."
           },
           "identity_id": {
             "type": "string",
@@ -4376,7 +4376,7 @@
       },
       "Group": {
         "type": "object",
-        "description": "A recipient list within a campaign.",
+        "description": "A subscriber list within a campaign.",
         "properties": {
           "id": {
             "type": "string",
@@ -4514,13 +4514,13 @@
           }
         }
       },
-      "Recipient": {
+      "Subscriber": {
         "type": "object",
         "description": "A person targeted by a campaign/group.",
         "properties": {
           "id": {
             "type": "string",
-            "description": "UUID of the recipient."
+            "description": "UUID of the subscriber."
           },
           "entity": {
             "type": "string"
@@ -4557,11 +4557,11 @@
             "items": {
               "type": "string"
             },
-            "description": "Ids of the groups the recipient is in (many-to-many)."
+            "description": "Ids of the groups the subscriber is in (many-to-many)."
           }
         }
       },
-      "RecipientCreate": {
+      "SubscriberCreate": {
         "type": "object",
         "properties": {
           "first_name": {
@@ -4588,11 +4588,11 @@
             "items": {
               "type": "string"
             },
-            "description": "Groups the recipient joins. Each id must exist (400 otherwise). The retired single `group_id` is rejected with a 400."
+            "description": "Groups the subscriber joins. Each id must exist (400 otherwise). The retired single `group_id` is rejected with a 400."
           }
         }
       },
-      "RecipientUpdate": {
+      "SubscriberUpdate": {
         "type": "object",
         "properties": {
           "first_name": {
@@ -4616,12 +4616,12 @@
             "items": {
               "type": "string"
             },
-            "description": "When present, replaces the recipient's groups with exactly these. Omit to leave them unchanged."
+            "description": "When present, replaces the subscriber's groups with exactly these. Omit to leave them unchanged."
           },
           "campaign_id": {
             "type": "string",
             "nullable": true,
-            "description": "Campaign the recipient is linked to directly."
+            "description": "Campaign the subscriber is linked to directly."
           }
         }
       },
@@ -4756,7 +4756,7 @@
               "Campaign",
               "Template",
               "Group",
-              "Recipient",
+              "Subscriber",
               "Key"
             ]
           }
@@ -4881,7 +4881,7 @@
               "editor",
               "admin"
             ],
-            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Recipient; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
+            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Subscriber; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
           },
           "claims": {
             "type": "array",
@@ -4917,7 +4917,7 @@
               "editor",
               "admin"
             ],
-            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Recipient; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
+            "description": "viewer = read everything; editor = viewer + write Campaign/Template/Group/Subscriber; admin = editor + update Organization and write Identity/Address/ContactDetails/Key."
           },
           "claims": {
             "type": "array",
@@ -5103,7 +5103,7 @@
               "total"
             ]
           },
-          "recipients": {
+          "subscribers": {
             "type": "object",
             "nullable": true,
             "properties": {
@@ -5133,7 +5133,7 @@
           "identities",
           "templates",
           "groups",
-          "recipients",
+          "subscribers",
           "keys"
         ]
       }

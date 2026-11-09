@@ -1,4 +1,4 @@
-/** Max recipients per campaign-send-chunk job. */
+/** Max subscribers per campaign-send-chunk job. */
 export const CHUNK_SIZE = 25;
 
 /** BullMQ queue names for the campaign send pipeline and identity verification polling. */

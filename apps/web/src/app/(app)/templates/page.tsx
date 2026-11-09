@@ -31,7 +31,7 @@ export default function TemplatesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Templates" description="HTML email bodies. Variables are filled per recipient when the campaign sends." actions={action} />
+      <PageHeader title="Templates" description="HTML email bodies. Variables are filled per subscriber when the campaign sends." actions={action} />
       <div>
         <DataTable<Template>
           noun="templates"
@@ -60,7 +60,7 @@ export default function TemplatesPage() {
           }}
           empty={
             <EmptyState title="No templates yet" action={action}>
-              A template is the HTML a campaign sends. Use variables like {"{{recipient_first_name}}"} to personalise it.
+              A template is the HTML a campaign sends. Use variables like {"{{subscriber_first_name}}"} to personalise it.
             </EmptyState>
           }
         />

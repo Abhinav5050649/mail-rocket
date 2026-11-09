@@ -1,6 +1,6 @@
 import { and, asc, eq, type SQL } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
-import { campaignRecipientTable, campaignTable, groupTable, recipientsTable, templateTable, type CampaignStatus } from "../models";
+import { campaignDeliveryTable, campaignTable, groupTable, subscribersTable, templateTable, type CampaignStatus } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
 // avoid a circular import: the barrel also re-exports CampaignWorkers.ts,
 // which imports SendCampaignService from the services barrel - which would
@@ -202,8 +202,8 @@ export class CampaignService {
      * Deletes a campaign and cancels its queued send.
      *
      * In one transaction it unlinks the campaign's templates, groups and
-     * recipients (they stay, with `campaign_id` cleared, so they can be
-     * reused), drops its per-recipient send history, and deletes the row.
+     * subscribers (they stay, with `campaign_id` cleared, so they can be
+     * reused), drops its per-subscriber send history, and deletes the row.
      * Only after that commits is the pending dispatch job removed. If that
      * removal fails, the dispatch worker still skips a campaign that no
      * longer exists, so nothing is sent.
@@ -230,9 +230,9 @@ export class CampaignService {
                 // Rows that point at the campaign would otherwise block the delete (no ON DELETE on these FKs).
                 await tx.update(templateTable).set({ campaign_id: null }).where(eq(templateTable.campaign_id, campaignId));
                 await tx.update(groupTable).set({ campaign_id: null }).where(eq(groupTable.campaign_id, campaignId));
-                await tx.update(recipientsTable).set({ campaign_id: null }).where(eq(recipientsTable.campaign_id, campaignId));
+                await tx.update(subscribersTable).set({ campaign_id: null }).where(eq(subscribersTable.campaign_id, campaignId));
                 // Send history only means something alongside its campaign.
-                await tx.delete(campaignRecipientTable).where(eq(campaignRecipientTable.campaign_id, campaignId));
+                await tx.delete(campaignDeliveryTable).where(eq(campaignDeliveryTable.campaign_id, campaignId));
 
                 const [deleted] = await tx.delete(campaignTable).where(eq(campaignTable.id, campaignId)).returning();
                 return deleted!;

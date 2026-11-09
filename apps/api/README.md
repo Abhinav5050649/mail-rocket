@@ -27,17 +27,17 @@ mail-rocket is self-hosted and has no users, passwords or tenants. Every request
 - **CLI:** `bun run key:create --name ops --preset admin [--expires 2027-01-01]` mints a key without a restart.
 - **API:** `POST /keys` with `{ "name": "...", "preset": "editor" }` or an explicit `claims` list. The secret appears once, in that response. `GET /me` returns the calling key.
 
-What a key may do is decided by its **claims**: a list of CASL `{ action, subject }` grants (`src/libs/abilities.ts`) that every route checks via `requireAbility(action, subject)`. Actions are `read`/`create`/`update`/`delete`. Subjects are `Organization`, `Address`, `ContactDetails`, `Identity`, `Campaign`, `Template`, `Group`, `Recipient` and `Key`. Three presets expand to claim lists:
+What a key may do is decided by its **claims**: a list of CASL `{ action, subject }` grants (`src/libs/abilities.ts`) that every route checks via `requireAbility(action, subject)`. Actions are `read`/`create`/`update`/`delete`. Subjects are `Organization`, `Address`, `ContactDetails`, `Identity`, `Campaign`, `Template`, `Group`, `Subscriber` and `Key`. Three presets expand to claim lists:
 
 | Preset | Grants |
 | --- | --- |
 | `viewer` | `read` on every subject |
-| `editor` | viewer + `create`/`update`/`delete` on `Campaign`, `Template`, `Group`, `Recipient` (identities stay read-only) |
+| `editor` | viewer + `create`/`update`/`delete` on `Campaign`, `Template`, `Group`, `Subscriber` (identities stay read-only) |
 | `admin` | editor + `update Organization`, and `create`/`update`/`delete` on `Identity`, `Address`, `ContactDetails`, `Key` |
 
 A key stores the expanded list, not the preset name, so a custom combination is just a different list. A key can't change its own claims or revoke itself.
 
-**System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and recipients (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+**System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and subscribers (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
 
 ## Architecture
 
@@ -80,13 +80,13 @@ Anything thrown along the way - an `HTTPException` from a controller, a `Validat
 
 One instance serves one organization, so there's no tenancy and resources live at the top level (`/campaigns`, `/templates`, ...; see `routes/AppRoute.ts`). `organization` is a single row: the profile of whoever runs the instance. It's seeded at boot, read and updated via `/organization`, and never created or deleted over the API. `address` and `contact_details` link to it as the organization's own postal/contact details. Nothing else carries an `organization_id`. `api_key` is the principal and has no relation to any other table.
 
-`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`recipient` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
+`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`subscriber` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
 
 ### Background jobs (`src/queues/`)
 
 Two independent BullMQ pipelines run as in-process workers, started once at boot from `index.ts` (`startCampaignWorkers`, `startIdentityVerificationWorker`):
 
-- **Campaign send** (`CampaignQueues.ts`, `CampaignDispatch.ts`, `CampaignWorkers.ts`): creating/updating a campaign with a `start_time` schedules a `campaign-dispatch` job (via `scheduleCampaignDispatch`) using the campaign's own id as the BullMQ job id, so rescheduling replaces rather than duplicates it. When the job fires, the dispatch worker builds the recipient manifest and fans it out through a `FlowProducer` into many `campaign-send-chunk` jobs (rate-limited against SES, one SES `SendEmail` call per recipient) plus one `campaign-finalize` parent job that only runs once every chunk has settled and rolls the results up into the campaign's final `status`.
+- **Campaign send** (`CampaignQueues.ts`, `CampaignDispatch.ts`, `CampaignWorkers.ts`): creating/updating a campaign with a `start_time` schedules a `campaign-dispatch` job (via `scheduleCampaignDispatch`) using the campaign's own id as the BullMQ job id, so rescheduling replaces rather than duplicates it. When the job fires, the dispatch worker builds the subscriber manifest and fans it out through a `FlowProducer` into many `campaign-send-chunk` jobs (rate-limited against SES, one SES `SendEmail` call per subscriber) plus one `campaign-finalize` parent job that only runs once every chunk has settled and rolls the results up into the campaign's final `status`.
 - **Identity verification** (`IdentityVerificationQueues.ts`, `IdentityVerificationScheduler.ts`, `IdentityVerificationWorker.ts`): creating an identity registers it with SES and schedules a poll job (identity's own id as the job id) that checks SES's verification status every `IDENTITY_VERIFY_POLL_INTERVAL_MS`, reschedules itself if still pending, and flips the identity to `active` once SES confirms it.
 
 Queue-definition files (`*Queues.ts`) intentionally import no services, so both the scheduling side and the worker side can depend on them without an import cycle. Worker processors stay thin and delegate all DB/SES logic to services (`SendCampaignService`, `IdentityService`) - the same layering rule as the HTTP path, just triggered by a job instead of a request.
@@ -95,7 +95,7 @@ Queue-definition files (`*Queues.ts`) intentionally import no services, so both 
 
 - Every service method logs `info` at start/end and `debug` for its request/response payload, and wraps its query in `try { ... } catch { logger.error(...); throw; }` - follow this pattern for consistency (see `services/IdentityService.ts` for a representative example).
 - Throw `ValidationError` (`libs/errors.ts`) from a service for an expected business-rule violation (→ 400); throw `HTTPException` from a controller for a request-shape problem (missing param, 404); let anything truly unexpected propagate to the global handler (→ 500).
-- List endpoints accept `limit`/`offset` query params and default to `DEFAULT_PAGE_SIZE` (`libs/pagination.ts`) - background jobs that must see every row (e.g. `SendCampaignService.getRecipientIdsForCampaign`) deliberately skip pagination instead.
+- List endpoints accept `limit`/`offset` query params and default to `DEFAULT_PAGE_SIZE` (`libs/pagination.ts`) - background jobs that must see every row (e.g. `SendCampaignService.getSubscriberIdsForCampaign`) deliberately skip pagination instead.
 
 ## Database
 

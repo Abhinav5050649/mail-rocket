@@ -11,31 +11,31 @@ import { FormActions, SettingsSection } from "@/components/ui/page";
 import { FormError } from "@/components/ui/feedback";
 import { useCampaignNames, useGroupNames } from "@/hooks/useLookups";
 import { GroupPicker } from "./GroupPicker";
-import type { Recipient } from "@/types/resources";
+import type { Subscriber } from "@/types/resources";
 
-const recipientSchema = z.object({
+const subscriberSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   email_id: z.string().trim().min(1, "Email is required").pipe(z.email("Enter a valid email address")),
   campaign_id: z.string().optional(),
   group_ids: z.array(z.string()),
 });
-export type RecipientFormValues = z.infer<typeof recipientSchema>;
+export type SubscriberFormValues = z.infer<typeof subscriberSchema>;
 
-interface RecipientFormProps {
+interface SubscriberFormProps {
   mode: "create" | "edit";
-  initialData?: Recipient;
+  initialData?: Subscriber;
   defaultCampaignId?: string;
-  /** Pre-selects this group for a new recipient. */
+  /** Pre-selects this group for a new subscriber. */
   defaultGroupId?: string;
-  onSubmit: (values: RecipientFormValues) => void;
+  onSubmit: (values: SubscriberFormValues) => void;
   isSubmitting: boolean;
   error?: FetchBaseQueryError | SerializedError;
   onCancel?: () => void;
   readOnly?: boolean;
 }
 
-export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGroupId, onSubmit, isSubmitting, error, onCancel, readOnly }: RecipientFormProps) {
+export function SubscriberForm({ mode, initialData, defaultCampaignId, defaultGroupId, onSubmit, isSubmitting, error, onCancel, readOnly }: SubscriberFormProps) {
   const { campaigns, campaignName } = useCampaignNames();
   const { groups } = useGroupNames();
   const {
@@ -43,8 +43,8 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
     register,
     handleSubmit,
     formState: { errors, isDirty },
-  } = useForm<RecipientFormValues>({
-    resolver: zodResolver(recipientSchema),
+  } = useForm<SubscriberFormValues>({
+    resolver: zodResolver(subscriberSchema),
     defaultValues: {
       first_name: initialData?.first_name ?? "",
       last_name: initialData?.last_name ?? "",
@@ -56,7 +56,7 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
 
   const campaignOptions = [{ label: "Not linked", value: "" }, ...(campaigns?.map((campaign) => ({ label: campaign.name ?? "Untitled campaign", value: campaign.id })) ?? [])];
 
-  const submit = (values: RecipientFormValues) =>
+  const submit = (values: SubscriberFormValues) =>
     onSubmit({
       ...values,
       email_id: values.email_id.trim(),
@@ -67,7 +67,7 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
       <fieldset disabled={readOnly} className="contents">
-        <SettingsSection title="Person" description="Names fill the recipient variables. A recipient missing a name a template uses is skipped at send time.">
+        <SettingsSection title="Person" description="Names fill the subscriber variables. A subscriber missing a name a template uses is skipped at send time.">
           <div className="flex flex-col gap-4">
             <Field label="Email" error={errors.email_id?.message}>
               {(props) => <Input {...props} {...register("email_id")} type="email" autoComplete="off" placeholder="name@domain.com" />}
@@ -86,7 +86,7 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
           title="Groups"
           description={
             <>
-              A recipient can be in any number of groups. A campaign sends to everyone in its groups, each person once.{" "}
+              A subscriber can be in any number of groups. A campaign sends to everyone in its groups, each person once.{" "}
               {"{{group_name}}"} lists all of their groups.
             </>
           }
@@ -116,7 +116,7 @@ export function RecipientForm({ mode, initialData, defaultCampaignId, defaultGro
               </Button>
             )}
             <Button type="submit" variant="primary" isLoading={isSubmitting} disabled={mode === "edit" && !isDirty}>
-              {mode === "create" ? "Add recipient" : "Save changes"}
+              {mode === "create" ? "Add subscriber" : "Save changes"}
             </Button>
           </FormActions>
         </div>

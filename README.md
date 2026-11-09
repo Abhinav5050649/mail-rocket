@@ -1,6 +1,6 @@
 # Mail Rocket
 
-Self-hosted email campaigns sent through your own AWS SES account. Schedule campaigns, verify sending identities, write HTML templates with `{{variables}}`, and send to recipients and groups. Every request authenticates with an API key whose claims decide what it can do.
+Self-hosted email campaigns sent through your own AWS SES account. Schedule campaigns, verify sending identities, write HTML templates with `{{variables}}`, and send to subscribers and groups. Every request authenticates with an API key whose claims decide what it can do.
 
 ## Layout
 

@@ -1,29 +1,29 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { RecipientForm } from "@/components/recipients/RecipientForm";
+import { SubscriberForm } from "@/components/subscribers/SubscriberForm";
 import { PageHeader } from "@/components/ui/page";
-import { useCreateRecipientMutation } from "@/features/recipients";
+import { useCreateSubscriberMutation } from "@/features/subscribers";
 
-export default function NewRecipientPage() {
+export default function NewSubscriberPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const campaignId = searchParams.get("campaignId") ?? undefined;
   const groupId = searchParams.get("groupId") ?? undefined;
-  const [createRecipient, { isLoading, error }] = useCreateRecipientMutation();
+  const [createSubscriber, { isLoading, error }] = useCreateSubscriberMutation();
   const back =
     campaignId && groupId
-      ? `/campaigns/${campaignId}/groups/${groupId}/recipients`
+      ? `/campaigns/${campaignId}/groups/${groupId}/subscribers`
       : campaignId
-        ? `/campaigns/${campaignId}/recipients`
+        ? `/campaigns/${campaignId}/subscribers`
         : groupId
           ? `/groups/${groupId}`
-          : "/recipients";
+          : "/subscribers";
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : groupId ? "Group" : "Recipients" }} title="Add recipient" />
-      <RecipientForm
+      <PageHeader back={{ href: back, label: campaignId ? "Campaign" : groupId ? "Group" : "Subscribers" }} title="Add subscriber" />
+      <SubscriberForm
         mode="create"
         defaultCampaignId={campaignId}
         defaultGroupId={groupId}
@@ -31,8 +31,8 @@ export default function NewRecipientPage() {
         error={error}
         onCancel={() => router.push(back)}
         onSubmit={async (values) => {
-          const result = await createRecipient({ ...values, campaign_id: values.campaign_id || undefined });
-          if (result.data) router.push(`/recipients/${result.data.id}`);
+          const result = await createSubscriber({ ...values, campaign_id: values.campaign_id || undefined });
+          if (result.data) router.push(`/subscribers/${result.data.id}`);
         }}
       />
     </div>

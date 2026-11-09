@@ -8,7 +8,7 @@ import { renderTemplate, type TemplateVariableContext } from "../../src/libs/tem
  */
 
 const fullContext: TemplateVariableContext = {
-    recipient: { first_name: "Ada", last_name: "Lovelace", email_id: "ada@example.com" },
+    subscriber: { first_name: "Ada", last_name: "Lovelace", email_id: "ada@example.com" },
     group: { name: "VIP Customers" },
     campaign: { name: "Fall Launch", start_time: new Date("2026-03-01T00:00:00Z") },
     organization: { name: "Acme Inc", timezone: "UTC" },
@@ -18,7 +18,7 @@ const fullContext: TemplateVariableContext = {
 describe("renderTemplate", () => {
     it("substitutes every known placeholder and reports nothing missing", () => {
         const { rendered, missing } = renderTemplate(
-            "Hi {{recipient_first_name}} {{recipient_last_name}}, from {{organization_name}} ({{sender_email}})",
+            "Hi {{subscriber_first_name}} {{subscriber_last_name}}, from {{organization_name}} ({{sender_email}})",
             fullContext,
         );
 
@@ -40,19 +40,19 @@ describe("renderTemplate", () => {
         expect(missing).toEqual(["not_a_real_variable"]);
     });
 
-    it("reports a known variable as missing when its value isn't available for this recipient", () => {
+    it("reports a known variable as missing when its value isn't available for this subscriber", () => {
         const contextWithoutFirstName: TemplateVariableContext = {
             ...fullContext,
-            recipient: { ...fullContext.recipient, first_name: null },
+            subscriber: { ...fullContext.subscriber, first_name: null },
         };
 
-        const { rendered, missing } = renderTemplate("Hi {{recipient_first_name}}", contextWithoutFirstName);
+        const { rendered, missing } = renderTemplate("Hi {{subscriber_first_name}}", contextWithoutFirstName);
 
-        expect(rendered).toBe("Hi {{recipient_first_name}}");
-        expect(missing).toEqual(["recipient_first_name"]);
+        expect(rendered).toBe("Hi {{subscriber_first_name}}");
+        expect(missing).toEqual(["subscriber_first_name"]);
     });
 
-    it("falls back gracefully when the recipient has no group", () => {
+    it("falls back gracefully when the subscriber has no group", () => {
         const contextWithoutGroup: TemplateVariableContext = { ...fullContext, group: null };
 
         const { missing } = renderTemplate("{{group_name}}", contextWithoutGroup);
@@ -74,29 +74,29 @@ describe("renderTemplate", () => {
         expect(missing).toEqual(["organizer_email"]);
     });
 
-    it("builds recipient_full_name from whichever name parts are present", () => {
+    it("builds subscriber_full_name from whichever name parts are present", () => {
         const onlyLastName: TemplateVariableContext = {
             ...fullContext,
-            recipient: { ...fullContext.recipient, first_name: null },
+            subscriber: { ...fullContext.subscriber, first_name: null },
         };
 
-        expect(renderTemplate("{{recipient_full_name}}", fullContext).rendered).toBe("Ada Lovelace");
-        expect(renderTemplate("{{recipient_full_name}}", onlyLastName).rendered).toBe("Lovelace");
+        expect(renderTemplate("{{subscriber_full_name}}", fullContext).rendered).toBe("Ada Lovelace");
+        expect(renderTemplate("{{subscriber_full_name}}", onlyLastName).rendered).toBe("Lovelace");
     });
 
     it("deduplicates repeated placeholders in the missing list", () => {
         const contextWithoutFirstName: TemplateVariableContext = {
             ...fullContext,
-            recipient: { ...fullContext.recipient, first_name: null },
+            subscriber: { ...fullContext.subscriber, first_name: null },
         };
 
-        const { missing } = renderTemplate("{{recipient_first_name}} ... {{recipient_first_name}}", contextWithoutFirstName);
+        const { missing } = renderTemplate("{{subscriber_first_name}} ... {{subscriber_first_name}}", contextWithoutFirstName);
 
-        expect(missing).toEqual(["recipient_first_name"]);
+        expect(missing).toEqual(["subscriber_first_name"]);
     });
 
     it("tolerates extra whitespace inside braces", () => {
-        const { rendered } = renderTemplate("Hi {{ recipient_first_name }}", fullContext);
+        const { rendered } = renderTemplate("Hi {{ subscriber_first_name }}", fullContext);
 
         expect(rendered).toBe("Hi Ada");
     });

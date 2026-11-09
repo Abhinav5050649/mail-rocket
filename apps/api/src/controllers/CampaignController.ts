@@ -171,7 +171,7 @@ export class CampaignController {
     /**
      * DELETE /campaigns/:campaign_id
      * Deletes a campaign and cancels its queued send. Its templates, groups
-     * and recipients are kept, unlinked.
+     * and subscribers are kept, unlinked.
      *
      * @param c - Hono request context; expects a `campaign_id` route param.
      * @returns JSON response with the deleted campaign.

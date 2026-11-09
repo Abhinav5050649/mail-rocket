@@ -2,9 +2,9 @@
  * Support for `{{variable_name}}` placeholders inside a campaign's subject
  * line and template `html_body`. Every variable this codebase knows how to
  * fill in is registered in `TEMPLATE_VARIABLES` below, resolved from data
- * `SendCampaignService` already has on hand for a recipient's send - no
+ * `SendCampaignService` already has on hand for a subscriber's send - no
  * separate "merge fields" table. Placeholders whose value isn't available
- * are reported back so the caller can skip sending that recipient rather
+ * are reported back so the caller can skip sending that subscriber rather
  * than mail out literal `{{...}}` text.
  *
  * See `docs/TEMPLATE_VARIABLES.md` for the user-facing list - keep it in
@@ -13,14 +13,14 @@
 
 import { DEFAULT_TIME_ZONE, type TemplateVariableName } from "@mail-rocket/shared";
 
-/** Data available when resolving template variables for one recipient's send. */
+/** Data available when resolving template variables for one subscriber's send. */
 export interface TemplateVariableContext {
-    recipient: {
+    subscriber: {
         first_name: string | null;
         last_name: string | null;
         email_id: string | null;
     };
-    /** The recipient's groups; `name` is all their names, comma-separated. Null when in none. */
+    /** The subscriber's groups; `name` is all their names, comma-separated. Null when in none. */
     group: {
         name: string | null;
     } | null;
@@ -55,10 +55,10 @@ const joinName = (...parts: (string | null | undefined)[]): string | null => {
  * compile error. Also document it in `docs/TEMPLATE_VARIABLES.md`.
  */
 export const TEMPLATE_VARIABLES: Record<TemplateVariableName, VariableResolver> = {
-    recipient_first_name: (ctx) => ctx.recipient.first_name,
-    recipient_last_name: (ctx) => ctx.recipient.last_name,
-    recipient_full_name: (ctx) => joinName(ctx.recipient.first_name, ctx.recipient.last_name),
-    recipient_email: (ctx) => ctx.recipient.email_id,
+    subscriber_first_name: (ctx) => ctx.subscriber.first_name,
+    subscriber_last_name: (ctx) => ctx.subscriber.last_name,
+    subscriber_full_name: (ctx) => joinName(ctx.subscriber.first_name, ctx.subscriber.last_name),
+    subscriber_email: (ctx) => ctx.subscriber.email_id,
     group_name: (ctx) => ctx.group?.name,
     campaign_name: (ctx) => ctx.campaign.name,
     // The calendar date in the organization's time zone: a 23:30 UTC send is "tomorrow" in Asia/Kolkata.
@@ -74,19 +74,19 @@ const PLACEHOLDER_PATTERN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 export interface RenderResult {
     /** `text` with every resolvable placeholder substituted. */
     rendered: string;
-    /** Deduplicated names of placeholders left unresolved (unknown name, or no value for this recipient). */
+    /** Deduplicated names of placeholders left unresolved (unknown name, or no value for this subscriber). */
     missing: string[];
 }
 
 /**
  * Replaces every `{{variable_name}}` placeholder in `text` with its resolved
  * value from `context`. A placeholder naming an unknown variable, or whose
- * resolver returns null/undefined/empty for this recipient, is left as-is in
+ * resolver returns null/undefined/empty for this subscriber, is left as-is in
  * `rendered` and its name is reported in `missing` - callers should treat a
- * non-empty `missing` as "don't send this recipient this text".
+ * non-empty `missing` as "don't send this subscriber this text".
  *
  * @param text - Raw subject or `html_body` text, possibly containing `{{...}}` placeholders.
- * @param context - Data resolved for the specific recipient/campaign being sent.
+ * @param context - Data resolved for the specific subscriber/campaign being sent.
  */
 export function renderTemplate(text: string, context: TemplateVariableContext): RenderResult {
     const missing = new Set<string>();

@@ -14,7 +14,7 @@ export const overviewApi = apiSlice.injectEndpoints({
         { type: "Identity", id: "LIST" },
         { type: "Template", id: "LIST" },
         { type: "Group", id: "LIST" },
-        { type: "Recipient", id: "LIST" },
+        { type: "Subscriber", id: "LIST" },
         { type: "Key", id: "LIST" },
       ],
     }),
