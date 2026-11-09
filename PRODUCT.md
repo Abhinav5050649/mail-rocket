@@ -21,7 +21,7 @@ Mail Rocket schedules and sends email campaigns through the organization's own A
 
 ## Positioning
 
-Self-hosted and single-organization: the team owns the SES account, the database and the keys. Every REST operation is also exposed as an MCP tool, so AI clients can run campaigns with the same claims.
+Self-hosted and single-organization: the team owns the SES account, the database and the keys.
 
 ## Operating Context
 
