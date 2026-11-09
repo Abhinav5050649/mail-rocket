@@ -43,6 +43,13 @@
       "when": 1794241403523,
       "tag": "0005_rename_recipients_to_subscribers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794242828995,
+      "tag": "0006_campaign_delivery_tracking",
+      "breakpoints": true
     }
   ]
 }

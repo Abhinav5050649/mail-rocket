@@ -49,7 +49,7 @@ Reference chain for a full example: [src/routes/CampaignRoute.ts](../../../src/r
 
 ## Route nesting / mounting
 
-All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. `appRoute.use('*', authenticate)` puts every route behind an API key - there are no public routes.
+All sub-routers are mounted once in [src/routes/AppRoute.ts](../../../src/routes/AppRoute.ts), which the root `index.ts` mounts at `/`. `appRoute.use('*', authenticate)` puts every route behind an API key. The one exception is `/track` (open/click tracking loaded by mail clients), which is mounted before it.
 
 - There's no tenancy, so resources live at the top level: `/campaigns`, `/templates`, `/identities`, ...
 - `/organization` (singular) is the single organization profile: `GET`/`PATCH` only.

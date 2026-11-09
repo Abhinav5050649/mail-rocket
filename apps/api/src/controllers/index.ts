@@ -9,3 +9,4 @@ export * from "./TemplateController";
 export * from "./GroupController";
 export * from "./SubscriberController";
 export * from "./OverviewController";
+export * from "./TrackingController";

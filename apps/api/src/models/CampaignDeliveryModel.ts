@@ -30,6 +30,10 @@ export const campaignDeliveryTable = pgTable("campaign_delivery", {
     status: campaignDeliveryStatusEnum("status").default("pending"),
     /** When the send to this subscriber succeeded. */
     sent_at: timestamp("sent_at"),
+    /** When the subscriber first opened this email (tracking pixel loaded, or a link clicked). */
+    opened_at: timestamp("opened_at"),
+    /** When the subscriber first clicked a link in this email. */
+    clicked_at: timestamp("clicked_at"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */

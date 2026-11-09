@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/feedback";
 import { useAbility } from "@/hooks/useAbility";
 import { useIdentityNames } from "@/hooks/useLookups";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
-import { formatDateTime } from "@/lib/format";
+import { formatCount, formatDateTime } from "@/lib/format";
 import {
   useGetCampaignQuery,
+  useGetCampaignStatsQuery,
   useUpdateCampaignMutation,
   useDeleteCampaignMutation,
   selectCampaignDialog,
@@ -29,6 +30,9 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
   const { identityName } = useIdentityNames();
 
   const { data: campaign } = useGetCampaignQuery({ campaignId });
+  // Stats only mean something once a send has started.
+  const hasSent = campaign?.status === "sending" || campaign?.status === "sent" || campaign?.status === "failed";
+  const { data: stats } = useGetCampaignStatsQuery({ campaignId }, { skip: !hasSent });
   const [updateCampaign, { isLoading: isSaving, error: updateError }] = useUpdateCampaignMutation();
   const [deleteCampaign, { isLoading: isDeleting, error: deleteError }] = useDeleteCampaignMutation();
 
@@ -47,6 +51,32 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
         <div role="alert" className="mb-4 rounded-card bg-(--pill-negative-bg) px-4 py-3 text-sm text-(--pill-negative-ink)">
           <p className="font-medium">The send failed</p>
           <p>{campaign.failure_reason || "No reason was recorded."}</p>
+        </div>
+      )}
+
+      {hasSent && (
+        // Hairlines come from the 1px gaps showing the border colour behind the cells.
+        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-card border border-border bg-border">
+          {[
+            { label: "Sent", value: stats && formatCount(stats.sent), detail: stats && `of ${formatCount(stats.total)} · ${formatCount(stats.failed)} failed` },
+            { label: "Open rate", value: stats && `${Math.round(stats.open_rate * 100)}%`, detail: stats && `${formatCount(stats.opened)} opened` },
+            { label: "Click rate", value: stats && `${Math.round(stats.click_rate * 100)}%`, detail: stats && `${formatCount(stats.clicked)} clicked` },
+          ].map((cell) => (
+            <div key={cell.label} className="flex flex-col gap-1 bg-sheet p-4">
+              <span className="text-sm text-muted">{cell.label}</span>
+              {stats ? (
+                <>
+                  <span className="tabular text-kpi text-text">{cell.value}</span>
+                  <span className="tabular truncate text-xs text-muted">{cell.detail}</span>
+                </>
+              ) : (
+                <>
+                  <Skeleton className="h-7 w-12" />
+                  <Skeleton className="h-3 w-24" />
+                </>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

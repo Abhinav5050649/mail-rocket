@@ -10,3 +10,4 @@ export * from "./GroupService";
 export * from "./SubscriberService";
 export * from "./SendCampaignService";
 export * from "./OverviewService";
+export * from "./TrackingService";

@@ -93,7 +93,7 @@ sequenceDiagram
 
 ## 3. Auth & access
 
-There are no users, no passwords and no public routes. An API key is the only principal, and its CASL claims are the only authority.
+There are no users and no passwords, and the only public routes are `/track` (open/click tracking, loaded by mail clients). An API key is the only principal, and its CASL claims are the only authority.
 
 ```mermaid
 sequenceDiagram
@@ -161,6 +161,8 @@ erDiagram
     }
     CAMPAIGN_DELIVERY {
         enum status "pending, sent, failed"
+        timestamp opened_at "first open (tracking)"
+        timestamp clicked_at "first click (tracking)"
     }
 ```
 
@@ -248,4 +250,5 @@ flowchart TD
 - Chunk jobs re-fetch everything fresh: `sendChunk` re-reads the campaign, identity, and template by id rather than trusting the job payload, and skips subscribers already marked `sent`, so a BullMQ retry of a partially-sent chunk is safe.
 - Subject/body support `{{variable_name}}` placeholders (subscriber name, organization, group, etc.), resolved per subscriber - see [TEMPLATE_VARIABLES.md](TEMPLATE_VARIABLES.md). A subscriber with an unresolved placeholder is marked `failed` and skipped rather than sent broken content.
 - Partial delivery isn't total failure: `finalizeCampaign` only marks `failed` when *zero* subscribers succeeded — routine per-subscriber bounces don't flip the whole campaign's status; `campaign_delivery.status` is the accurate per-subscriber record.
+- With `PUBLIC_API_URL` set, each body gets an open pixel and signed click links tied to its `campaign_delivery` row (`addTracking`). Mail clients hit the public `/track/open` and `/track/click` routes, which set `opened_at`/`clicked_at`; `GET /campaigns/:campaign_id/stats` counts them.
 - Queue-orchestration stays out of the service layer: `CampaignWorkers.ts` owns the `FlowProducer` wiring; `SendCampaignService` never imports from `src/queues/`, so it stays callable and testable independent of BullMQ.

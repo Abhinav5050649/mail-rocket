@@ -256,6 +256,8 @@ CREATE TABLE "campaign_delivery" (
     "subscriber_id" varchar,
     "status"  "campaign_delivery_status" DEFAULT 'pending',
     "sent_at"      timestamp,
+    "opened_at"    timestamp,                                        -- First open (tracking pixel or a click)
+    "clicked_at"   timestamp,                                        -- First click on a tracked link
     "created_at"   timestamp,
     "updated_at"   timestamp,
     "description"  varchar,                                          -- Failure detail when status is `failed`

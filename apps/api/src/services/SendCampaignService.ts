@@ -1,6 +1,6 @@
 import { SendEmailCommand } from "@aws-sdk/client-ses";
 import { count, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, logger, sesClient, renderTemplate, type TemplateVariableContext } from "../libs";
+import { db, logger, sesClient, renderTemplate, addTracking, type TemplateVariableContext } from "../libs";
 import { subscribersTable, templateTable, campaignDeliveryTable, groupTable, groupSubscriberTable } from "../models";
 import { CampaignService } from "./CampaignService";
 import { campaignAudience, outerSubscriberId } from "./SubscriberService";
@@ -159,6 +159,10 @@ export class SendCampaignService {
      * `failed` with the missing variable names recorded in `description` and
      * no email is sent to them - the rest of the chunk is unaffected.
      *
+     * When `PUBLIC_API_URL` is set, each body also gets an open-tracking
+     * pixel and click-tracking links tied to its `campaign_delivery` row
+     * (see `src/libs/tracking.ts`).
+     *
      * @param campaignId - id of the campaign being sent.
      * @param deliveryIds - ids of the `campaign_delivery` rows in this chunk.
      * @throws If the campaign, its identity, or its template can no longer be found, or the identity is a `domain` type (not yet supported as a From address).
@@ -232,7 +236,7 @@ export class SendCampaignService {
                     Destination: { ToAddresses: [row.email] },
                     Message: {
                         Subject: { Data: subject.rendered },
-                        Body: { Html: { Data: body.rendered } },
+                        Body: { Html: { Data: addTracking(body.rendered, row.deliveryId) } },
                     },
                 }));
                 await db.update(campaignDeliveryTable).set({ status: "sent", sent_at: new Date() }).where(eq(campaignDeliveryTable.id, row.deliveryId));

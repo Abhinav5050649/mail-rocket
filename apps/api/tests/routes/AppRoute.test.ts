@@ -83,6 +83,24 @@ describe("appRoute", () => {
         expect(((await res.json()) as { id: string }).id).toBe("key-1");
     });
 
+    it("serves the open-tracking pixel without a key", async () => {
+        const res = await app.request("/track/open/cs-1");
+        expect(res.status).toBe(200);
+        expect(res.headers.get("content-type")).toBe("image/gif");
+    });
+
+    it("400s an unsigned click-tracking link without a key, instead of 401ing", async () => {
+        const res = await app.request("/track/click/cs-1?url=https%3A%2F%2Fevil.example");
+        expect(res.status).toBe(400);
+    });
+
+    it("lets a viewer key read a campaign's stats", async () => {
+        authenticateAs(claimsForPreset.viewer);
+        const res = await app.request("/campaigns/campaign-1/stats", { headers: { authorization: "Bearer mr_test" } });
+        // The mocked db finds no campaign, so the route got past auth to the controller.
+        expect(res.status).toBe(404);
+    });
+
     it("no longer serves the removed tenant-scoped routes", async () => {
         authenticateAs(claimsForPreset.admin);
         const res = await app.request("/organizations/org-1/campaigns", { headers: { authorization: "Bearer mr_test" } });

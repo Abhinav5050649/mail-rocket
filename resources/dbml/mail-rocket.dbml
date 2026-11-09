@@ -224,6 +224,8 @@ Table campaign_delivery {
   subscriber_id varchar [ref: > subscribers.id]
   status campaign_delivery_status [default: 'pending']
   sent_at timestamp
+  opened_at timestamp [note: 'First open: tracking pixel loaded or a link clicked (null = not opened, or tracking off).']
+  clicked_at timestamp [note: 'First click on a tracked link.']
   created_at timestamp
   updated_at timestamp
   description varchar

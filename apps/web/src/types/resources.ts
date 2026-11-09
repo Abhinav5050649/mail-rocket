@@ -17,6 +17,7 @@ export type {
   Identity,
   CampaignStatus,
   Campaign,
+  CampaignStats,
   Template,
   Group,
   Subscriber,

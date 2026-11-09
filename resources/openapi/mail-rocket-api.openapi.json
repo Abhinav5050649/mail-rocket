@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "mail-rocket-api",
-    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and subscribers. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do.",
+    "description": "API for a self-hosted Mail Rocket instance: one organization's profile, addresses, contact details, sending identities, campaigns, templates, groups and subscribers. There are no users or tenants - every request authenticates with an API key whose CASL claims decide what it may do, except the public /track endpoints that sent emails point at.",
     "version": "1.0.0"
   },
   "tags": [
@@ -41,6 +41,10 @@
     {
       "name": "Identities",
       "description": "Domains/email addresses campaigns send from."
+    },
+    {
+      "name": "Tracking",
+      "description": "Public open/click tracking endpoints that sent emails point at."
     }
   ],
   "paths": {
@@ -3704,6 +3708,180 @@
         }
       }
     },
+    "/campaigns/{campaign_id}/stats": {
+      "get": {
+        "summary": "Get Campaign Stats",
+        "deprecated": false,
+        "description": "How a campaign's send went: emails pending, sent and failed, how many subscribers opened or clicked (each counted once), and open/click rates as fractions of the emails sent. All zeros before the campaign is sent. Opens and clicks are only recorded when the instance has `PUBLIC_API_URL` set. Requires the `read Campaign` claim.",
+        "tags": [
+          "Campaigns"
+        ],
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "description": "ID of the campaign.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The campaign's stats.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignStats"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A required path parameter is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `read Campaign`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "campaignStatsGet"
+      }
+    },
+    "/track/open/{delivery_id}": {
+      "get": {
+        "summary": "Track Open",
+        "deprecated": false,
+        "description": "The open-tracking pixel embedded in sent emails. Records the subscriber's first open of this email and returns a 1x1 transparent GIF (`Cache-Control: no-store`). Public: loaded by mail clients, so no API key. Unknown ids still get the pixel.",
+        "tags": [
+          "Tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "description": "ID of the campaign_delivery row the email was sent for.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A 1x1 transparent GIF.",
+            "content": {
+              "image/gif": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "trackOpen"
+      }
+    },
+    "/track/click/{delivery_id}": {
+      "get": {
+        "summary": "Track Click",
+        "deprecated": false,
+        "description": "Every link in a sent email points here. Records the subscriber's first click (and first open, since a click implies one), then redirects to the link's real destination. Public: no API key. `sig` must be the HMAC the API generated for this id and url, so the endpoint can't be used as an open redirect.",
+        "tags": [
+          "Tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "description": "ID of the campaign_delivery row the email was sent for.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "description": "The link's real destination.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "HMAC-SHA256 (base64url) of `<delivery_id>:<url>`, keyed by `TRACKING_SECRET`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to `url`.",
+            "headers": {
+              "Location": {
+                "description": "The link's real destination.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tracking is off, or `url` is missing or its signature doesn't match.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "trackClick"
+      }
+    },
     "/overview": {
       "get": {
         "summary": "Get Overview",
@@ -4935,6 +5113,60 @@
             "type": "string"
           }
         }
+      },
+      "CampaignStats": {
+        "type": "object",
+        "description": "How a campaign's send went. Counts are emails, one per subscriber in the send.",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Emails in the send."
+          },
+          "pending": {
+            "type": "integer",
+            "description": "Not attempted yet."
+          },
+          "sent": {
+            "type": "integer",
+            "description": "Accepted by SES."
+          },
+          "failed": {
+            "type": "integer",
+            "description": "Rejected by SES, no email address, or an unresolved template variable."
+          },
+          "opened": {
+            "type": "integer",
+            "description": "Subscribers who opened the email (pixel loaded or a link clicked)."
+          },
+          "clicked": {
+            "type": "integer",
+            "description": "Subscribers who clicked at least one link."
+          },
+          "open_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "opened / sent, or 0 when nothing was sent."
+          },
+          "click_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "clicked / sent, or 0 when nothing was sent."
+          }
+        },
+        "required": [
+          "total",
+          "pending",
+          "sent",
+          "failed",
+          "opened",
+          "clicked",
+          "open_rate",
+          "click_rate"
+        ]
       },
       "Overview": {
         "type": "object",

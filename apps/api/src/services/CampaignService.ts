@@ -1,4 +1,4 @@
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, sql, type SQL } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
 import { campaignDeliveryTable, campaignTable, groupTable, subscribersTable, templateTable, type CampaignStatus } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
@@ -108,6 +108,54 @@ export class CampaignService {
             return campaign;
         } catch (error) {
             logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getById.name}: Failed to get campaign`);
+            throw error;
+        }
+    }
+
+    /**
+     * Counts how a campaign's send went, from its `campaign_delivery`
+     * rows: how many emails are pending, sent or failed, how many
+     * subscribers opened one or clicked a link (each counted once), and the
+     * open and click rates as a fraction of the emails sent.
+     *
+     * @param campaignId - id of the campaign.
+     * @returns The campaign's stats (all zeros before it has been sent), or `null` if the campaign doesn't exist.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async getStats(campaignId: string) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getStats.name}`);
+        logger.debug({ campaignId }, `Request:`);
+
+        try {
+            const [campaign] = await db.select({ id: campaignTable.id }).from(campaignTable).where(eq(campaignTable.id, campaignId));
+
+            if (!campaign) {
+                logger.warn({ campaignId }, `${this.constructor.name}.${this.getStats.name}: Campaign not found`);
+                return null;
+            }
+
+            // `count(x)` skips nulls, so `count(case when ... then 1 end)` counts the matching rows.
+            const [counts] = await db.select({
+                total: count(),
+                pending: count(sql`case when ${campaignDeliveryTable.status} = 'pending' then 1 end`),
+                sent: count(sql`case when ${campaignDeliveryTable.status} = 'sent' then 1 end`),
+                failed: count(sql`case when ${campaignDeliveryTable.status} = 'failed' then 1 end`),
+                opened: count(campaignDeliveryTable.opened_at),
+                clicked: count(campaignDeliveryTable.clicked_at),
+            }).from(campaignDeliveryTable).where(eq(campaignDeliveryTable.campaign_id, campaignId));
+
+            const stats = {
+                ...counts!,
+                open_rate: counts!.sent > 0 ? counts!.opened / counts!.sent : 0,
+                click_rate: counts!.sent > 0 ? counts!.clicked / counts!.sent : 0,
+            };
+
+            logger.debug({ campaignId, stats }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.getStats.name}`);
+
+            return stats;
+        } catch (error) {
+            logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getStats.name}: Failed to get campaign stats`);
             throw error;
         }
     }

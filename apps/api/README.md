@@ -39,6 +39,19 @@ A key stores the expanded list, not the preset name, so a custom combination is 
 
 **System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and subscribers (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
 
+## Open and click tracking
+
+Set `PUBLIC_API_URL` (this API's public base URL) and `TRACKING_SECRET` to track opens and clicks. With them set, `SendCampaignService.sendChunk` passes each subscriber's rendered body through `addTracking` (`src/libs/tracking.ts`):
+
+- **Opens:** a 1x1 pixel at `GET /track/open/:delivery_id` goes before `</body>`. Loading it sets `campaign_delivery.opened_at`.
+- **Clicks:** every absolute `http(s)` link is rewritten to `GET /track/click/:delivery_id?url=...&sig=...`, which sets `clicked_at` (and `opened_at`, since a click implies an open), then redirects with a 302. `sig` is an HMAC of the id and URL, so the endpoint only redirects to links an email actually contained and can't be used as an open redirect.
+- Only the first open and the first click are kept, so each subscriber counts once. `/track` is public: mail clients have no API key.
+- `GET /campaigns/:campaign_id/stats` returns `total`/`pending`/`sent`/`failed`, `opened`/`clicked`, and `open_rate`/`click_rate` (fractions of `sent`).
+
+The tracking is ours, not SES's, so it keeps working if sending moves to another provider or plain SMTP. Bounces and complaints, by contrast, are provider-specific. A provider webhook (e.g. SES → SNS) could record them as more timestamp columns on `campaign_delivery` alongside `opened_at`/`clicked_at`.
+
+With the variables unset, emails go out untouched and stats show only the send counts.
+
 ## Architecture
 
 The API is a single long-lived [Bun](https://bun.sh) process (not serverless): [Hono](https://hono.dev) serves HTTP via `Bun.serve`, [Drizzle ORM](https://orm.drizzle.team) talks to Postgres, and [BullMQ](https://docs.bullmq.io) (backed by Redis) runs background jobs in the same process as the HTTP server. `index.ts` wires all three up: it connects to the DB, starts the BullMQ workers, then starts the Hono server.
@@ -70,7 +83,7 @@ A request flows top-to-bottom through these layers and never skips one: `routes/
 
 1. `requestLogger` - logs method/path/duration for every request.
 2. `jsonOnly` - rejects POST/PUT/PATCH requests that aren't `application/json` before any controller tries to parse a body.
-3. Routing into `appRoute`, which applies `authenticate` to every route. There are no public routes. `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
+3. Routing into `appRoute`, which applies `authenticate` to every route except the public `/track` open/click endpoints (mounted ahead of it). `authenticate` hashes the presented API key, finds it with one indexed lookup on `api_key.key_hash` (401 if it's missing, unknown or expired), re-validates its claims, and sets `principal` (key id, name, claims and CASL ability) on the context.
 4. Per-route middleware - every route except `/me` and `/overview` applies `requireAbility(action, subject)`, which returns 403 unless the key's ability grants that action on that subject. `/overview` instead returns each of its sections only when the key can `read` that section's subject, and `null` otherwise.
 5. The matched controller method runs, calls into a service, and returns JSON.
 

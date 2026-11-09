@@ -1,4 +1,4 @@
-export type { Campaign, CampaignStatus } from "@/types/resources";
+export type { Campaign, CampaignStats, CampaignStatus } from "@/types/resources";
 import type { CampaignStatus, PageArgs } from "@/types/resources";
 
 export interface CampaignListArgs extends PageArgs {

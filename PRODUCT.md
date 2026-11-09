@@ -29,6 +29,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 - Identities: domain or email; created → pending (SES verification in flight, DNS TXT/CNAME records to add) → active. Only active identities can send.
 - Templates, groups and subscribers can be linked to a campaign. A subscriber can be in any number of groups (`group_subscriber`). A campaign sends to its directly linked subscribers plus everyone in its linked groups, each person once; `{{group_name}}` lists all of a subscriber's groups.
 - Template variables: subscriber first/last/full name and email, group name, campaign name and start date, organization name, sender email. A subscriber missing a value is skipped at send time.
+- Open and click tracking (when `PUBLIC_API_URL` is set): each sent email gets a tracking pixel and signed click links. A campaign shows sent/failed counts plus open and click rates (unique subscribers ÷ emails sent). Opens are approximate: image blocking hides some, and privacy proxies (e.g. Apple Mail) report some that never happened.
 - Lists paginate by limit/offset with no total count; `/overview` gives counts.
 - The organization has one IANA time zone (default UTC). Every date is shown in it, start times are entered in it, and `{{campaign_start_date}}` is rendered in it. Timestamps are absolute instants, so changing the zone never moves a scheduled send.
 
@@ -36,7 +37,7 @@ Self-hosted and single-organization: the team owns the SES account, the database
 
 - Backend: Bun + Hono API (`apps/api`); frontend: Next.js app (`apps/web`) talking to it through a BFF proxy that holds the key in an httpOnly cookie.
 - UI controls are hidden or disabled by the key's claims; the server is the authority.
-- Not available: open/click tracking, analytics over time, search endpoints, bulk subscriber import.
+- Not available: bounce/complaint tracking, analytics over time, search endpoints, bulk subscriber import.
 
 ## Brand Commitments
 

@@ -21,4 +21,11 @@ export const config = {
   // Emails/second the campaign-send-chunk worker is allowed to fire at SES -
   // tune to the account's actual SES send-rate quota (see the SES console).
   sesSendRatePerSecond: Number(process.env.SES_SEND_RATE_PER_SECOND) || 14,
+  // Public base URL of this API (e.g. https://api.example.com). When set,
+  // sent emails get an open-tracking pixel and click-tracking links pointing
+  // here; when unset, emails go out untouched and nothing is tracked.
+  publicApiUrl: process.env.PUBLIC_API_URL || "",
+  // Signs click-tracking links so `/track/click` can't be used as an open
+  // redirect. Only needed (and then required) when tracking is on.
+  trackingSecret: process.env.PUBLIC_API_URL ? required("TRACKING_SECRET") : "",
 };

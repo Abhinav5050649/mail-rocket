@@ -1,6 +1,6 @@
 import { apiSlice } from "@/lib/redux/api/apiSlice";
 import { listTags, itemTag } from "@/lib/redux/api/tagHelpers";
-import type { Campaign, CampaignInput, CampaignListArgs } from "./model";
+import type { Campaign, CampaignInput, CampaignListArgs, CampaignStats } from "./model";
 
 /**
  * Reference implementation of the per-resource RTK Query pattern: list query
@@ -21,6 +21,10 @@ export const campaignsApi = apiSlice.injectEndpoints({
     }),
     getCampaign: builder.query<Campaign, { campaignId: string }>({
       query: ({ campaignId }) => `/campaigns/${campaignId}`,
+      providesTags: (_r, _e, { campaignId }) => itemTag("Campaign", campaignId),
+    }),
+    getCampaignStats: builder.query<CampaignStats, { campaignId: string }>({
+      query: ({ campaignId }) => `/campaigns/${campaignId}/stats`,
       providesTags: (_r, _e, { campaignId }) => itemTag("Campaign", campaignId),
     }),
     createCampaign: builder.mutation<Campaign, CampaignInput>({
@@ -58,6 +62,7 @@ export const campaignsApi = apiSlice.injectEndpoints({
 export const {
   useGetCampaignsQuery,
   useGetCampaignQuery,
+  useGetCampaignStatsQuery,
   useCreateCampaignMutation,
   useUpdateCampaignMutation,
   useDeleteCampaignMutation,

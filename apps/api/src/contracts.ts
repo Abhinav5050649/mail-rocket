@@ -24,7 +24,7 @@ import type {
     identityStatusEnum,
     identityTypeEnum,
 } from "./models";
-import type { Overview, SubscriberService } from "./services";
+import type { CampaignService, Overview, SubscriberService } from "./services";
 
 /** Passes only for `true`; anything else is a compile error that names the mismatch. */
 type Expect<T extends true> = T;
@@ -53,6 +53,7 @@ export type ContractChecks = [
     Expect<SameKeys<ITemplate, Wire.Template>>,
     Expect<SameKeys<IGroup, Wire.Group>>,
     Expect<SameKeys<ApiSubscriber, Wire.Subscriber>>,
+    Expect<SameKeys<NonNullable<Awaited<ReturnType<CampaignService["getStats"]>>>, Wire.CampaignStats>>,
     Expect<SameKeys<ReturnType<typeof toApiKeyResponse>, Wire.ApiKey>>,
     Expect<SameKeys<Overview, Wire.Overview>>,
     Expect<SameKeys<NonNullable<Overview["campaigns"]>, NonNullable<Wire.Overview["campaigns"]>>>,

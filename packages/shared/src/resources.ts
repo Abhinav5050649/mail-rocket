@@ -135,6 +135,22 @@ export interface Subscriber extends BaseFields {
     campaign_id: string | null;
 }
 
+/**
+ * GET /campaigns/:campaign_id/stats. Counts are emails (one per subscriber);
+ * `opened`/`clicked` count each subscriber once. Rates are fractions (0-1)
+ * of the emails `sent`, and 0 before anything is sent.
+ */
+export interface CampaignStats {
+    total: number;
+    pending: number;
+    sent: number;
+    failed: number;
+    opened: number;
+    clicked: number;
+    open_rate: number;
+    click_rate: number;
+}
+
 /** Per-subscriber delivery outcomes of one send, or of every send together. */
 export type DeliveryCounts = Record<DeliveryStatus, number>;
 
