@@ -1,0 +1,47 @@
+/* Mail Rocket's palette (see the repo-root DESIGN.md): teal accent, grey chrome, IBM Plex. */
+:root {
+  --ifm-color-primary: #1b6c80;
+  --ifm-color-primary-dark: #186173;
+  --ifm-color-primary-darker: #175c6d;
+  --ifm-color-primary-darkest: #134c5a;
+  --ifm-color-primary-light: #1e778d;
+  --ifm-color-primary-lighter: #1f7c93;
+  --ifm-color-primary-lightest: #238ca6;
+
+  --ifm-font-family-base: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ifm-font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ifm-heading-font-weight: 600;
+  --ifm-code-font-size: 92%;
+  --ifm-global-radius: 8px;
+  --ifm-navbar-background-color: #eff3f3;
+  --ifm-footer-background-color: #131416;
+
+  --mr-frame: #eff3f3;
+  --mr-sheet: #ffffff;
+  --mr-border: #e4e8e9;
+  --mr-muted: #565b5d;
+  --docusaurus-highlighted-code-line-bg: rgba(27, 108, 128, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #5fb4c9;
+  --ifm-color-primary-dark: #48a9c1;
+  --ifm-color-primary-darker: #3fa2bb;
+  --ifm-color-primary-darkest: #34869a;
+  --ifm-color-primary-light: #76bfd1;
+  --ifm-color-primary-lighter: #81c5d5;
+  --ifm-color-primary-lightest: #a3d5e2;
+  --ifm-background-color: #131416;
+  --ifm-navbar-background-color: #1b1d1f;
+
+  --mr-frame: #1b1d1f;
+  --mr-sheet: #131416;
+  --mr-border: #2c3033;
+  --mr-muted: #a4aaad;
+  --docusaurus-highlighted-code-line-bg: rgba(95, 180, 201, 0.15);
+}
+
+.navbar {
+  box-shadow: none;
+  border-bottom: 1px solid var(--mr-border);
+}
