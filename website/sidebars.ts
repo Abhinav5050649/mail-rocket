@@ -31,6 +31,7 @@ const sidebars: SidebarsConfig = {
       label: "Reference",
       items: ["reference/api", "reference/configuration", "reference/architecture"],
     },
+    "faq",
   ],
 };
 

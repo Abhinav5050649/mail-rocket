@@ -89,6 +89,7 @@ const config: Config = {
           title: "Project",
           items: [
             { label: "GitHub", href: REPO_URL },
+            { label: "FAQ", to: "/docs/faq" },
             { label: "Issues", href: `${REPO_URL}/issues` },
           ],
         },
