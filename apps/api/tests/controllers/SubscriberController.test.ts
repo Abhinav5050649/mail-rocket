@@ -57,20 +57,6 @@ describe("SubscriberController", () => {
         });
     });
 
-    describe("postByCampaign", () => {
-        it("400s when a route param is missing", async () => {
-            const ctx = createMockContext({ body: {} });
-            await expectHttpException(controller.postByCampaign(ctx), 400, "campaignId");
-        });
-
-        it("creates a subscriber scoped to the campaign", async () => {
-            const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body: { email_id: "person@example.com" } });
-            const result: any = await controller.postByCampaign(ctx);
-            expect(subscriberService.create).toHaveBeenCalledWith({ email_id: "person@example.com", campaign_id: "campaign-1" });
-            expect(result.status).toBe(201);
-        });
-    });
-
     describe("getAllByGroup", () => {
         it("400s when the group_id param is missing", async () => {
             const ctx = createMockContext({ params: {} });
@@ -82,40 +68,6 @@ describe("SubscriberController", () => {
             const result: any = await controller.getAllByGroup(ctx);
             expect(subscriberService.getByGroup).toHaveBeenCalledWith("group-1", { limit: undefined, offset: undefined });
             expect(result.body).toEqual([subscriber]);
-        });
-    });
-
-    describe("postByGroup", () => {
-        it("400s when a route param is missing", async () => {
-            const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body: {} });
-            await expectHttpException(controller.postByGroup(ctx), 400, "groupId");
-        });
-
-        it("creates a subscriber scoped to the campaign and group", async () => {
-            const ctx = createMockContext({
-                params: { campaign_id: "campaign-1", group_id: "group-1" },
-                body: { email_id: "person@example.com" },
-            });
-            const result: any = await controller.postByGroup(ctx);
-            expect(subscriberService.create).toHaveBeenCalledWith({
-                email_id: "person@example.com",
-                campaign_id: "campaign-1",
-                group_ids: ["group-1"],
-            });
-            expect(result.status).toBe(201);
-        });
-
-        it("keeps extra group_ids from the body alongside the route's group", async () => {
-            const ctx = createMockContext({
-                params: { campaign_id: "campaign-1", group_id: "group-1" },
-                body: { email_id: "person@example.com", group_ids: ["group-2", "group-1"] },
-            });
-            await controller.postByGroup(ctx);
-            expect(subscriberService.create).toHaveBeenCalledWith({
-                email_id: "person@example.com",
-                campaign_id: "campaign-1",
-                group_ids: ["group-2", "group-1"],
-            });
         });
     });
 

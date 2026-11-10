@@ -26,8 +26,8 @@ const SAMPLE_VALUES: Record<string, string> = {
 
 const VARIABLE_PATTERN = /\{\{\s*([a-z_]+)\s*\}\}/g;
 
-/** Replaces known `{{variables}}` with sample values; unknown ones stay visible. */
-function fillSamples(html: string, organizationName?: string | null) {
+/** Replaces known `{{variables}}` with sample values; unknown ones stay visible. Also used by the campaign form's template preview. */
+export function fillSamples(html: string, organizationName?: string | null) {
   return html.replace(VARIABLE_PATTERN, (match, token: string) => {
     if (token === "organization_name" && organizationName) return organizationName;
     // Same call the send pipeline makes, so the sample reads like the real thing.

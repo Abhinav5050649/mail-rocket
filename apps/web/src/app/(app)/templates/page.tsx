@@ -19,7 +19,10 @@ const variableCount = (html: string | null) => new Set(html?.match(/\{\{\s*[a-z_
 export default function TemplatesPage() {
   const { limit, offset, setOffset } = usePaginationParams();
   const { data: templates, isLoading, error, refetch } = useGetTemplatesQuery({ limit, offset });
-  const { campaignName } = useCampaignNames();
+  const { campaigns } = useCampaignNames();
+  /** "Autumn launch, Newsletter" - the campaigns that send a template, or null when none do. */
+  const usedBy = (templateId: string) =>
+    campaigns?.filter((campaign) => campaign.template_id === templateId).map((campaign) => campaign.name || "Untitled campaign").join(", ") || null;
 
   const action = (
     <Can I="create" a="Template">
@@ -31,7 +34,7 @@ export default function TemplatesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Templates" description="HTML email bodies. Variables are filled per subscriber when the campaign sends." actions={action} />
+      <PageHeader title="Templates" description="A library of HTML email bodies. Each campaign picks one; variables are filled per subscriber when it sends." actions={action} />
       <div>
         <DataTable<Template>
           noun="templates"
@@ -42,7 +45,7 @@ export default function TemplatesPage() {
           href={(template) => `/templates/${template.id}`}
           columns={[
             { header: "Template", cell: (template) => template.name || "Untitled template", className: "w-[34%]" },
-            { header: "Campaign", cell: (template) => campaignName(template.campaign_id) ?? <Dash />, className: "text-muted" },
+            { header: "Used by", cell: (template) => usedBy(template.id) ?? <Dash />, className: "text-muted" },
             {
               header: "Variables",
               cell: (template) => {
@@ -56,7 +59,7 @@ export default function TemplatesPage() {
           ]}
           mobile={{
             title: (template) => template.name || "Untitled template",
-            subtitle: (template) => campaignName(template.campaign_id) ?? "Not linked to a campaign",
+            subtitle: (template) => (usedBy(template.id) ? `Used by ${usedBy(template.id)}` : "Not used by any campaign yet"),
           }}
           empty={
             <EmptyState title="No templates yet" action={action}>

@@ -3,6 +3,11 @@ import { listTags, itemTag } from "@/lib/redux/api/tagHelpers";
 import type { PageArgs } from "@/types/resources";
 import type { Group, GroupInput } from "./model";
 
+/**
+ * Groups are a shared library. A campaign's groups (`getCampaignGroups`) are
+ * read-only here - they're set on the campaign itself - and are tagged
+ * `CAMPAIGN_<id>` so saving the campaign refreshes them.
+ */
 export const groupsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getGroups: builder.query<Group[], PageArgs>({
@@ -29,21 +34,7 @@ export const groupsApi = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: (result) => [
-        { type: "Group", id: "LIST" },
-        ...(result?.campaign_id ? [{ type: "Group" as const, id: `CAMPAIGN_${result.campaign_id}` }] : []),
-      ],
-    }),
-    createCampaignGroup: builder.mutation<Group, { campaignId: string } & GroupInput>({
-      query: ({ campaignId, ...body }) => ({
-        url: `/campaigns/${campaignId}/groups`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: (_r, _e, { campaignId }) => [
-        { type: "Group", id: "LIST" },
-        { type: "Group", id: `CAMPAIGN_${campaignId}` },
-      ],
+      invalidatesTags: [{ type: "Group", id: "LIST" }],
     }),
     updateGroup: builder.mutation<Group, { groupId: string } & Partial<GroupInput>>({
       query: ({ groupId, ...body }) => ({
@@ -51,20 +42,18 @@ export const groupsApi = apiSlice.injectEndpoints({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: (result, _e, { groupId }) => [
-        ...itemTag("Group", groupId),
-        ...(result?.campaign_id ? [{ type: "Group" as const, id: `CAMPAIGN_${result.campaign_id}` }] : []),
-      ],
+      invalidatesTags: (_r, _e, { groupId }) => itemTag("Group", groupId),
     }),
-    deleteGroup: builder.mutation<void, { groupId: string; campaignId?: string }>({
+    deleteGroup: builder.mutation<void, { groupId: string }>({
       query: ({ groupId }) => ({
         url: `/groups/${groupId}`,
         method: "DELETE",
       }),
-      invalidatesTags: (_r, _e, { groupId, campaignId }) => [
+      invalidatesTags: (_r, _e, { groupId }) => [
         ...itemTag("Group", groupId),
         { type: "Group", id: "LIST" },
-        ...(campaignId ? [{ type: "Group" as const, id: `CAMPAIGN_${campaignId}` }] : []),
+        // Campaigns that sent to it lose it from their group_ids.
+        { type: "Campaign", id: "LIST" },
       ],
     }),
   }),
@@ -75,7 +64,6 @@ export const {
   useGetCampaignGroupsQuery,
   useGetGroupQuery,
   useCreateGroupMutation,
-  useCreateCampaignGroupMutation,
   useUpdateGroupMutation,
   useDeleteGroupMutation,
 } = groupsApi;

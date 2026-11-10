@@ -5,11 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { FormActions, SettingsSection } from "@/components/ui/page";
 import { FormError } from "@/components/ui/feedback";
-import { useCampaignNames, useGroupNames } from "@/hooks/useLookups";
+import { useGroupNames } from "@/hooks/useLookups";
 import { GroupPicker } from "./GroupPicker";
 import type { Subscriber } from "@/types/resources";
 
@@ -17,7 +17,6 @@ const subscriberSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   email_id: z.string().trim().min(1, "Email is required").pipe(z.email("Enter a valid email address")),
-  campaign_id: z.string().optional(),
   group_ids: z.array(z.string()),
 });
 export type SubscriberFormValues = z.infer<typeof subscriberSchema>;
@@ -25,7 +24,6 @@ export type SubscriberFormValues = z.infer<typeof subscriberSchema>;
 interface SubscriberFormProps {
   mode: "create" | "edit";
   initialData?: Subscriber;
-  defaultCampaignId?: string;
   /** Pre-selects this group for a new subscriber. */
   defaultGroupId?: string;
   onSubmit: (values: SubscriberFormValues) => void;
@@ -35,8 +33,7 @@ interface SubscriberFormProps {
   readOnly?: boolean;
 }
 
-export function SubscriberForm({ mode, initialData, defaultCampaignId, defaultGroupId, onSubmit, isSubmitting, error, onCancel, readOnly }: SubscriberFormProps) {
-  const { campaigns, campaignName } = useCampaignNames();
+export function SubscriberForm({ mode, initialData, defaultGroupId, onSubmit, isSubmitting, error, onCancel, readOnly }: SubscriberFormProps) {
   const { groups } = useGroupNames();
   const {
     control,
@@ -49,12 +46,9 @@ export function SubscriberForm({ mode, initialData, defaultCampaignId, defaultGr
       first_name: initialData?.first_name ?? "",
       last_name: initialData?.last_name ?? "",
       email_id: initialData?.email_id ?? "",
-      campaign_id: initialData?.campaign_id ?? defaultCampaignId ?? "",
       group_ids: initialData?.group_ids ?? (defaultGroupId ? [defaultGroupId] : []),
     },
   });
-
-  const campaignOptions = [{ label: "Not linked", value: "" }, ...(campaigns?.map((campaign) => ({ label: campaign.name ?? "Untitled campaign", value: campaign.id })) ?? [])];
 
   const submit = (values: SubscriberFormValues) =>
     onSubmit({
@@ -94,16 +88,8 @@ export function SubscriberForm({ mode, initialData, defaultCampaignId, defaultGr
           <Controller
             control={control}
             name="group_ids"
-            render={({ field }) => <GroupPicker groups={groups} value={field.value} onChange={field.onChange} campaignName={campaignName} disabled={readOnly} />}
+            render={({ field }) => <GroupPicker groups={groups} value={field.value} onChange={field.onChange} disabled={readOnly} />}
           />
-        </SettingsSection>
-        <SettingsSection title="Campaign" description="Link the person to one campaign directly, whatever their groups.">
-          <Field label="Campaign" optional>
-            {(props) => (
-              // Controlled, so the stored value shows once its options arrive.
-              <Controller control={control} name="campaign_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={campaignOptions} className="max-w-sm" />} />
-            )}
-          </Field>
         </SettingsSection>
       </fieldset>
       {!readOnly && (

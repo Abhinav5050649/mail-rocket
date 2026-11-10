@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Field, Input } from "@/components/ui/field";
+import { DatePicker, todayInZone } from "@/components/ui/date-picker";
 import { FormActions, PageHeader, SettingsSection } from "@/components/ui/page";
 import { FormError, Notice } from "@/components/ui/feedback";
 import { PRESETS, PRESET_DESCRIPTIONS } from "@mail-rocket/shared";
@@ -71,7 +72,16 @@ export default function NewKeyPage() {
               {(props) => <Input {...props} {...register("name")} placeholder="e.g. ops laptop, ci, claude" />}
             </Field>
             <Field label="Expires on" optional hint={`Expires at the end of that day, ${getDisplayTimeZone()} time. Leave empty for a key that never expires.`}>
-              {(props) => <Input {...props} {...register("expires_on")} type="date" className="tabular max-w-52" />}
+              {(props) => (
+                <Controller
+                  control={control}
+                  name="expires_on"
+                  render={({ field }) => (
+                    // A key can't expire in the past; today is the earliest choice.
+                    <DatePicker {...props} value={field.value ?? ""} onChange={field.onChange} minDate={todayInZone()} clearable />
+                  )}
+                />
+              )}
             </Field>
           </div>
         </SettingsSection>

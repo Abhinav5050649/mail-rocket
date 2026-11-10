@@ -55,20 +55,6 @@ describe("GroupController", () => {
         });
     });
 
-    describe("postByCampaign", () => {
-        it("400s when a route param is missing", async () => {
-            const ctx = createMockContext({ body: {} });
-            await expectHttpException(controller.postByCampaign(ctx), 400, "campaignId");
-        });
-
-        it("creates a group scoped to the campaign", async () => {
-            const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body: { name: "VIP" } });
-            const result: any = await controller.postByCampaign(ctx);
-            expect(groupService.create).toHaveBeenCalledWith({ name: "VIP", campaign_id: "campaign-1" });
-            expect(result.status).toBe(201);
-        });
-    });
-
     describe("get", () => {
         it("400s when the group_id param is missing", async () => {
             const ctx = createMockContext({ params: {} });

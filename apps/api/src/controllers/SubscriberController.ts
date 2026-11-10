@@ -26,13 +26,12 @@ const assertSubscriberBody = (body: Record<string, unknown>): void => {
 /**
  * HTTP layer for subscriber-related endpoints. Translates Hono `Context`
  * objects into `SubscriberService` calls and maps the results to HTTP
- * responses/errors. Subscribers live at `/subscribers`, and are
- * additionally nested under a campaign
- * (`/campaigns/:campaign_id/subscribers`) or a
- * group within a campaign
- * (`/campaigns/:campaign_id/groups/:group_id/subscribers`)
- * for narrower listing/creation. Group membership is many-to-many and is
- * managed at `/groups/:group_id/subscribers`, or by sending `group_ids`.
+ * responses/errors. Subscribers live at `/subscribers`; a campaign's
+ * audience (its groups' members plus its individually picked subscribers)
+ * is listed at `/campaigns/:campaign_id/subscribers`. Group membership is
+ * many-to-many and is managed at `/groups/:group_id/subscribers`, or by
+ * sending `group_ids`. Which subscribers a campaign picks is set on the
+ * campaign itself (`subscriber_ids`).
  */
 export class SubscriberController {
     constructor(private subscriberService: SubscriberService) {
@@ -123,39 +122,7 @@ export class SubscriberController {
     }
 
     /**
-     * POST /campaigns/:campaign_id/subscribers
-     * Creates a new subscriber within a campaign.
-     *
-     * @param c - Hono request context; expects a `campaign_id`
-     * route param and a JSON body with the subscriber fields.
-     * @returns JSON response with the created subscriber.
-     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
-     */
-    postByCampaign = async (c: Context) => {
-        logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
-
-        const campaignId = c.req.param('campaign_id');
-
-        if (!campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
-        }
-
-        const body = await c.req.json();
-        assertSubscriberBody(body);
-
-        logger.debug({ campaignId, body }, `Request:`);
-
-        const subscriber = await this.subscriberService.create({ ...body, campaign_id: campaignId });
-
-        logger.debug({ campaignId, subscriber }, `Response:`);
-        logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
-
-        return c.json(subscriber, 201);
-    }
-
-    /**
      * GET /groups/:group_id/subscribers
-     * GET /campaigns/:campaign_id/groups/:group_id/subscribers
      * Lists subscribers belonging to a single group.
      *
      * @param c - Hono request context; expects a `group_id` route param.
@@ -186,44 +153,6 @@ export class SubscriberController {
         logger.info(`End method: ${this.constructor.name}.${this.getAllByGroup.name}`);
 
         return c.json(subscribers);
-    }
-
-    /**
-     * POST /campaigns/:campaign_id/groups/:group_id/subscribers
-     * Creates a new subscriber within a group.
-     *
-     * @param c - Hono request context; expects `campaign_id` and
-     * `group_id` route params and a JSON body with the
-     * subscriber fields.
-     * @returns JSON response with the created subscriber.
-     * @throws {HTTPException} 400 if `campaign_id` or `group_id` is missing.
-     */
-    postByGroup = async (c: Context) => {
-        logger.info(`Start method: ${this.constructor.name}.${this.postByGroup.name}`);
-
-        const campaignId = c.req.param('campaign_id');
-        const groupId = c.req.param('group_id');
-
-        if (!campaignId || !groupId) {
-            throw new HTTPException(400, { message: "Missing Parameters: campaignId, groupId" });
-        }
-
-        const body = await c.req.json();
-        assertSubscriberBody(body);
-
-        logger.debug({ campaignId, groupId, body }, `Request:`);
-
-        // The route's group is always one of the new subscriber's groups.
-        const subscriber = await this.subscriberService.create({
-            ...body,
-            campaign_id: campaignId,
-            group_ids: [...new Set([...(body.group_ids ?? []), groupId])],
-        });
-
-        logger.debug({ campaignId, groupId, subscriber }, `Response:`);
-        logger.info(`End method: ${this.constructor.name}.${this.postByGroup.name}`);
-
-        return c.json(subscriber, 201);
     }
 
     /**

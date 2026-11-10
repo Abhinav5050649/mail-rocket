@@ -77,11 +77,11 @@ describe("SendCampaignService", () => {
         });
     });
 
-    describe("getCurrentTemplateForCampaign", () => {
-        it("returns the most-recently-updated template", async () => {
-            mockDb.select.mockImplementationOnce(() => chain([template]));
+    describe("getTemplateForCampaign", () => {
+        it("returns the template the campaign picked", async () => {
+            mockDb.select.mockImplementationOnce(() => chain([{ template }]));
 
-            const result = await service.getCurrentTemplateForCampaign("campaign-1");
+            const result = await service.getTemplateForCampaign("campaign-1");
 
             expect(result).toEqual(template);
         });
@@ -89,7 +89,7 @@ describe("SendCampaignService", () => {
         it("returns null when the campaign has no template", async () => {
             mockDb.select.mockImplementationOnce(() => chain([]));
 
-            const result = await service.getCurrentTemplateForCampaign("campaign-1");
+            const result = await service.getTemplateForCampaign("campaign-1");
 
             expect(result).toBeNull();
         });
@@ -116,7 +116,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign])) // CampaignService.getById
                 .mockImplementationOnce(() => chain([emailIdentity])) // IdentityService.getById
                 .mockImplementationOnce(() => chain([organization])) // OrganizationService.get
-                .mockImplementationOnce(() => chain([template])) // getCurrentTemplateForCampaign
+                .mockImplementationOnce(() => chain([{ template }])) // getTemplateForCampaign
                 .mockImplementationOnce(() => chain([ // campaign_delivery join rows
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                     { deliveryId: "cr-2", status: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
@@ -133,7 +133,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "sent", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -149,7 +149,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: null, firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -165,7 +165,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "bounces@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                     { deliveryId: "cr-2", status: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
@@ -185,7 +185,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([{ ...campaign, subject: "Hi {{subscriber_first_name}}" }]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hello {{subscriber_first_name}} from {{organization_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>Hello {{subscriber_first_name}} from {{organization_name}}</p>" } }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -210,7 +210,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -235,7 +235,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hi {{subscriber_first_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>Hi {{subscriber_first_name}}</p>" } }]))
                 .mockImplementationOnce(() => chain([
                     // No first_name on record for this subscriber.
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: null, lastName: "Lovelace", groupNames: null },
@@ -267,7 +267,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([{ ...campaign, identity_id: "identity-2", from_local_part: "notifications", from_name: "Mail Rocket" }]))
                 .mockImplementationOnce(() => chain([domainIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>From {{sender_email}}</p>" }]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>From {{sender_email}}</p>" } }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -285,7 +285,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -320,11 +320,13 @@ describe("SendCampaignService", () => {
         // finalizeCampaign issues two selects: the subscriber status
         // counts, then (via CampaignService.update's transaction) a
         // "before" read of the campaign row that gates its own
-        // scheduling logic - queue results for both, in that order.
+        // scheduling logic - queue results for both, in that order. The
+        // status update itself returns the updated row.
         it("marks the campaign sent when at least one subscriber succeeded", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([{ status: "sent", count: 3 }, { status: "failed", count: 1 }]))
                 .mockImplementationOnce(() => chain([campaign]));
+            mockDb.update.mockImplementationOnce(() => chain([campaign]));
 
             await service.finalizeCampaign("campaign-1");
 
@@ -335,6 +337,7 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([{ status: "failed", count: 2 }]))
                 .mockImplementationOnce(() => chain([campaign]));
+            mockDb.update.mockImplementationOnce(() => chain([campaign]));
 
             await service.finalizeCampaign("campaign-1");
 

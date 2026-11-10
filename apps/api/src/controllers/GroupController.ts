@@ -6,10 +6,9 @@ import { GroupService } from "../services";
 /**
  * HTTP layer for group-related endpoints. Translates Hono `Context` objects
  * into `GroupService` calls and maps the results to HTTP responses/errors.
- * Groups live at `/groups`, and are
- * additionally nested under a campaign
- * (`/campaigns/:campaign_id/groups`) for
- * campaign-scoped listing/creation.
+ * Groups are a reusable library at `/groups`; the groups a campaign sends
+ * to are listed at `/campaigns/:campaign_id/groups` and set on the campaign
+ * itself (`group_ids`).
  */
 export class GroupController {
     constructor(private groupService: GroupService) {
@@ -17,7 +16,7 @@ export class GroupController {
 
     /**
      * GET /groups
-     * Lists every group, across all campaigns.
+     * Lists every group in the library.
      *
      * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
@@ -95,36 +94,6 @@ export class GroupController {
         logger.info(`End method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
 
         return c.json(groups);
-    }
-
-    /**
-     * POST /campaigns/:campaign_id/groups
-     * Creates a new group within a campaign.
-     *
-     * @param c - Hono request context; expects a `campaign_id`
-     * route param and a JSON body with the group fields.
-     * @returns JSON response with the created group.
-     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
-     */
-    postByCampaign = async (c: Context) => {
-        logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
-
-        const campaignId = c.req.param('campaign_id');
-
-        if (!campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
-        }
-
-        const body = await c.req.json();
-
-        logger.debug({ campaignId, body }, `Request:`);
-
-        const group = await this.groupService.create({ ...body, campaign_id: campaignId });
-
-        logger.debug({ campaignId, group }, `Response:`);
-        logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
-
-        return c.json(group, 201);
     }
 
     /**

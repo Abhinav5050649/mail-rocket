@@ -32,7 +32,8 @@ export function Field({ label, hint, error, optional, className, children }: Fie
 
   return (
     <div className={cx("flex min-w-0 flex-col gap-2", className)}>
-      <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium text-text">
+      {/* The id lets controls that aren't a native input (the date pickers) name themselves by this label. */}
+      <label htmlFor={id} id={`${id}-label`} className="flex items-baseline justify-between gap-2 text-sm font-medium text-text">
         {label}
         {optional && <span className="text-xs font-normal text-faint">Optional</span>}
       </label>

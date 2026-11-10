@@ -1,5 +1,7 @@
 import { and, asc, count, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db, logger } from "../libs";
+// Same campaign shape (with its audience links) as every other campaign read.
+import { campaignWithLinks, type LinkedCampaign } from "./CampaignService";
 import {
     apiKeyTable,
     campaignDeliveryTable,
@@ -13,7 +15,6 @@ import {
     templateTable,
     type CampaignDeliveryStatus,
     type CampaignStatus,
-    type ICampaign,
     type IdentityStatus,
 } from "../models";
 
@@ -37,13 +38,13 @@ export interface OverviewSections {
 export type DeliveryCounts = Record<CampaignDeliveryStatus, number>;
 
 /** A campaign whose send has started, with how its deliveries went. */
-export type RecentCampaign = ICampaign & { deliveries: DeliveryCounts };
+export type RecentCampaign = LinkedCampaign & { deliveries: DeliveryCounts };
 
 /** The campaigns section: totals per status, the next scheduled sends, and the latest sends. */
 export interface CampaignOverview {
     total: number;
     by_status: Record<CampaignStatus, number>;
-    upcoming: ICampaign[];
+    upcoming: LinkedCampaign[];
     recent: RecentCampaign[];
     deliveries: DeliveryCounts;
 }
@@ -138,12 +139,12 @@ export class OverviewService {
         const [statusRows, upcoming, recentRows, deliveryRows] = await Promise.all([
             db.select({ key: campaignTable.status, count: count() }).from(campaignTable).groupBy(campaignTable.status),
             // Soonest first: what goes out next.
-            db.select().from(campaignTable)
+            db.select(campaignWithLinks).from(campaignTable)
                 .where(and(eq(campaignTable.status, "scheduled"), isNotNull(campaignTable.start_time)))
                 .orderBy(asc(campaignTable.start_time))
                 .limit(OVERVIEW_LIST_SIZE),
             // Latest first: what went out most recently.
-            db.select().from(campaignTable)
+            db.select(campaignWithLinks).from(campaignTable)
                 .where(inArray(campaignTable.status, SENT_STATUSES))
                 .orderBy(desc(campaignTable.start_time))
                 .limit(OVERVIEW_LIST_SIZE),
@@ -164,7 +165,7 @@ export class OverviewService {
     }
 
     /** Attaches each campaign's per-subscriber delivery outcome counts, in one grouped query. */
-    private async withDeliveries(campaigns: ICampaign[]): Promise<RecentCampaign[]> {
+    private async withDeliveries(campaigns: LinkedCampaign[]): Promise<RecentCampaign[]> {
         if (campaigns.length === 0) return [];
 
         const rows = await db

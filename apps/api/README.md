@@ -37,7 +37,7 @@ What a key may do is decided by its **claims**: a list of CASL `{ action, subjec
 
 A key stores the expanded list, not the preset name, so a custom combination is just a different list. A key can't change its own claims or revoke itself.
 
-**System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its templates, groups and subscribers (unlinked) and removes its send history; a campaign that is mid-send can't be deleted. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
+**System-managed fields:** campaign `status`/`failure_reason` and identity `status`/`verification_records` can't be set through the API (it returns 400). Scheduling is driven by `start_time` (`null` cancels), and identity status by SES verification. Deleting a campaign also cancels its pending send, keeps its template, groups and subscribers in their libraries and removes its send history; a campaign that is mid-send can't be deleted. A campaign's `template_id`, `group_ids` and `subscriber_ids` can't change once its send has started, and a template or group can't be deleted while a scheduled or sending campaign uses it. An identity's `type`/`identity` can't be changed after creation either; create a new identity instead.
 
 ## Open and click tracking
 
@@ -106,7 +106,7 @@ Anything thrown along the way - an `HTTPException` from a controller, a `Validat
 
 One instance serves one organization, so there's no tenancy and resources live at the top level (`/campaigns`, `/templates`, ...; see `routes/AppRoute.ts`). `organization` is a single row: the profile of whoever runs the instance. It's seeded at boot, read and updated via `/organization`, and never created or deleted over the API. `address` and `contact_details` link to it as the organization's own postal/contact details. Nothing else carries an `organization_id`. `api_key` is the principal and has no relation to any other table.
 
-`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template` and `group`/`subscriber` are campaign inputs; `campaign` ties them together and is what actually gets sent. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
+`address` and `contact_details` hold sender info; `identity` represents a verified SES sending identity (an email address or a domain); `template`, `group` and `subscriber` are shared libraries; `campaign` ties them together and is what actually gets sent. A campaign picks one template (`campaign.template_id`) and its audience: any number of groups (`campaign_group`) plus any number of individually picked subscribers (`campaign_subscriber`), all set in the campaign's own create/update request (`template_id`, `group_ids`, `subscriber_ids`). The same template, group or subscriber can be used by any number of campaigns at once. Schema and relationships are defined in `src/models/*.ts` (Drizzle `pgTable`s with `.references()` foreign keys) - that's the up-to-date source of truth for columns, enums, and indexes.
 
 ### Background jobs (`src/queues/`)
 

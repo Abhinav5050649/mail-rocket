@@ -1,7 +1,7 @@
-import { and, asc, count, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns, inArray, sql, type SQL } from "drizzle-orm";
 import { senderProblem, type IdentityType } from "@mail-rocket/shared";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
-import { campaignDeliveryTable, campaignTable, groupTable, identityTable, subscribersTable, templateTable, type CampaignStatus, type ICampaign } from "../models";
+import { campaignDeliveryTable, campaignGroupTable, campaignSubscriberTable, campaignTable, groupTable, identityTable, subscribersTable, templateTable, type CampaignStatus, type ICampaign } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
 // avoid a circular import: the barrel also re-exports CampaignWorkers.ts,
 // which imports SendCampaignService from the services barrel - which would
@@ -16,6 +16,39 @@ const SENDER_CHECK_FIELDS = ["identity_id", "from_local_part", "from_name", "sta
 
 /** The transaction handle `db.transaction` passes its callback, so helpers can join the caller's transaction. */
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Fields that pick what a campaign sends and to whom; they can't change once a send has started. */
+const CONTENT_FIELDS = ["template_id", "group_ids", "subscriber_ids"] as const;
+
+/**
+ * `"campaign"."id"`, always table-qualified. Drizzle renders a column
+ * unqualified in a single-table select, and inside a correlated subquery an
+ * unqualified `id` would bind to the subquery's own table instead.
+ */
+const outerCampaignId = sql`${sql.identifier("campaign")}.${sql.identifier("id")}`;
+
+/**
+ * Every campaign column plus its audience links, aggregated in the same
+ * query: `group_ids` (the groups it sends to) and `subscriber_ids` (the
+ * subscribers it picks individually), each oldest link first and an empty
+ * array when there are none. Every campaign read returns this shape.
+ */
+export const campaignWithLinks = {
+    ...getTableColumns(campaignTable),
+    group_ids: sql<string[]>`coalesce((
+        select array_agg(${campaignGroupTable.group_id} order by ${campaignGroupTable.created_at}, ${campaignGroupTable.group_id})
+        from ${campaignGroupTable}
+        where ${campaignGroupTable.campaign_id} = ${outerCampaignId}
+    ), '{}')`.as("group_ids"),
+    subscriber_ids: sql<string[]>`coalesce((
+        select array_agg(${campaignSubscriberTable.subscriber_id} order by ${campaignSubscriberTable.created_at}, ${campaignSubscriberTable.subscriber_id})
+        from ${campaignSubscriberTable}
+        where ${campaignSubscriberTable.campaign_id} = ${outerCampaignId}
+    ), '{}')`.as("subscriber_ids"),
+};
+
+/** A campaign as every campaign read returns it: the row plus its `group_ids` and `subscriber_ids`. */
+export type LinkedCampaign = ICampaign & { group_ids: string[]; subscriber_ids: string[] };
 
 /** The sender fields a create or update may carry, before they're tidied. */
 type SenderFields = { from_local_part?: string | null; from_name?: string | null };
@@ -53,6 +86,12 @@ export interface CreateCampaignInput {
     from_local_part?: string | null;
     /** Display name inboxes show for the sender. */
     from_name?: string | null;
+    /** The template whose HTML the campaign sends; must exist. */
+    template_id?: string | null;
+    /** Groups the campaign sends to; each must exist. */
+    group_ids?: string[];
+    /** Subscribers the campaign sends to individually, on top of its groups; each must exist. */
+    subscriber_ids?: string[];
 }
 
 /** Fields accepted when partially updating an existing campaign row. */
@@ -70,6 +109,12 @@ export interface UpdateCampaignInput {
     from_local_part?: string | null;
     /** Display name inboxes show for the sender. */
     from_name?: string | null;
+    /** The template whose HTML the campaign sends; must exist. Null clears it. */
+    template_id?: string | null;
+    /** When present, replaces the campaign's groups with exactly these. */
+    group_ids?: string[];
+    /** When present, replaces the campaign's individually picked subscribers with exactly these. */
+    subscriber_ids?: string[];
     failure_reason?: string;
 }
 
@@ -83,10 +128,11 @@ export interface UpdateCampaignInput {
 export class CampaignService {
 
     /**
-     * Creates a new campaign row.
+     * Creates a new campaign with its template and audience, together.
      *
-     * @param data - Fields for the new campaign.
-     * @returns The created campaign row.
+     * @param data - Fields for the new campaign, plus optional `template_id`, `group_ids` and `subscriber_ids`.
+     * @returns The created campaign with its `group_ids` and `subscriber_ids`.
+     * @throws {ValidationError} If a linked template, group or subscriber doesn't exist, or the sender settings are invalid.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateCampaignInput) {
@@ -100,19 +146,26 @@ export class CampaignService {
             // Wrapped in a transaction so that if scheduling fails (e.g. no
             // identity_id yet), the insert rolls back too, rather than
             // leaving behind a campaign row the caller was told didn't get created.
+            // The audience lives in link tables, not on the campaign row itself.
+            const { group_ids, subscriber_ids, ...fields } = data;
+
             const campaign = await db.transaction(async (tx) => {
-                const [inserted] = await tx.insert(campaignTable).values(data).returning();
+                // Checked first, so an unknown id is a clear 400 rather than a foreign-key 500.
+                if (fields.template_id) await this.assertTemplateExists(tx, fields.template_id);
+                const [inserted] = await tx.insert(campaignTable).values(fields).returning();
+                await this.setGroups(tx, inserted!.id, group_ids ?? []);
+                await this.setSubscribers(tx, inserted!.id, subscriber_ids ?? []);
 
                 // An invalid From address throws here, which rolls the insert back.
                 await this.assertValidSender(tx, inserted!);
 
                 if (inserted!.start_time) {
+                    // Throws (rolling everything back) if there's no identity or template to send with.
                     await scheduleCampaignDispatch(inserted!);
-                    const [scheduled] = await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, inserted!.id)).returning();
-                    return scheduled!;
+                    await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, inserted!.id));
                 }
 
-                return inserted!;
+                return (await this.readWithLinks(tx, inserted!.id))!;
             });
 
             logger.debug({ campaignId: campaign.id }, `Response:`);
@@ -129,7 +182,7 @@ export class CampaignService {
      * Fetches a single campaign by id.
      *
      * @param campaignId - id of the campaign.
-     * @returns The campaign row, or `null` if no match exists.
+     * @returns The campaign with its `group_ids` and `subscriber_ids`, or `null` if no match exists.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(campaignId: string) {
@@ -137,7 +190,7 @@ export class CampaignService {
         logger.debug({ campaignId }, `Request:`);
 
         try {
-            const [campaign] = await db.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
+            const [campaign] = await db.select(campaignWithLinks).from(campaignTable).where(eq(campaignTable.id, campaignId));
 
             if (!campaign) {
                 logger.warn({ campaignId }, `${this.constructor.name}.${this.getById.name}: Campaign not found`);
@@ -209,7 +262,7 @@ export class CampaignService {
      * @param options.status - optional filter on the `status` column.
      * @param options.limit - max number of rows to return.
      * @param options.offset - number of rows to skip before returning results.
-     * @returns Array of matching campaign rows (empty if none exist).
+     * @returns Array of matching campaigns, each with its `group_ids` and `subscriber_ids` (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getAll(options?: PaginationOptions & { status?: CampaignStatus }) {
@@ -220,7 +273,7 @@ export class CampaignService {
             const conditions: SQL[] = [];
             if (options?.status !== undefined) conditions.push(eq(campaignTable.status, options.status));
 
-            const campaigns = await db.select().from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
+            const campaigns = await db.select(campaignWithLinks).from(campaignTable).where(and(...conditions)).orderBy(asc(campaignTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
@@ -235,11 +288,13 @@ export class CampaignService {
     }
 
     /**
-     * Partially updates a campaign row.
+     * Partially updates a campaign, and replaces its groups and individually
+     * picked subscribers when `group_ids`/`subscriber_ids` are present.
      *
      * @param campaignId - id of the campaign to update.
      * @param data - Fields to update.
-     * @returns The updated campaign row, or `null` if no match exists.
+     * @returns The updated campaign with its `group_ids` and `subscriber_ids`, or `null` if no match exists.
+     * @throws {ValidationError} If the template or audience changes after the send started, a linked id doesn't exist, or the sender settings are invalid.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(campaignId: string, data: UpdateCampaignInput) {
@@ -247,12 +302,6 @@ export class CampaignService {
         logger.debug({ campaignId, data }, `Request:`);
 
         try {
-            // Scheduling only reacts to `start_time` being explicitly
-            // touched (present in `data`, even as `null` to clear it), and
-            // only while the campaign's status *before* this update was
-            // still schedulable - once a send has started/finished, editing
-            // start_time updates the column for record-keeping only, and
-            // must never re-trigger a second full send.
             // Empty sender fields from a form mean "unset", not an empty address.
             normalizeSenderFields(data);
 
@@ -260,15 +309,37 @@ export class CampaignService {
                 const [before] = await tx.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
                 if (!before) return null;
 
+                // What a campaign sends, and to whom, is fixed once its send
+                // starts: chunks still in flight re-read the template, and the
+                // audience is what its stats are counted against.
+                const changesContent = CONTENT_FIELDS.some((field) => field in data);
+                if (changesContent && !SCHEDULABLE_STATUSES.includes(before.status)) {
+                    throw new ValidationError("This campaign has already started sending, so its template and audience can't change.");
+                }
+
+                // The audience lives in link tables, not on the campaign row itself.
+                const { group_ids, subscriber_ids, ...fields } = data;
+                if (fields.template_id) await this.assertTemplateExists(tx, fields.template_id);
+
                 // Switching to an email identity makes a local part left over
                 // from a domain identity meaningless (the identity is the
                 // address), so it's dropped - unless the caller sent one
                 // explicitly, which the check below then rejects.
-                if (data.identity_id && !("from_local_part" in data)) {
-                    if (await this.getIdentityType(tx, data.identity_id) === "email") data.from_local_part = null;
+                if (fields.identity_id && !("from_local_part" in fields)) {
+                    if (await this.getIdentityType(tx, fields.identity_id) === "email") fields.from_local_part = null;
                 }
 
-                const [updated] = await tx.update(campaignTable).set(data).where(eq(campaignTable.id, campaignId)).returning();
+                // `updated_at` is set explicitly so a links-only update still
+                // bumps it (and the set is never empty, which Drizzle rejects).
+                const [updated] = await tx.update(campaignTable).set({ ...fields, updated_at: new Date() }).where(eq(campaignTable.id, campaignId)).returning();
+                if (group_ids) await this.setGroups(tx, campaignId, group_ids);
+                if (subscriber_ids) await this.setSubscribers(tx, campaignId, subscriber_ids);
+
+                // A scheduled campaign keeps its queued send, so it can't lose
+                // the template that send needs (clearing the start time first is fine).
+                if (updated!.status === "scheduled" && !updated!.template_id && !("start_time" in data && !updated!.start_time)) {
+                    throw new ValidationError("A scheduled campaign needs a template. Pick one, or clear the start time first.");
+                }
 
                 // Checked only when the update touches the sender or the
                 // schedule: a status-only update (the send pipeline marking a
@@ -280,19 +351,24 @@ export class CampaignService {
                     await this.assertValidSender(tx, updated!);
                 }
 
+                // Scheduling only reacts to `start_time` being explicitly
+                // touched (present in `data`, even as `null` to clear it), and
+                // only while the campaign's status *before* this update was
+                // still schedulable - once a send has started/finished, editing
+                // start_time updates the column for record-keeping only, and
+                // must never re-trigger a second full send.
                 if ("start_time" in data && SCHEDULABLE_STATUSES.includes(before.status)) {
                     if (updated!.start_time) {
+                        // Throws (rolling the update back) if there's no identity or template to send with.
                         await scheduleCampaignDispatch(updated!);
-                        const [scheduled] = await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, campaignId)).returning();
-                        return scheduled!;
+                        await tx.update(campaignTable).set({ status: "scheduled" }).where(eq(campaignTable.id, campaignId));
                     } else {
                         await cancelCampaignDispatch(campaignId);
-                        const [drafted] = await tx.update(campaignTable).set({ status: "draft" }).where(eq(campaignTable.id, campaignId)).returning();
-                        return drafted!;
+                        await tx.update(campaignTable).set({ status: "draft" }).where(eq(campaignTable.id, campaignId));
                     }
                 }
 
-                return updated!;
+                return this.readWithLinks(tx, campaignId);
             });
 
             if (!campaign) {
@@ -313,9 +389,10 @@ export class CampaignService {
     /**
      * Deletes a campaign and cancels its queued send.
      *
-     * In one transaction it unlinks the campaign's templates, groups and
-     * subscribers (they stay, with `campaign_id` cleared, so they can be
-     * reused), drops its per-subscriber send history, and deletes the row.
+     * In one transaction it drops its per-subscriber send history and deletes
+     * the row; its group and subscriber links go with it. The template,
+     * groups and subscribers themselves stay in the library for other
+     * campaigns.
      * Only after that commits is the pending dispatch job removed. If that
      * removal fails, the dispatch worker still skips a campaign that no
      * longer exists, so nothing is sent.
@@ -339,10 +416,8 @@ export class CampaignService {
                     throw new ValidationError("This campaign is sending right now. Wait for the send to finish before deleting it.");
                 }
 
-                // Rows that point at the campaign would otherwise block the delete (no ON DELETE on these FKs).
-                await tx.update(templateTable).set({ campaign_id: null }).where(eq(templateTable.campaign_id, campaignId));
-                await tx.update(groupTable).set({ campaign_id: null }).where(eq(groupTable.campaign_id, campaignId));
-                await tx.update(subscribersTable).set({ campaign_id: null }).where(eq(subscribersTable.campaign_id, campaignId));
+                // Its group and subscriber links go with it (ON DELETE CASCADE);
+                // the template, groups and subscribers themselves stay in the library.
                 // Send history only means something alongside its campaign.
                 await tx.delete(campaignDeliveryTable).where(eq(campaignDeliveryTable.campaign_id, campaignId));
 
@@ -370,6 +445,78 @@ export class CampaignService {
         } catch (error) {
             logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.delete.name}: Failed to delete campaign`);
             throw error;
+        }
+    }
+
+    /**
+     * Reads one campaign with its `group_ids` and `subscriber_ids` inside `tx`.
+     *
+     * @param tx - The caller's transaction, so it sees the caller's uncommitted writes.
+     * @param campaignId - id of the campaign.
+     * @returns The campaign with its links, or `null` if it doesn't exist.
+     */
+    private async readWithLinks(tx: Transaction, campaignId: string) {
+        const [campaign] = await tx.select(campaignWithLinks).from(campaignTable).where(eq(campaignTable.id, campaignId));
+        return campaign ?? null;
+    }
+
+    /**
+     * Throws unless the template exists, so a typo'd id is a clear 400
+     * rather than a foreign-key 500.
+     *
+     * @param tx - The caller's transaction.
+     * @param templateId - id of the template the campaign should send.
+     * @throws {ValidationError} If no such template exists.
+     */
+    private async assertTemplateExists(tx: Transaction, templateId: string): Promise<void> {
+        const [template] = await tx.select({ id: templateTable.id }).from(templateTable).where(eq(templateTable.id, templateId));
+        if (!template) throw new ValidationError(`Unknown template id: ${templateId}`);
+    }
+
+    /**
+     * Replaces a campaign's groups with exactly `groupIds` (deduplicated).
+     *
+     * @param tx - The caller's transaction.
+     * @param campaignId - id of the campaign.
+     * @param groupIds - The groups the campaign should send to.
+     * @throws {ValidationError} Naming any group ids that don't exist.
+     */
+    private async setGroups(tx: Transaction, campaignId: string, groupIds: string[]): Promise<void> {
+        // A group picked twice is still one link.
+        const unique = [...new Set(groupIds)];
+        if (unique.length > 0) {
+            const found = await tx.select({ id: groupTable.id }).from(groupTable).where(inArray(groupTable.id, unique));
+            const unknown = unique.filter((id) => !found.some((row) => row.id === id));
+            if (unknown.length > 0) throw new ValidationError(`Unknown group id(s): ${unknown.join(", ")}`);
+        }
+        // Replace rather than diff: the set is small, and this keeps the result exactly what was asked for.
+        await tx.delete(campaignGroupTable).where(eq(campaignGroupTable.campaign_id, campaignId));
+        if (unique.length > 0) {
+            await tx.insert(campaignGroupTable).values(unique.map((group_id) => ({ campaign_id: campaignId, group_id })));
+        }
+    }
+
+    /**
+     * Replaces a campaign's individually picked subscribers with exactly
+     * `subscriberIds` (deduplicated).
+     *
+     * @param tx - The caller's transaction.
+     * @param campaignId - id of the campaign.
+     * @param subscriberIds - The subscribers the campaign should send to directly.
+     * @throws {ValidationError} Naming any subscriber ids that don't exist.
+     */
+    private async setSubscribers(tx: Transaction, campaignId: string, subscriberIds: string[]): Promise<void> {
+        // A subscriber picked twice is still one link.
+        const unique = [...new Set(subscriberIds)];
+        if (unique.length > 0) {
+            const found = await tx.select({ id: subscribersTable.id }).from(subscribersTable).where(inArray(subscribersTable.id, unique));
+            const unknown = unique.filter((id) => !found.some((row) => row.id === id));
+            if (unknown.length > 0) throw new ValidationError(`Unknown subscriber id(s): ${unknown.join(", ")}`);
+        }
+        // Replace rather than diff: the set is small, and this keeps the result exactly what was asked for.
+        await tx.delete(campaignSubscriberTable).where(eq(campaignSubscriberTable.campaign_id, campaignId));
+        if (unique.length > 0) {
+            await tx.insert(campaignSubscriberTable).values(unique.map((subscriber_id) => ({ campaign_id: campaignId, subscriber_id })));
         }
     }
 

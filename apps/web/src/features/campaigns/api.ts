@@ -44,7 +44,12 @@ export const campaignsApi = apiSlice.injectEndpoints({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: (_r, _e, { campaignId }) => itemTag("Campaign", campaignId),
+      invalidatesTags: (_r, _e, { campaignId }) => [
+        ...itemTag("Campaign", campaignId),
+        // Its audience may have changed: the groups and subscribers it sends to.
+        { type: "Group", id: `CAMPAIGN_${campaignId}` },
+        { type: "Subscriber", id: `CAMPAIGN_${campaignId}` },
+      ],
     }),
     deleteCampaign: builder.mutation<void, { campaignId: string }>({
       query: ({ campaignId }) => ({

@@ -113,20 +113,26 @@ export interface Campaign extends BaseFields {
     from_local_part: string | null;
     /** Display name inboxes show for the sender (e.g. "Mail Rocket"); null sends the bare address. */
     from_name: string | null;
+    /** The template whose HTML the campaign sends (templates are a shared library). */
+    template_id: string | null;
+    /** Groups the campaign sends to; any number of campaigns can share a group. */
+    group_ids: string[];
+    /** Subscribers the campaign sends to individually, on top of its groups. */
+    subscriber_ids: string[];
     failure_reason: string | null;
 }
 
 export interface Template extends BaseFields {
     name: string | null;
     html_body: string | null;
-    campaign_id: string | null;
     normalized_name: string | null;
 }
 
 export interface Group extends BaseFields {
     name: string | null;
-    campaign_id: string | null;
     normalized_name: string | null;
+    /** How many subscribers are in the group. */
+    subscriber_count: number;
 }
 
 export interface Subscriber extends BaseFields {
@@ -136,7 +142,6 @@ export interface Subscriber extends BaseFields {
     email_id: string | null;
     /** Every group the subscriber is in (many-to-many, via `group_subscriber`). */
     group_ids: string[];
-    campaign_id: string | null;
     /** When they unsubscribed (via an email link); no campaign sends to them after. Read-only. */
     unsubscribed_at: string | null;
 }

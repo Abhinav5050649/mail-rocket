@@ -28,12 +28,10 @@ export const groupRoute = new Hono()
 
 /**
  * Routes for the `/campaigns/:campaign_id/groups`
- * resource: groups scoped to a single campaign. Requires the matching
- * `Group` claim.
+ * resource: the groups a campaign sends to, read-only. Requires the
+ * `read Group` claim. Which groups they are is set on the campaign (`group_ids`).
  *
- * - GET  / - list groups in the campaign.
- * - POST / - create a group in the campaign.
+ * - GET / - list the campaign's groups.
  */
 export const campaignGroupRoute = new Hono()
     .get('/', requireAbility('read', 'Group'), groupController.getAllByCampaign)
-    .post('/', requireAbility('create', 'Group'), groupController.postByCampaign)

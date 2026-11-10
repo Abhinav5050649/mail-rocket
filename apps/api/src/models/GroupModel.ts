@@ -1,7 +1,10 @@
-import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { campaignTable } from "./CampaignModel";
+import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 
-/** Drizzle schema for `group`: a subscriber list within a campaign. */
+/**
+ * Drizzle schema for `group`: a reusable subscriber list. Members are linked
+ * through `group_subscriber`; any number of campaigns can send to the same
+ * group through `campaign_group`.
+ */
 export const groupTable = pgTable("group", {
     /** UUID to uniquely identify group. */
     id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -13,14 +16,9 @@ export const groupTable = pgTable("group", {
     entity: varchar("entity").default("mail_rocket.group"),
     /** Name of group. */
     name: varchar("name"),
-    /** ID of campaign the group belongs to. */
-    campaign_id: varchar("campaign_id").references(() => campaignTable.id),
     /** Normalized name of group. */
     normalized_name: varchar("normalized_name"),
-}, (table) => [
-    // Backs `getByCampaign`.
-    index("group_campaign_id_idx").on(table.campaign_id),
-]);
+});
 
 /** TS type for a group row, inferred directly from the table schema above. */
 export type IGroup = typeof groupTable.$inferSelect;

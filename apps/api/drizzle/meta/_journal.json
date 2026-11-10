@@ -64,6 +64,27 @@
       "when": 1794298811166,
       "tag": "0008_aromatic_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794308008846,
+      "tag": "0009_campaign_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794308020252,
+      "tag": "0010_copy_campaign_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794308035121,
+      "tag": "0011_drop_campaign_owner_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,6 @@ If anything in the subject or body is unresolved, **that subscriber isn't sent a
 Before scheduling, check that every subscriber has the fields your template uses, or stick to variables that are always present, such as `{{subscriber_email}}`.
 :::
 
-## Multiple templates
+## One library, many campaigns
 
-A campaign can hold several templates, as revisions. The one sent is the most recently updated.
+Templates are a shared library. Each campaign picks one (`template_id`), and the same template can be used by any number of campaigns. Editing a template changes every campaign that hasn't sent yet. To keep an old version, copy it into a new template first.

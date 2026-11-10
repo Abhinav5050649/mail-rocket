@@ -6,9 +6,9 @@ import { addressRoute } from "./AddressRoute";
 import { contactDetailsRoute } from "./ContactDetailsRoute";
 import { identityRoute } from "./IdentityRoute";
 import { campaignRoute } from "./CampaignRoute";
-import { templateRoute, campaignTemplateRoute } from "./TemplateRoute";
+import { templateRoute } from "./TemplateRoute";
 import { groupRoute, campaignGroupRoute } from "./GroupRoute";
-import { subscriberRoute, campaignSubscriberRoute, groupSubscriberRoute, groupMembershipRoute } from "./SubscriberRoute";
+import { subscriberRoute, campaignSubscriberRoute, groupMembershipRoute } from "./SubscriberRoute";
 import { trackingRoute } from "./TrackingRoute";
 import { unsubscribeRoute } from "./UnsubscribeRoute";
 import { authenticate } from "../middleware";
@@ -20,10 +20,11 @@ import { authenticate } from "../middleware";
  * `/unsubscribe`: the open/click tracking and unsubscribe links that
  * subscribers reach from their mail. A
  * self-hosted instance has no tenants, so resources live at the top level
- * rather than under an organization. Groups and subscribers additionally get
- * dedicated routes nested under `/campaigns/:campaign_id/...` (and, for
- * subscribers, `/groups/:group_id/...`) instead of relying on query-param
- * filters.
+ * rather than under an organization. Templates, groups and subscribers are
+ * shared libraries; a campaign picks its template and audience in its own
+ * body, and read-only views of its groups and audience live under
+ * `/campaigns/:campaign_id/...`. A group's members are managed under
+ * `/groups/:group_id/subscribers`.
  *
  * `/track` and `/unsubscribe` are mounted before `.use('*', authenticate)`:
  * Hono runs handlers in registration order and their handlers answer
@@ -48,7 +49,5 @@ appRoute
     .route('/groups', groupRoute)
     .route('/subscribers', subscriberRoute)
     .route('/groups/:group_id/subscribers', groupMembershipRoute)
-    .route('/campaigns/:campaign_id/templates', campaignTemplateRoute)
     .route('/campaigns/:campaign_id/groups', campaignGroupRoute)
-    .route('/campaigns/:campaign_id/subscribers', campaignSubscriberRoute)
-    .route('/campaigns/:campaign_id/groups/:group_id/subscribers', groupSubscriberRoute);
+    .route('/campaigns/:campaign_id/subscribers', campaignSubscriberRoute);

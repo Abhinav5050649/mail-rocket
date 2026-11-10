@@ -15,6 +15,12 @@ export interface CampaignInput {
   from_local_part?: string | null;
   /** Display name inboxes show for the sender; null clears it. */
   from_name?: string | null;
+  /** The template whose HTML the campaign sends; null clears it. */
+  template_id?: string | null;
+  /** Replaces the groups the campaign sends to. */
+  group_ids?: string[];
+  /** Replaces the subscribers the campaign sends to individually. */
+  subscriber_ids?: string[];
   description?: string;
 }
 
