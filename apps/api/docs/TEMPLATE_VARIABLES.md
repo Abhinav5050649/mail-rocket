@@ -21,7 +21,7 @@ file is a description of that registry, kept in sync with it.
 | `{{campaign_name}}` | Name of the campaign | `campaign.name` |
 | `{{campaign_start_date}}` | Campaign's scheduled/actual start date, as the calendar date in the organization's time zone | `campaign.start_time` |
 | `{{organization_name}}` | Name of the organization running this instance (set via `PATCH /organization`) | `organization.name` (the single row) |
-| `{{sender_email}}` | The verified SES identity the campaign sends from | `identity.identity` |
+| `{{sender_email}}` | The address the campaign sends from (without the display name) | `identity.identity` for an email identity, `<campaign.from_local_part>@<identity.identity>` for a domain one |
 
 ## Behavior on missing values
 

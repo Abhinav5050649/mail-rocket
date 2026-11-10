@@ -259,12 +259,47 @@ describe("SendCampaignService", () => {
             await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("no identity_id");
         });
 
-        it("throws when the sending identity is a domain (not yet supported as a From address)", async () => {
+        it("sends from <from_local_part>@<domain> with the display name when the identity is a domain", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([{ ...campaign, identity_id: "identity-2", from_local_part: "notifications", from_name: "Mail Rocket" }]))
+                .mockImplementationOnce(() => chain([domainIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>From {{sender_email}}</p>" }]))
+                .mockImplementationOnce(() => chain([
+                    { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            const command = (mockSesSend.mock.calls[0] as any)[0];
+            expect(command.input.FromEmailAddress).toBe(`"Mail Rocket" <notifications@example.com>`);
+            // {{sender_email}} is the bare address, never the domain or the display name.
+            expect(command.input.Content.Simple.Body.Html.Data).toBe("<p>From notifications@example.com</p>");
+        });
+
+        it("sends from the email identity itself when the campaign has no display name", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
+                .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([
+                    { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            const command = (mockSesSend.mock.calls[0] as any)[0];
+            expect(command.input.FromEmailAddress).toBe("sender@example.com");
+        });
+
+        it("throws without sending when a domain identity's campaign has no from_local_part", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([{ ...campaign, identity_id: "identity-2", from_local_part: null }]))
                 .mockImplementationOnce(() => chain([domainIdentity]));
 
-            await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("only 'email' sending identities are supported");
+            await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("needs a From address");
+            expect(mockSesSend).not.toHaveBeenCalled();
         });
 
         it("throws when the campaign has no template", async () => {

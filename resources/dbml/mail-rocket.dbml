@@ -136,6 +136,8 @@ Table campaign {
   normalized_name varchar
   status campaign_status [default: 'draft', note: 'System-managed: driven by start_time and the send pipeline, rejected (400) if a client sends it.']
   identity_id varchar [ref: > identity.id, note: 'Sending identity (SES From address) for this campaign.']
+  from_local_part varchar [note: 'Part before the @ of the From address; required for a domain identity (sends from <from_local_part>@<domain>), null for an email identity (sends from itself).']
+  from_name varchar [note: 'Display name inboxes show for the sender, e.g. "Mail Rocket". Null sends the bare address.']
   failure_reason varchar [note: 'System-managed: why the send ended in `failed`, set by the send pipeline.']
 
   Note: 'An email campaign.'

@@ -1,6 +1,7 @@
 import { and, asc, count, eq, sql, type SQL } from "drizzle-orm";
+import { senderProblem, type IdentityType } from "@mail-rocket/shared";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
-import { campaignDeliveryTable, campaignTable, groupTable, subscribersTable, templateTable, type CampaignStatus } from "../models";
+import { campaignDeliveryTable, campaignTable, groupTable, identityTable, subscribersTable, templateTable, type CampaignStatus, type ICampaign } from "../models";
 // Imported directly from CampaignDispatch (not the `../queues` barrel) to
 // avoid a circular import: the barrel also re-exports CampaignWorkers.ts,
 // which imports SendCampaignService from the services barrel - which would
@@ -9,6 +10,33 @@ import { scheduleCampaignDispatch, cancelCampaignDispatch } from "../queues/Camp
 
 /** Campaign statuses whose `start_time` can still be (re)scheduled. */
 const SCHEDULABLE_STATUSES: (CampaignStatus | null)[] = ["draft", "scheduled", null];
+
+/** Update fields that make `update` re-check the From address: the sender settings themselves, and the schedule (a campaign is checked before it can be queued to send). */
+const SENDER_CHECK_FIELDS = ["identity_id", "from_local_part", "from_name", "start_time"] as const;
+
+/** The transaction handle `db.transaction` passes its callback, so helpers can join the caller's transaction. */
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** The sender fields a create or update may carry, before they're tidied. */
+type SenderFields = { from_local_part?: string | null; from_name?: string | null };
+
+/**
+ * Tidies the sender fields of a create/update body in place: trims them, and
+ * turns an empty string into `null`, so a cleared form field means "unset"
+ * rather than an empty address or name. Fields the body leaves out stay out,
+ * so a partial update doesn't touch them.
+ *
+ * @param data - The create/update input to tidy.
+ */
+const normalizeSenderFields = (data: SenderFields): void => {
+    // Each field is tidied only when the caller actually sent it.
+    for (const field of ["from_local_part", "from_name"] as const) {
+        if (!(field in data)) continue;
+        // Trim off stray spaces; a value that's then empty counts as unset.
+        const value = data[field]?.trim();
+        data[field] = value ? value : null;
+    }
+};
 
 /** Fields accepted when creating a new campaign row. */
 export interface CreateCampaignInput {
@@ -21,6 +49,10 @@ export interface CreateCampaignInput {
     description?: string;
     status?: CampaignStatus;
     identity_id?: string;
+    /** Part before the @ of the From address; only for a domain identity. */
+    from_local_part?: string | null;
+    /** Display name inboxes show for the sender. */
+    from_name?: string | null;
 }
 
 /** Fields accepted when partially updating an existing campaign row. */
@@ -34,6 +66,10 @@ export interface UpdateCampaignInput {
     description?: string;
     status?: CampaignStatus;
     identity_id?: string;
+    /** Part before the @ of the From address; only for a domain identity. */
+    from_local_part?: string | null;
+    /** Display name inboxes show for the sender. */
+    from_name?: string | null;
     failure_reason?: string;
 }
 
@@ -58,11 +94,17 @@ export class CampaignService {
         logger.debug({ data }, `Request:`);
 
         try {
+            // Empty sender fields from a form mean "unset", not an empty address.
+            normalizeSenderFields(data);
+
             // Wrapped in a transaction so that if scheduling fails (e.g. no
             // identity_id yet), the insert rolls back too, rather than
             // leaving behind a campaign row the caller was told didn't get created.
             const campaign = await db.transaction(async (tx) => {
                 const [inserted] = await tx.insert(campaignTable).values(data).returning();
+
+                // An invalid From address throws here, which rolls the insert back.
+                await this.assertValidSender(tx, inserted!);
 
                 if (inserted!.start_time) {
                     await scheduleCampaignDispatch(inserted!);
@@ -211,11 +253,32 @@ export class CampaignService {
             // still schedulable - once a send has started/finished, editing
             // start_time updates the column for record-keeping only, and
             // must never re-trigger a second full send.
+            // Empty sender fields from a form mean "unset", not an empty address.
+            normalizeSenderFields(data);
+
             const campaign = await db.transaction(async (tx) => {
                 const [before] = await tx.select().from(campaignTable).where(eq(campaignTable.id, campaignId));
                 if (!before) return null;
 
+                // Switching to an email identity makes a local part left over
+                // from a domain identity meaningless (the identity is the
+                // address), so it's dropped - unless the caller sent one
+                // explicitly, which the check below then rejects.
+                if (data.identity_id && !("from_local_part" in data)) {
+                    if (await this.getIdentityType(tx, data.identity_id) === "email") data.from_local_part = null;
+                }
+
                 const [updated] = await tx.update(campaignTable).set(data).where(eq(campaignTable.id, campaignId)).returning();
+
+                // Checked only when the update touches the sender or the
+                // schedule: a status-only update (the send pipeline marking a
+                // campaign sent/failed) must never fail over sender settings,
+                // or the campaign would be stuck in `sending`. Judged on the
+                // row as it now stands, so a partial update is checked
+                // together with the fields it left alone; throwing rolls it back.
+                if (SENDER_CHECK_FIELDS.some((field) => field in data)) {
+                    await this.assertValidSender(tx, updated!);
+                }
 
                 if ("start_time" in data && SCHEDULABLE_STATUSES.includes(before.status)) {
                     if (updated!.start_time) {
@@ -308,5 +371,41 @@ export class CampaignService {
             logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.delete.name}: Failed to delete campaign`);
             throw error;
         }
+    }
+
+    /**
+     * Looks up the type of a sending identity.
+     *
+     * @param tx - The caller's transaction.
+     * @param identityId - id of the identity.
+     * @returns `email` or `domain`, or `null` if no such identity exists.
+     */
+    private async getIdentityType(tx: Transaction, identityId: string): Promise<IdentityType | null> {
+        // Only the type matters to the sender rules, so only it is fetched.
+        const [identity] = await tx.select({ type: identityTable.type }).from(identityTable).where(eq(identityTable.id, identityId));
+        return identity?.type ?? null;
+    }
+
+    /**
+     * Checks a campaign's From address settings against its identity: a
+     * domain identity needs a valid `from_local_part`, an email identity
+     * must not have one, and `from_name` must fit in a mail header (see
+     * `senderProblem` in @mail-rocket/shared). A campaign with no identity
+     * yet has nothing to check - it can't be scheduled until it has one.
+     *
+     * @param tx - The caller's transaction, so a failure rolls back its write.
+     * @param campaign - The campaign row as just written.
+     * @throws {ValidationError} If the identity doesn't exist or the sender settings don't fit it.
+     */
+    private async assertValidSender(tx: Transaction, campaign: ICampaign): Promise<void> {
+        // No identity chosen yet, so there's no From address to judge.
+        if (!campaign.identity_id) return;
+
+        const type = await this.getIdentityType(tx, campaign.identity_id);
+        // The foreign key normally prevents this, but a clear 400 beats a bare constraint error.
+        if (!type) throw new ValidationError(`Identity ${campaign.identity_id} not found`);
+
+        const problem = senderProblem(type, campaign.from_local_part, campaign.from_name);
+        if (problem) throw new ValidationError(problem);
     }
 }

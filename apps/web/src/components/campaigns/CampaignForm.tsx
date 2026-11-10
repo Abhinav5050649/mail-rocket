@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { senderEmail, senderProblem, FROM_NAME_MAX_LENGTH, FROM_LOCAL_PART_MAX_LENGTH } from "@mail-rocket/shared";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -45,6 +46,7 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
     control,
     register,
     handleSubmit,
+    setError,
     formState: { errors, isDirty },
   } = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -53,18 +55,40 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
       subject: initialData?.subject ?? "",
       start_time: toDateTimeLocal(initialData?.start_time),
       identity_id: initialData?.identity_id ?? "",
+      from_local_part: initialData?.from_local_part ?? "",
+      from_name: initialData?.from_name ?? "",
       description: initialData?.description ?? "",
     },
   });
   const startTime = useWatch({ control, name: "start_time" });
   const identityId = useWatch({ control, name: "identity_id" });
+  const fromLocalPart = useWatch({ control, name: "from_local_part" });
+  const fromName = useWatch({ control, name: "from_name" });
+  // The chosen sender; a domain one needs the address field, an email one is its own address.
+  const selectedIdentity = identities?.find((identity) => identity.id === identityId);
+  const isDomain = selectedIdentity?.type === "domain";
 
   const submit = (values: CampaignFormValues) => {
+    // Only a domain sender uses a local part; for an email sender any typed value is ignored.
+    const localPart = isDomain ? values.from_local_part?.trim() || null : null;
+    const name = values.from_name?.trim() || null;
+
+    // Same rules the API applies, checked here so the error lands on the right field.
+    if (selectedIdentity) {
+      const addressProblem = senderProblem(selectedIdentity.type, localPart, null);
+      if (addressProblem) return setError("from_local_part", { message: addressProblem });
+      const nameProblem = senderProblem("email", null, name);
+      if (nameProblem) return setError("from_name", { message: nameProblem });
+    }
+
     const startIso = fromDateTimeLocal(values.start_time);
     onSubmit({
       name: values.name.trim(),
       subject: values.subject || undefined,
       identity_id: values.identity_id || undefined,
+      // On edit null clears a stored value; on create an unset one is simply omitted.
+      from_local_part: localPart ?? (mode === "edit" ? null : undefined),
+      from_name: name ?? (mode === "edit" ? null : undefined),
       description: values.description || undefined,
       // On edit an emptied start time cancels the scheduled send; on create it's simply omitted.
       ...(canReschedule ? { start_time: startIso ?? (mode === "edit" ? null : undefined) } : {}),
@@ -75,10 +99,15 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
   const current = identities?.find((identity) => identity.id === initialData?.identity_id);
   const senderOptions = [
     { label: "No sender yet", value: "" },
-    ...verified.map((identity) => ({ label: identity.identity, value: identity.id })),
+    // A domain is labelled as such: any address on it can send, chosen below.
+    ...verified.map((identity) => ({ label: identity.type === "domain" ? `${identity.identity} (domain)` : identity.identity, value: identity.id })),
     ...(current && current.status !== "active" ? [{ label: `${current.identity} (not verified)`, value: current.id }] : []),
   ];
   const scheduling = Boolean(startTime);
+  // What inboxes will show as the sender, once there's an address to show.
+  const previewEmail = selectedIdentity ? senderEmail(selectedIdentity, isDomain ? fromLocalPart?.trim() || null : null) : null;
+  const previewName = fromName?.trim();
+  const preview = previewEmail ? (previewName ? `${previewName} <${previewEmail}>` : previewEmail) : null;
 
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
@@ -124,6 +153,30 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
               <Controller control={control} name="identity_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={senderOptions} />} />
             )}
             </Field>
+            {isDomain && (
+              <Field
+                label="From address"
+                error={errors.from_local_part?.message}
+                hint="Any address on a verified domain can send. It doesn't need a mailbox, but replies to it go nowhere without one."
+              >
+                {(props) => (
+                  <div className="flex items-center gap-2">
+                    <Input {...props} {...register("from_local_part")} placeholder="notifications" maxLength={FROM_LOCAL_PART_MAX_LENGTH} autoComplete="off" className="flex-1" />
+                    <span className="shrink-0 text-sm text-muted">@{selectedIdentity.identity}</span>
+                  </div>
+                )}
+              </Field>
+            )}
+            {identityId && (
+              <Field
+                label="Sender name"
+                optional
+                error={errors.from_name?.message}
+                hint={preview ? `Inboxes show: ${preview}` : "Shown in inboxes instead of the bare address."}
+              >
+                {(props) => <Input {...props} {...register("from_name")} placeholder="Mail Rocket" maxLength={FROM_NAME_MAX_LENGTH} />}
+              </Field>
+            )}
             <Field
               label="Start time"
               optional

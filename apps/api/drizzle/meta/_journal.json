@@ -57,6 +57,13 @@
       "when": 1794244578164,
       "tag": "0007_unsubscribe",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794298811166,
+      "tag": "0008_aromatic_blockbuster",
+      "breakpoints": true
     }
   ]
 }

@@ -4585,7 +4585,17 @@
           "identity_id": {
             "type": "string",
             "nullable": true,
-            "description": "ID of the active email identity the campaign sends from."
+            "description": "ID of the active identity (email or domain) the campaign sends from."
+          },
+          "from_local_part": {
+            "type": "string",
+            "nullable": true,
+            "description": "Part before the @ of the From address, e.g. `notifications`. Required when the identity is a domain (the email then sends from `notifications@<domain>`); must be null/omitted for an email identity, which sends from itself. Letters, digits and `. _ % + -`, at most 64 characters, no leading/trailing or doubled dot. An empty string is stored as null. 400 if it doesn't fit the identity."
+          },
+          "from_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Display name inboxes show for the sender, e.g. `Mail Rocket` (sent as `\"Mail Rocket\" <notifications@example.com>`). At most 64 characters, no line breaks. Null or an empty string sends the bare address."
           },
           "failure_reason": {
             "type": "string",
@@ -4622,7 +4632,17 @@
           },
           "identity_id": {
             "type": "string",
-            "description": "ID of the active email identity the campaign sends from."
+            "description": "ID of the active identity (email or domain) the campaign sends from."
+          },
+          "from_local_part": {
+            "type": "string",
+            "nullable": true,
+            "description": "Part before the @ of the From address, e.g. `notifications`. Required when the identity is a domain (the email then sends from `notifications@<domain>`); must be null/omitted for an email identity, which sends from itself. Letters, digits and `. _ % + -`, at most 64 characters, no leading/trailing or doubled dot. An empty string is stored as null. 400 if it doesn't fit the identity."
+          },
+          "from_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Display name inboxes show for the sender, e.g. `Mail Rocket` (sent as `\"Mail Rocket\" <notifications@example.com>`). At most 64 characters, no line breaks. Null or an empty string sends the bare address."
           }
         },
         "description": "status and failure_reason are managed by the send pipeline and are rejected with 400. Set start_time to schedule a send; set it to null to cancel one."
@@ -4655,7 +4675,17 @@
           },
           "identity_id": {
             "type": "string",
-            "description": "ID of the active email identity the campaign sends from."
+            "description": "ID of the active identity (email or domain) the campaign sends from."
+          },
+          "from_local_part": {
+            "type": "string",
+            "nullable": true,
+            "description": "Part before the @ of the From address, e.g. `notifications`. Required when the identity is a domain (the email then sends from `notifications@<domain>`); must be null/omitted for an email identity, which sends from itself. Letters, digits and `. _ % + -`, at most 64 characters, no leading/trailing or doubled dot. An empty string is stored as null. 400 if it doesn't fit the identity."
+          },
+          "from_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Display name inboxes show for the sender, e.g. `Mail Rocket` (sent as `\"Mail Rocket\" <notifications@example.com>`). At most 64 characters, no line breaks. Null or an empty string sends the bare address."
           }
         },
         "description": "status and failure_reason are managed by the send pipeline and are rejected with 400. Set start_time to schedule a send; set it to null to cancel one."

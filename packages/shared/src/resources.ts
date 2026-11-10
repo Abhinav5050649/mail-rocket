@@ -109,6 +109,10 @@ export interface Campaign extends BaseFields {
     normalized_name: string | null;
     status: CampaignStatus;
     identity_id: string | null;
+    /** Part before the @ of the From address; set only when the identity is a domain. */
+    from_local_part: string | null;
+    /** Display name inboxes show for the sender (e.g. "Mail Rocket"); null sends the bare address. */
+    from_name: string | null;
     failure_reason: string | null;
 }
 

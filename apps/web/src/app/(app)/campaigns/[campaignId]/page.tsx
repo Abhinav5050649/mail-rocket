@@ -27,7 +27,7 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
   const dispatch = useAppDispatch();
   const dialog = useAppSelector(selectCampaignDialog);
   const { ability } = useAbility();
-  const { identityName } = useIdentityNames();
+  const { senderLabel } = useIdentityNames();
 
   const { data: campaign } = useGetCampaignQuery({ campaignId });
   // Stats only mean something once a send has started.
@@ -85,7 +85,7 @@ export default function CampaignOverviewPage({ params }: { params: Promise<{ cam
         className="mb-4 sm:grid sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-3 [&>div]:sm:border-b-0"
         items={[
           { label: "Start time", value: campaign.start_time ? <span className="tabular">{formatDateTime(campaign.start_time)}</span> : <Dash /> },
-          { label: "Sender", value: identityName(campaign.identity_id) ?? <Dash /> },
+          { label: "Sender", value: senderLabel(campaign) ?? <Dash /> },
           { label: "Subject", value: campaign.subject || <Dash /> },
           { label: "Created", value: <span className="tabular">{formatDateTime(campaign.created_at)}</span> },
           { label: "Updated", value: campaign.updated_at ? <span className="tabular">{formatDateTime(campaign.updated_at)}</span> : <Dash /> },

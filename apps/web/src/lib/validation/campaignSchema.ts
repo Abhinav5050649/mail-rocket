@@ -9,6 +9,9 @@ export const campaignSchema = z.object({
     .optional()
     .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), "Enter a valid date and time"),
   identity_id: z.string().optional(),
+  /** Only used when the chosen identity is a domain; checked against it on submit (`senderProblem`). */
+  from_local_part: z.string().optional(),
+  from_name: z.string().optional(),
   description: z.string().optional(),
 });
 export type CampaignFormValues = z.infer<typeof campaignSchema>;

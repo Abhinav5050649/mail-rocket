@@ -1,6 +1,7 @@
 import { SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db, logger, sesV2Client, renderTemplate, addTracking, addUnsubscribeFooter, unsubscribeUrl, type TemplateVariableContext } from "../libs";
+import { senderEmail, senderProblem } from "@mail-rocket/shared";
+import { db, logger, sesV2Client, renderTemplate, addTracking, addUnsubscribeFooter, unsubscribeUrl, formatFromAddress, type TemplateVariableContext } from "../libs";
 import { subscribersTable, templateTable, campaignDeliveryTable, groupTable, groupSubscriberTable } from "../models";
 import { CampaignService } from "./CampaignService";
 import { campaignAudience, outerSubscriberId } from "./SubscriberService";
@@ -166,7 +167,12 @@ export class SendCampaignService {
      *
      * @param campaignId - id of the campaign being sent.
      * @param deliveryIds - ids of the `campaign_delivery` rows in this chunk.
-     * @throws If the campaign, its identity, or its template can no longer be found, or the identity is a `domain` type (not yet supported as a From address).
+     * The From address is the identity itself for an `email` identity, or
+     * `<from_local_part>@<domain>` for a `domain` one, with the campaign's
+     * `from_name` as the display name when set (see `senderEmail` in
+     * @mail-rocket/shared and `src/libs/sender.ts`).
+     *
+     * @throws If the campaign, its identity, or its template can no longer be found, or the campaign's sender settings don't fit its identity (e.g. a domain identity with no `from_local_part`).
      */
     async sendChunk(campaignId: string, deliveryIds: string[]): Promise<void> {
         logger.info(`Start method: ${this.constructor.name}.${this.sendChunk.name}`);
@@ -178,7 +184,16 @@ export class SendCampaignService {
 
         const identity = await identityService.getById(campaign.identity_id);
         if (!identity) throw new Error(`Identity ${campaign.identity_id} for campaign ${campaignId} not found`);
-        if (identity.type !== "email") throw new Error(`Identity ${identity.id} is type '${identity.type}'; only 'email' sending identities are supported`);
+
+        // Saving a campaign already checks this, but a campaign saved before
+        // these rules existed (or whose row was edited directly) is caught
+        // here, before any email goes out with a bad From address.
+        const problem = senderProblem(identity.type, campaign.from_local_part, campaign.from_name);
+        if (problem) throw new Error(`Campaign ${campaignId} can't send from identity ${identity.id}: ${problem}`);
+        // The bare address, for `{{sender_email}}`; never null once the check above passed.
+        const fromEmail = senderEmail(identity, campaign.from_local_part)!;
+        // The full From value SES gets, display name included when the campaign has one.
+        const fromAddress = formatFromAddress(fromEmail, campaign.from_name);
 
         // Resolved once per chunk - shared by every subscriber's template context below.
         // The instance's single organization profile, for `{{organization_name}}`.
@@ -216,7 +231,7 @@ export class SendCampaignService {
                 group: row.groupNames ? { name: row.groupNames } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
                 organization: organization ? { name: organization.name, timezone: organization.timezone } : null,
-                sender: { email: identity.identity },
+                sender: { email: fromEmail },
             };
 
             const subject = renderTemplate(campaign.subject ?? "", context);
@@ -237,7 +252,7 @@ export class SendCampaignService {
 
             try {
                 await sesV2Client.send(new SendEmailCommand({
-                    FromEmailAddress: identity.identity,
+                    FromEmailAddress: fromAddress,
                     Destination: { ToAddresses: [row.email] },
                     Content: {
                         Simple: {

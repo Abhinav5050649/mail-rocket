@@ -33,7 +33,7 @@ export default function CampaignLayout({ children, params }: { children: React.R
   const { campaignId } = use(params);
   const base = `/campaigns/${campaignId}`;
   const { data: campaign, isLoading, error, refetch } = useGetCampaignQuery({ campaignId });
-  const { identityName } = useIdentityNames();
+  const { senderLabel } = useIdentityNames();
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +48,7 @@ export default function CampaignLayout({ children, params }: { children: React.R
             back={{ href: "/campaigns", label: "Campaigns" }}
             title={isLoading || !campaign ? <Skeleton className="h-7 w-64" /> : campaign.name || "Untitled campaign"}
             status={campaign && <CampaignStatusPill status={campaign.status} />}
-            description={campaign ? scheduleLine(campaign, identityName(campaign.identity_id)) : <Skeleton className="mt-1 h-4 w-80" />}
+            description={campaign ? scheduleLine(campaign, senderLabel(campaign)) : <Skeleton className="mt-1 h-4 w-80" />}
           />
           <Tabs
             label="Campaign sections"
