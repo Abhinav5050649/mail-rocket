@@ -7,6 +7,21 @@
 #   docker compose --env-file apps/api/.env up --build -d
 #
 # `bun run stack` at the root does exactly that.
+#
+# Images: `api` and `web` name their Docker Hub images
+# (abhinav2911/mail-rocket-api and abhinav2911/mail-rocket-web) and also
+# keep their `build:` sections, so this one file serves both ways of running:
+#
+#   - From a repo checkout, `--build` (as `bun run stack` passes) builds both
+#     images from source and tags them with those names.
+#   - Without `--build`, compose pulls the published images instead, so a
+#     server only needs this file, the API's .env and the Caddyfile:
+#       docker compose --env-file apps/api/.env pull
+#       docker compose --env-file apps/api/.env up -d
+#
+# MAIL_ROCKET_VERSION (in the env file) pins a release, e.g. 0.1.0; it
+# defaults to `latest`. A locally built image under the same tag is used
+# until the next `pull` replaces it.
 services:
   postgres:
     image: postgres:18-alpine
@@ -44,6 +59,8 @@ services:
     restart: always
 
   api:
+    # Pulled from Docker Hub, or built and tagged with this name under --build.
+    image: abhinav2911/mail-rocket-api:${MAIL_ROCKET_VERSION:-latest}
     # Built from the repo root: the API depends on the workspace's @mail-rocket/shared.
     build:
       context: .
@@ -69,6 +86,8 @@ services:
     restart: always
 
   web:
+    # Pulled from Docker Hub, or built and tagged with this name under --build.
+    image: abhinav2911/mail-rocket-web:${MAIL_ROCKET_VERSION:-latest}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
