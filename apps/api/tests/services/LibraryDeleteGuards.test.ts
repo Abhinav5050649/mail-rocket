@@ -22,9 +22,9 @@ describe("library delete guards", () => {
     });
 
     it("refuses to delete a group a scheduled or sending campaign sends to, naming the campaign", async () => {
-        mockDb.select.mockImplementationOnce(() => chain([{ name: "Diwali send" }]));
+        mockDb.select.mockImplementationOnce(() => chain([{ name: "Holiday greetings" }]));
 
-        await expect(new GroupService().delete("group-1")).rejects.toThrow(`"Diwali send" is scheduled or sending to this group`);
+        await expect(new GroupService().delete("group-1")).rejects.toThrow(`"Holiday greetings" is scheduled or sending to this group`);
         expect(mockDb.delete).not.toHaveBeenCalled();
     });
 
@@ -36,7 +36,7 @@ describe("library delete guards", () => {
     });
 
     it("refuses to delete a template a scheduled or sending campaign uses", async () => {
-        mockDb.select.mockImplementationOnce(() => chain([{ name: "Diwali send" }]));
+        mockDb.select.mockImplementationOnce(() => chain([{ name: "Holiday greetings" }]));
 
         await expect(new TemplateService().delete("template-1")).rejects.toThrow(ValidationError);
         expect(mockDb.delete).not.toHaveBeenCalled();

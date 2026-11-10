@@ -257,7 +257,7 @@ export class SendCampaignService {
                     Content: {
                         Simple: {
                             // UTF-8 on both, or SES assumes 7-bit ASCII and garbles
-                            // anything else: Gujarati or Hindi text, accents, emoji, curly quotes.
+                            // anything else: non-Latin scripts, accented letters, emoji, curly quotes.
                             Subject: { Data: subject.rendered, Charset: "UTF-8" },
                             Body: { Html: { Data: html, Charset: "UTF-8" } },
                             // RFC 8058 one-click unsubscribe: mail clients show their own
