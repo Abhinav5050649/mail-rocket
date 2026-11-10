@@ -196,6 +196,9 @@ describe("SendCampaignService", () => {
             const command = (mockSesSend.mock.calls[0] as any)[0];
             expect(command.input.Content.Simple.Subject.Data).toBe("Hi Ada");
             expect(command.input.Content.Simple.Body.Html.Data).toBe("<p>Hello Ada from Acme Inc</p>");
+            // Declared UTF-8, so non-ASCII text (Gujarati, emoji) isn't garbled by SES's 7-bit ASCII default.
+            expect(command.input.Content.Simple.Subject.Charset).toBe("UTF-8");
+            expect(command.input.Content.Simple.Body.Html.Charset).toBe("UTF-8");
             expect(command.input.Content.Simple.Headers).toBeUndefined();
             expect(mockDb.update).toHaveBeenCalledTimes(1);
         });
