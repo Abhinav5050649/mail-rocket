@@ -27,7 +27,7 @@ In the web app, the template editor's **Insert variable** menu lists every varia
 | `{{campaign_name}}` | The campaign's name |
 | `{{campaign_start_date}}` | The campaign's start date, in the organization's time zone |
 | `{{organization_name}}` | The organization's name (set with `PATCH /organization`) |
-| `{{sender_email}}` | The identity the campaign sends from |
+| `{{sender_email}}` | The address the campaign sends from: the email identity, or `<from_local_part>@<domain>` for a domain identity |
 
 ## Missing values
 

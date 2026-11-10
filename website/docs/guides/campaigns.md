@@ -32,11 +32,26 @@ stateDiagram-v2
      -d '{ "name": "November newsletter", "subject": "Hi {{subscriber_first_name}}", "identity_id": "<identity id>" }'
    ```
 
+   With a **domain** identity, also give the address to send from: `"from_local_part": "notifications"` sends from `notifications@<domain>`. It's required for a domain identity and not allowed for an email one, which sends from itself. Either kind can add a display name, `"from_name": "Mail Rocket"`, which inboxes show as `Mail Rocket <notifications@example.com>`. See [Sender address](#sender-address).
+
 2. **Add a template** with `POST /campaigns/:campaign_id/templates`. A campaign can hold several templates; the most recently updated one is sent. See [Templates and variables](./templates.md).
 3. **Add the audience**:
    - subscribers directly, with `POST /campaigns/:campaign_id/subscribers`,
    - groups, with `POST /campaigns/:campaign_id/groups`. Manage a group's members with `/groups/:group_id/subscribers`.
 4. **Schedule** it by setting `start_time` (an ISO timestamp) with `PATCH /campaigns/:campaign_id`.
+
+## Sender address
+
+| Identity | `from_local_part` | Sends from |
+| --- | --- | --- |
+| email `news@example.com` | leave unset | `news@example.com` |
+| domain `example.com` | `notifications` | `notifications@example.com` |
+| domain `example.com` | unset | rejected (400) |
+
+- `from_local_part` takes letters, digits and `. _ % + -`, up to 64 characters, with no dot at the start, at the end or twice in a row.
+- `from_name` is optional, up to 64 characters, with no line breaks. Names with accents or emoji work.
+- The address doesn't need a mailbox to send, but replies to it bounce unless it has one (or forwarding).
+- Switching a campaign to an email identity clears its `from_local_part`. The web app's campaign form shows the domain after the address field and previews what inboxes will show.
 
 ## Who receives it
 
