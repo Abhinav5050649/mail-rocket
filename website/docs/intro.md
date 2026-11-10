@@ -38,7 +38,7 @@ There are no user accounts. Everyone signs in with an [API key](./guides/api-key
 
 ## What it doesn't do (yet)
 
-Bounce and complaint tracking, analytics over time, search endpoints and bulk subscriber import aren't available today.
+Bounce and complaint tracking, analytics over time, search endpoints and bulk subscriber import aren't available today. See [What's next?](./faq.md#whats-next) for what's planned.
 
 ## Next steps
 
