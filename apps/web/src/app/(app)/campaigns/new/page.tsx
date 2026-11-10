@@ -14,7 +14,7 @@ export default function NewCampaignPage() {
       <PageHeader
         back={{ href: "/campaigns", label: "Campaigns" }}
         title="New campaign"
-        description="Templates, groups and subscribers are linked from the campaign once it exists."
+        description="Everything in one place: pick a template and an audience from your libraries, choose a sender, and schedule it."
       />
       <CampaignForm
         mode="create"

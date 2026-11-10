@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { senderEmail, senderProblem, FROM_NAME_MAX_LENGTH, FROM_LOCAL_PART_MAX_LENGTH } from "@mail-rocket/shared";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -11,6 +12,16 @@ import { FormActions, SettingsSection } from "@/components/ui/page";
 import { FormError, Notice } from "@/components/ui/feedback";
 import { campaignSchema, type CampaignFormValues } from "@/lib/validation/campaignSchema";
 import { useGetIdentitiesQuery } from "@/features/identities";
+import { useGetTemplatesQuery } from "@/features/templates";
+import { useGetGroupsQuery } from "@/features/groups";
+import { useGetSubscribersQuery } from "@/features/subscribers";
+import { useGetOrganizationQuery } from "@/features/organizations";
+import { useAbility } from "@/hooks/useAbility";
+import { useRefetchOnFocus } from "@/hooks/useRefetchOnFocus";
+import { GroupPicker } from "@/components/subscribers/GroupPicker";
+import { DateTimePicker, todayInZone } from "@/components/ui/date-picker";
+import { TemplatePicker } from "./TemplatePicker";
+import { SubscriberPicker } from "./SubscriberPicker";
 import { formatRelative, formatZoneName, fromDateTimeLocal, getDisplayTimeZone, toDateTimeLocal } from "@/lib/format";
 import { browserTimeZone, offsetLabel } from "@/lib/timezone";
 import type { CampaignInput } from "@/features/campaigns";
@@ -28,23 +39,46 @@ interface CampaignFormProps {
   readOnly?: boolean;
 }
 
-/** Statuses whose start time can still change; once a send starts the schedule is fixed. */
+/** Statuses whose start time, template and audience can still change; once a send starts they're fixed. */
 const SCHEDULABLE = new Set(["draft", "scheduled"]);
 
+/**
+ * How many subscribers the pickers load. Enough for a self-hosted list; past
+ * it the recipient count is shown as an upper bound instead of exact.
+ */
+const PICKER_LIMIT = 500;
 
 /**
- * Campaign fields in three settings rows: the message, when and from whom
- * it sends, and notes. Local react-hook-form state, committed on submit.
+ * The whole campaign on one page, for create and edit alike: the message,
+ * its content (a template from the library), its audience (groups plus
+ * individually picked subscribers), when and from whom it sends, and notes.
+ * Templates, groups and subscribers are picked here from their shared
+ * libraries; creating a new one opens in a new tab and shows up here on
+ * return. Local react-hook-form state, committed on submit.
  */
 export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error, onCancel, readOnly }: CampaignFormProps) {
+  const { ability } = useAbility();
   const { data: identities, isLoading: identitiesLoading } = useGetIdentitiesQuery({ limit: 100 });
   const verified = identities?.filter((identity) => identity.status === "active") ?? [];
   const canReschedule = !initialData || SCHEDULABLE.has(initialData.status);
+  // What a campaign sends, and to whom, is fixed once its send starts (the API refuses changes too).
+  const contentLocked = !canReschedule;
+
+  // The libraries the pickers choose from, refreshed when the tab regains focus.
+  const { data: templates, refetch: refetchTemplates } = useGetTemplatesQuery({ limit: 100 }, { skip: !ability.can("read", "Template") });
+  const { data: groups, refetch: refetchGroups } = useGetGroupsQuery({ limit: 100 }, { skip: !ability.can("read", "Group") });
+  const { data: subscribers, refetch: refetchSubscribers } = useGetSubscribersQuery({ limit: PICKER_LIMIT }, { skip: !ability.can("read", "Subscriber") });
+  useRefetchOnFocus(refetchTemplates);
+  useRefetchOnFocus(refetchGroups);
+  useRefetchOnFocus(refetchSubscribers);
+  // Fills {{organization_name}} in the template preview.
+  const { data: organization } = useGetOrganizationQuery(undefined, { skip: !ability.can("read", "Organization") });
 
   const {
     control,
     register,
     handleSubmit,
+    setError,
     formState: { errors, isDirty },
   } = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -53,18 +87,54 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
       subject: initialData?.subject ?? "",
       start_time: toDateTimeLocal(initialData?.start_time),
       identity_id: initialData?.identity_id ?? "",
+      from_local_part: initialData?.from_local_part ?? "",
+      from_name: initialData?.from_name ?? "",
+      template_id: initialData?.template_id ?? "",
+      group_ids: initialData?.group_ids ?? [],
+      subscriber_ids: initialData?.subscriber_ids ?? [],
       description: initialData?.description ?? "",
     },
   });
   const startTime = useWatch({ control, name: "start_time" });
   const identityId = useWatch({ control, name: "identity_id" });
+  const fromLocalPart = useWatch({ control, name: "from_local_part" });
+  const fromName = useWatch({ control, name: "from_name" });
+  const templateId = useWatch({ control, name: "template_id" });
+  const groupIds = useWatch({ control, name: "group_ids" });
+  const subscriberIds = useWatch({ control, name: "subscriber_ids" });
+  // The chosen sender; a domain one needs the address field, an email one is its own address.
+  const selectedIdentity = identities?.find((identity) => identity.id === identityId);
+  const isDomain = selectedIdentity?.type === "domain";
 
   const submit = (values: CampaignFormValues) => {
+    // Only a domain sender uses a local part; for an email sender any typed value is ignored.
+    const localPart = isDomain ? values.from_local_part?.trim() || null : null;
+    const name = values.from_name?.trim() || null;
+
+    // Same rules the API applies, checked here so the error lands on the right field.
+    if (selectedIdentity) {
+      const addressProblem = senderProblem(selectedIdentity.type, localPart, null);
+      if (addressProblem) return setError("from_local_part", { message: addressProblem });
+      const nameProblem = senderProblem("email", null, name);
+      if (nameProblem) return setError("from_name", { message: nameProblem });
+    }
+
     const startIso = fromDateTimeLocal(values.start_time);
     onSubmit({
       name: values.name.trim(),
       subject: values.subject || undefined,
       identity_id: values.identity_id || undefined,
+      // On edit null clears a stored value; on create an unset one is simply omitted.
+      from_local_part: localPart ?? (mode === "edit" ? null : undefined),
+      from_name: name ?? (mode === "edit" ? null : undefined),
+      // Sent only while they can still change; the API refuses them once the send has started.
+      ...(contentLocked
+        ? {}
+        : {
+            template_id: values.template_id || (mode === "edit" ? null : undefined),
+            group_ids: values.group_ids,
+            subscriber_ids: values.subscriber_ids,
+          }),
       description: values.description || undefined,
       // On edit an emptied start time cancels the scheduled send; on create it's simply omitted.
       ...(canReschedule ? { start_time: startIso ?? (mode === "edit" ? null : undefined) } : {}),
@@ -75,10 +145,29 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
   const current = identities?.find((identity) => identity.id === initialData?.identity_id);
   const senderOptions = [
     { label: "No sender yet", value: "" },
-    ...verified.map((identity) => ({ label: identity.identity, value: identity.id })),
+    // A domain is labelled as such: any address on it can send, chosen below.
+    ...verified.map((identity) => ({ label: identity.type === "domain" ? `${identity.identity} (domain)` : identity.identity, value: identity.id })),
     ...(current && current.status !== "active" ? [{ label: `${current.identity} (not verified)`, value: current.id }] : []),
   ];
   const scheduling = Boolean(startTime);
+
+  // Who it would send to: everyone in a picked group plus everyone picked
+  // individually, each once, minus people who unsubscribed. Exact while every
+  // subscriber is loaded; past that, a sum that may count overlaps twice.
+  const allLoaded = subscribers !== undefined && subscribers.length < PICKER_LIMIT;
+  const pickedGroups = new Set(groupIds);
+  const pickedPeople = new Set(subscriberIds);
+  const recipients = allLoaded
+    ? subscribers.filter((person) => !person.unsubscribed_at && (pickedPeople.has(person.id) || person.group_ids.some((id) => pickedGroups.has(id)))).length
+    : (groups ?? []).filter((group) => pickedGroups.has(group.id)).reduce((total, group) => total + group.subscriber_count, 0) + subscriberIds.length;
+  const recipientLine = `${allLoaded ? "Sends to" : "Sends to up to"} ${recipients} ${recipients === 1 ? "person" : "people"}${allLoaded ? ", each once" : ""}.`;
+
+  // What scheduling still needs, named so the warning says exactly what's missing.
+  const missingForSchedule = [!identityId && "a sender", !templateId && "a template"].filter(Boolean).join(" and ");
+  // What inboxes will show as the sender, once there's an address to show.
+  const previewEmail = selectedIdentity ? senderEmail(selectedIdentity, isDomain ? fromLocalPart?.trim() || null : null) : null;
+  const previewName = fromName?.trim();
+  const preview = previewEmail ? (previewName ? `${previewName} <${previewEmail}>` : previewEmail) : null;
 
   return (
     <form onSubmit={handleSubmit(submit)} noValidate>
@@ -92,6 +181,85 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
               {(props) => <Input {...props} {...register("subject")} placeholder="What's new this autumn" />}
             </Field>
           </div>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Content"
+          description={
+            contentLocked
+              ? "Fixed once the campaign started sending."
+              : "The email body, from your template library. Any number of campaigns can share a template."
+          }
+        >
+          <fieldset disabled={contentLocked} className="contents">
+            <Field label="Template" error={errors.template_id?.message}>
+              {(props) => (
+                <Controller
+                  control={control}
+                  name="template_id"
+                  render={({ field }) => (
+                    <TemplatePicker
+                      id={props.id}
+                      templates={templates}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      disabled={contentLocked || readOnly}
+                      organizationName={organization?.name}
+                    />
+                  )}
+                />
+              )}
+            </Field>
+          </fieldset>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Audience"
+          description={
+            contentLocked
+              ? "Fixed once the campaign started sending."
+              : "Everyone in the groups you pick, plus anyone picked individually. People in several groups get one email; people who unsubscribed get none."
+          }
+        >
+          <fieldset disabled={contentLocked} className="flex flex-col gap-5">
+            <Field
+              label="Groups"
+              hint={
+                <a href="/groups/new" target="_blank" rel="noopener" className="underline-offset-3 hover:text-text hover:underline">
+                  New group (opens in a new tab)
+                </a>
+              }
+            >
+              {(props) => (
+                <Controller
+                  control={control}
+                  name="group_ids"
+                  render={({ field }) => (
+                    <GroupPicker
+                      id={props.id}
+                      groups={groups}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={contentLocked || readOnly}
+                      summary={(count) => (count === 0 ? "No groups picked." : `${count} group${count === 1 ? "" : "s"} picked.`)}
+                    />
+                  )}
+                />
+              )}
+            </Field>
+            <Field label="Individual subscribers" optional>
+              {(props) => (
+                <Controller
+                  control={control}
+                  name="subscriber_ids"
+                  render={({ field }) => (
+                    <SubscriberPicker id={props.id} subscribers={subscribers} value={field.value} onChange={field.onChange} disabled={contentLocked || readOnly} />
+                  )}
+                />
+              )}
+            </Field>
+            <p className="tabular rounded-control bg-raised px-3 py-2 text-sm text-text">{recipientLine}</p>
+          </fieldset>
         </SettingsSection>
 
         <SettingsSection
@@ -124,6 +292,30 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
               <Controller control={control} name="identity_id" render={({ field }) => <Select {...props} {...field} value={field.value ?? ""} options={senderOptions} />} />
             )}
             </Field>
+            {isDomain && (
+              <Field
+                label="From address"
+                error={errors.from_local_part?.message}
+                hint="Any address on a verified domain can send. It doesn't need a mailbox, but replies to it go nowhere without one."
+              >
+                {(props) => (
+                  <div className="flex items-center gap-2">
+                    <Input {...props} {...register("from_local_part")} placeholder="notifications" maxLength={FROM_LOCAL_PART_MAX_LENGTH} autoComplete="off" className="flex-1" />
+                    <span className="shrink-0 text-sm text-muted">@{selectedIdentity.identity}</span>
+                  </div>
+                )}
+              </Field>
+            )}
+            {identityId && (
+              <Field
+                label="Sender name"
+                optional
+                error={errors.from_name?.message}
+                hint={preview ? `Inboxes show: ${preview}` : "Shown in inboxes instead of the bare address."}
+              >
+                {(props) => <Input {...props} {...register("from_name")} placeholder="Mail Rocket" maxLength={FROM_NAME_MAX_LENGTH} />}
+              </Field>
+            )}
             <Field
               label="Start time"
               optional
@@ -136,10 +328,29 @@ export function CampaignForm({ mode, initialData, onSubmit, isSubmitting, error,
                     : undefined
               }
             >
-              {(props) => <Input {...props} {...register("start_time")} type="datetime-local" disabled={!canReschedule || readOnly} className="tabular max-w-64" />}
+              {(props) => (
+                <Controller
+                  control={control}
+                  name="start_time"
+                  render={({ field }) => (
+                    <DateTimePicker
+                      {...props}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      // A new send can't be scheduled for a day that's already gone.
+                      minDate={canReschedule ? todayInZone() : undefined}
+                      isDisabled={!canReschedule || readOnly}
+                      clearable
+                    />
+                  )}
+                />
+              )}
             </Field>
-            {scheduling && !identityId && canReschedule && (
-              <p className="text-sm text-warning">Choose a sender too, or the campaign can&apos;t be scheduled.</p>
+            {scheduling && missingForSchedule && canReschedule && (
+              <p className="text-sm text-warning">Choose {missingForSchedule} too, or the campaign can&apos;t be scheduled.</p>
+            )}
+            {scheduling && canReschedule && recipients === 0 && (
+              <p className="text-sm text-warning">No one is in the audience yet, so the send would have nobody to go to.</p>
             )}
           </div>
         </SettingsSection>

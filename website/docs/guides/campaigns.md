@@ -24,23 +24,49 @@ stateDiagram-v2
 
 ## Build one
 
-1. **Create the campaign** with a name, subject and identity:
+Templates, groups and subscribers are shared libraries: create them once, and any number of campaigns can use them. A campaign is then set up in one go, on one page in the web app or in one request through the API.
+
+1. **Fill the libraries** (once, reused afterwards): templates with `POST /templates` (see [Templates and variables](./templates.md)), subscribers with `POST /subscribers`, and groups with `POST /groups`. Add people to a group with `POST /groups/:group_id/subscribers`, or by sending `group_ids` on the subscriber.
+2. **Create the campaign** with everything it needs:
 
    ```bash
    curl -X POST https://api.example.com/campaigns \
      -H "Authorization: Bearer $MR_KEY" -H "Content-Type: application/json" \
-     -d '{ "name": "November newsletter", "subject": "Hi {{subscriber_first_name}}", "identity_id": "<identity id>" }'
+     -d '{
+       "name": "November newsletter",
+       "subject": "Hi {{subscriber_first_name}}",
+       "identity_id": "<identity id>",
+       "template_id": "<template id>",
+       "group_ids": ["<group id>"],
+       "subscriber_ids": ["<subscriber id>"],
+       "start_time": "2026-11-20T09:00:00Z"
+     }'
    ```
 
-2. **Add a template** with `POST /campaigns/:campaign_id/templates`. A campaign can hold several templates; the most recently updated one is sent. See [Templates and variables](./templates.md).
-3. **Add the audience**:
-   - subscribers directly, with `POST /campaigns/:campaign_id/subscribers`,
-   - groups, with `POST /campaigns/:campaign_id/groups`. Manage a group's members with `/groups/:group_id/subscribers`.
-4. **Schedule** it by setting `start_time` (an ISO timestamp) with `PATCH /campaigns/:campaign_id`.
+   Leave `start_time` out to save a draft. A campaign needs an identity and a template before it can be scheduled.
+
+   With a **domain** identity, also give the address to send from: `"from_local_part": "notifications"` sends from `notifications@<domain>`. It's required for a domain identity and not allowed for an email one, which sends from itself. Either kind can add a display name, `"from_name": "Mail Rocket"`, which inboxes show as `Mail Rocket <notifications@example.com>`. See [Sender address](#sender-address).
+
+3. **Change it** with `PATCH /campaigns/:campaign_id`. `group_ids` and `subscriber_ids` replace the whole list when sent; `start_time` schedules, reschedules, or (as `null`) cancels. The template and audience can't change once the send has started.
+
+## Sender address
+
+| Identity | `from_local_part` | Sends from |
+| --- | --- | --- |
+| email `news@example.com` | leave unset | `news@example.com` |
+| domain `example.com` | `notifications` | `notifications@example.com` |
+| domain `example.com` | unset | rejected (400) |
+
+- `from_local_part` takes letters, digits and `. _ % + -`, up to 64 characters, with no dot at the start, at the end or twice in a row.
+- `from_name` is optional, up to 64 characters, with no line breaks. Names with accents or emoji work.
+- The address doesn't need a mailbox to send, but replies to it bounce unless it has one (or forwarding).
+- Switching a campaign to an email identity clears its `from_local_part`. The web app's campaign form shows the domain after the address field and previews what inboxes will show.
 
 ## Who receives it
 
-The audience is the campaign's directly linked subscribers plus every member of its linked groups, **each person once**. Subscribers who have [unsubscribed](./tracking-and-unsubscribe.md) are always left out.
+The audience is every member of the campaign's groups plus anyone it picked individually, **each person once**. Subscribers who have [unsubscribed](./tracking-and-unsubscribe.md) are always left out. `GET /campaigns/:campaign_id/subscribers` lists it, and the campaign's **Audience** tab in the web app shows why each person is included.
+
+A template or group can't be deleted while a scheduled or sending campaign uses it.
 
 A subscriber can be in any number of groups. `{{group_name}}` lists all of them.
 

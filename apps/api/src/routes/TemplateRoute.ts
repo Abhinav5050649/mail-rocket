@@ -13,7 +13,7 @@ const templateController = new TemplateController(templateService);
  * Each endpoint requires the key to hold the matching
  * `Template` claim (`read` for GETs, `create`/`update`/`delete` for writes).
  *
- * - GET    /              - list templates across all campaigns.
+ * - GET    /              - list every template in the library.
  * - POST   /              - create a template.
  * - GET    /:template_id  - fetch a single template.
  * - PATCH  /:template_id  - partially update a template.
@@ -26,14 +26,3 @@ export const templateRoute = new Hono()
     .patch('/:template_id', requireAbility('update', 'Template'), templateController.update)
     .delete('/:template_id', requireAbility('delete', 'Template'), templateController.delete)
 
-/**
- * Routes for the `/campaigns/:campaign_id/templates`
- * resource: templates scoped to a single campaign. Requires the matching
- * `Template` claim.
- *
- * - GET  / - list templates in the campaign.
- * - POST / - create a template in the campaign.
- */
-export const campaignTemplateRoute = new Hono()
-    .get('/', requireAbility('read', 'Template'), templateController.getAllByCampaign)
-    .post('/', requireAbility('create', 'Template'), templateController.postByCampaign)

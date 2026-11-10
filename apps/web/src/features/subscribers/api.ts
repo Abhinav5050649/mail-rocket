@@ -12,6 +12,9 @@ import type { Subscriber, SubscriberInput } from "./model";
  */
 const ALL_LISTS = { type: "Subscriber" as const, id: "LIST" };
 
+/** Every group list: a membership change moves groups' `subscriber_count`. */
+const GROUP_COUNTS = { type: "Group" as const, id: "LIST" };
+
 /** Reachable top-level, as a campaign's audience, and as a group's members. */
 export const subscribersApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
@@ -19,10 +22,10 @@ export const subscribersApi = apiSlice.injectEndpoints({
       query: (args) => ({ url: `/subscribers`, params: args }),
       providesTags: (result) => listTags("Subscriber", result),
     }),
-    /** A campaign's audience: subscribers linked to it directly plus members of its linked groups, each once. */
+    /** A campaign's audience: its individually picked subscribers plus members of its groups, each once. Tagged `CAMPAIGN_<id>` so saving the campaign refreshes it. */
     getCampaignSubscribers: builder.query<Subscriber[], { campaignId: string } & PageArgs>({
       query: ({ campaignId, ...args }) => ({ url: `/campaigns/${campaignId}/subscribers`, params: args }),
-      providesTags: (result) => listTags("Subscriber", result),
+      providesTags: (result, _e, { campaignId }) => listTags("Subscriber", result, [`CAMPAIGN_${campaignId}`]),
     }),
     /** A group's members (no campaign needed). */
     getGroupSubscribers: builder.query<Subscriber[], { groupId: string } & PageArgs>({
@@ -35,25 +38,25 @@ export const subscribersApi = apiSlice.injectEndpoints({
     }),
     createSubscriber: builder.mutation<Subscriber, SubscriberInput>({
       query: (body) => ({ url: `/subscribers`, method: "POST", body }),
-      invalidatesTags: [ALL_LISTS],
+      invalidatesTags: [ALL_LISTS, GROUP_COUNTS],
     }),
     updateSubscriber: builder.mutation<Subscriber, { subscriberId: string } & Partial<SubscriberInput>>({
       query: ({ subscriberId, ...body }) => ({ url: `/subscribers/${subscriberId}`, method: "PATCH", body }),
-      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS],
+      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
     }),
     deleteSubscriber: builder.mutation<void, { subscriberId: string }>({
       query: ({ subscriberId }) => ({ url: `/subscribers/${subscriberId}`, method: "DELETE" }),
-      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS],
+      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
     }),
     /** Adds an existing subscriber to a group; they keep their other groups. */
     addSubscriberToGroup: builder.mutation<Subscriber, { groupId: string; subscriberId: string }>({
       query: ({ groupId, subscriberId }) => ({ url: `/groups/${groupId}/subscribers`, method: "POST", body: { subscriber_id: subscriberId } }),
-      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS],
+      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
     }),
     /** Removes a subscriber from one group; the subscriber is kept. */
     removeSubscriberFromGroup: builder.mutation<Subscriber, { groupId: string; subscriberId: string }>({
       query: ({ groupId, subscriberId }) => ({ url: `/groups/${groupId}/subscribers/${subscriberId}`, method: "DELETE" }),
-      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS],
+      invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
     }),
   }),
 });

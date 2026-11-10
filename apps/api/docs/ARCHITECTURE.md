@@ -143,11 +143,13 @@ erDiagram
     ORGANIZATION ||--o{ ADDRESS : "postal details"
     ORGANIZATION ||--o{ CONTACT_DETAILS : "contact details"
     IDENTITY ||--o{ CAMPAIGN : "sends as (From)"
-    CAMPAIGN ||--o{ TEMPLATE : revisions
-    CAMPAIGN ||--o{ GROUP : "subscriber lists"
+    TEMPLATE |o--o{ CAMPAIGN : "sent by"
+    CAMPAIGN ||--o{ CAMPAIGN_GROUP : "sends to"
+    GROUP ||--o{ CAMPAIGN_GROUP : "used by"
+    CAMPAIGN ||--o{ CAMPAIGN_SUBSCRIBER : "picks"
+    SUBSCRIBERS ||--o{ CAMPAIGN_SUBSCRIBER : "picked by"
     GROUP ||--o{ GROUP_SUBSCRIBER : members
     SUBSCRIBERS ||--o{ GROUP_SUBSCRIBER : "in groups"
-    CAMPAIGN ||--o{ SUBSCRIBERS : targets
     CAMPAIGN ||--o{ CAMPAIGN_DELIVERY : "one send"
     SUBSCRIBERS ||--o{ CAMPAIGN_DELIVERY : "per-send outcome"
 
@@ -173,9 +175,11 @@ erDiagram
 **Notes**
 
 - Group membership is many-to-many through `group_subscriber`: a subscriber can be in any number of groups, and deleting either side removes the membership (cascade).
-- A campaign's audience is its directly linked subscribers plus every member of its linked groups, each once (`campaignAudience` in `SubscriberService`). That set is what dispatch writes into `campaign_delivery`.
+- Templates, groups and subscribers are shared libraries. A campaign picks one template (`campaign.template_id`, cleared if the template is deleted), any number of groups (`campaign_group`) and any number of individual subscribers (`campaign_subscriber`); the same template, group or subscriber can serve any number of campaigns. Both link tables cascade on either side.
+- A campaign's audience is its individually picked subscribers plus every member of its groups, each once (`campaignAudience` in `SubscriberService`). That set is what dispatch writes into `campaign_delivery`.
+- A campaign's template and audience are fixed once its send starts (`CampaignService.update` refuses changes), and a template or group can't be deleted while a scheduled or sending campaign uses it.
 - `campaign_delivery` is an audit trail, not a mutation: a send creates one row per subscriber per send; the underlying `subscribers` row is never touched, so the same subscriber stays reusable across future campaigns.
-- Templates are revisions, not slots: a campaign can hold several `template` rows; `SendCampaignService` picks "the" one to send by `updated_at desc` — there's no `is_final` flag today.
+- A campaign needs a template to be scheduled (`scheduleCampaignDispatch` checks `template_id` alongside `identity_id`).
 - Every row id is an app-generated UUID string (`varchar`, not Postgres's native `uuid` type), kept consistent so FK columns match without a cast.
 
 ## 5. Identity verification

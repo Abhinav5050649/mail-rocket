@@ -9,6 +9,15 @@ export const campaignSchema = z.object({
     .optional()
     .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), "Enter a valid date and time"),
   identity_id: z.string().optional(),
+  /** Only used when the chosen identity is a domain; checked against it on submit (`senderProblem`). */
+  from_local_part: z.string().optional(),
+  from_name: z.string().optional(),
+  /** The template the campaign sends; "" while none is picked. */
+  template_id: z.string().optional(),
+  /** Groups the campaign sends to. */
+  group_ids: z.array(z.string()),
+  /** Subscribers the campaign sends to individually, on top of its groups. */
+  subscriber_ids: z.array(z.string()),
   description: z.string().optional(),
 });
 export type CampaignFormValues = z.infer<typeof campaignSchema>;

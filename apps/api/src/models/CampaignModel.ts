@@ -1,6 +1,7 @@
 import { pgTable, pgEnum, varchar, timestamp } from "drizzle-orm/pg-core";
 import { CAMPAIGN_STATUSES } from "@mail-rocket/shared";
 import { identityTable } from "./IdentityModel";
+import { templateTable } from "./TemplateModel";
 
 /**
  * Lifecycle status of a campaign's scheduled send:
@@ -39,6 +40,22 @@ export const campaignTable = pgTable("campaign", {
     status: campaignStatusEnum("status").default("draft"),
     /** ID of the identity (domain/email) this campaign sends from via SES. */
     identity_id: varchar("identity_id").references(() => identityTable.id),
+    /**
+     * Part before the @ of the From address, e.g. "notifications". Set only
+     * when the identity is a domain (the email is then
+     * `<from_local_part>@<domain>`); null for an email identity, which sends
+     * from itself. See `senderProblem` in @mail-rocket/shared for the rules.
+     */
+    from_local_part: varchar("from_local_part"),
+    /** Display name inboxes show for the sender, e.g. "Mail Rocket". Null sends the bare address. */
+    from_name: varchar("from_name"),
+    /**
+     * ID of the template whose HTML this campaign sends. Templates are a
+     * reusable library, so many campaigns can share one. Deleting the
+     * template clears this (the campaign can't be scheduled again until it
+     * picks another).
+     */
+    template_id: varchar("template_id").references(() => templateTable.id, { onDelete: "set null" }),
     /** Reason the send ended in `failed`, set by the finalize job. */
     failure_reason: varchar("failure_reason"),
 });

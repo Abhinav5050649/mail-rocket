@@ -6,10 +6,8 @@ import { TemplateService } from "../services";
 /**
  * HTTP layer for template-related endpoints. Translates Hono `Context`
  * objects into `TemplateService` calls and maps the results to HTTP
- * responses/errors. Templates live at `/templates`, and are
- * additionally nested under a campaign
- * (`/campaigns/:campaign_id/templates`) for
- * campaign-scoped listing/creation.
+ * responses/errors. Templates are a reusable library at `/templates`; a
+ * campaign picks the one it sends with its own `template_id`.
  */
 export class TemplateController {
     constructor(private templateService: TemplateService) {
@@ -17,7 +15,7 @@ export class TemplateController {
 
     /**
      * GET /templates
-     * Lists every template, across all campaigns.
+     * Lists every template in the library.
      *
      * @param c - Hono request context; accepts optional `limit` (max rows to return) and `offset`
      * (rows to skip before returning results) query params.
@@ -59,70 +57,6 @@ export class TemplateController {
 
         logger.debug({ template }, `Response:`);
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
-
-        return c.json(template, 201);
-    }
-
-    /**
-     * GET /campaigns/:campaign_id/templates
-     * Lists templates belonging to a single campaign.
-     *
-     * @param c - Hono request context; expects a `campaign_id` route param.
-     * Accepts optional `limit` (max rows to return) and `offset` (rows to
-     * skip before returning results) query params.
-     * @returns JSON array of templates.
-     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
-     */
-    getAllByCampaign = async (c: Context) => {
-        logger.info(`Start method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
-
-        const campaignId = c.req.param('campaign_id');
-
-        if (!campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
-        }
-
-        const limitParam = c.req.query('limit');
-        const offsetParam = c.req.query('offset');
-        const limit = limitParam !== undefined ? Number(limitParam) : undefined;
-        const offset = offsetParam !== undefined ? Number(offsetParam) : undefined;
-
-        logger.debug({ campaignId, limit, offset }, `Request:`);
-
-        const templates = await this.templateService.getByCampaign(campaignId, { limit, offset });
-
-        logger.debug({ campaignId, count: templates.length }, `Response:`);
-        logger.info(`End method: ${this.constructor.name}.${this.getAllByCampaign.name}`);
-
-        return c.json(templates);
-    }
-
-    /**
-     * POST /campaigns/:campaign_id/templates
-     * Creates a new template within a campaign.
-     *
-     * @param c - Hono request context; expects a `campaign_id`
-     * route param and a JSON body with the template fields.
-     * @returns JSON response with the created template.
-     * @throws {HTTPException} 400 if the `campaign_id` param is missing.
-     */
-    postByCampaign = async (c: Context) => {
-        logger.info(`Start method: ${this.constructor.name}.${this.postByCampaign.name}`);
-
-        const campaignId = c.req.param('campaign_id');
-
-        if (!campaignId) {
-            throw new HTTPException(400, { message: "Missing Parameters: campaignId" });
-        }
-
-        const body = await c.req.json();
-
-        logger.debug({ campaignId, body }, `Request:`);
-
-        const template = await this.templateService.create({ ...body, campaign_id: campaignId });
-
-        logger.debug({ campaignId, template }, `Response:`);
-        logger.info(`End method: ${this.constructor.name}.${this.postByCampaign.name}`);
 
         return c.json(template, 201);
     }

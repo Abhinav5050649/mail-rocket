@@ -6,7 +6,6 @@ export interface SubscriberInput {
   email_id: string;
   /** Groups the subscriber is in; on update, replaces their groups. */
   group_ids?: string[];
-  campaign_id?: string;
 }
 
 export type SubscriberFilters = object;

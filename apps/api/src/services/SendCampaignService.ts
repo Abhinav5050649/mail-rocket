@@ -1,7 +1,8 @@
 import { SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db, logger, sesV2Client, renderTemplate, addTracking, addUnsubscribeFooter, unsubscribeUrl, type TemplateVariableContext } from "../libs";
-import { subscribersTable, templateTable, campaignDeliveryTable, groupTable, groupSubscriberTable } from "../models";
+import { senderEmail, senderProblem } from "@mail-rocket/shared";
+import { db, logger, sesV2Client, renderTemplate, addTracking, addUnsubscribeFooter, unsubscribeUrl, formatFromAddress, type TemplateVariableContext } from "../libs";
+import { subscribersTable, templateTable, campaignDeliveryTable, campaignTable, groupTable, groupSubscriberTable } from "../models";
 import { CampaignService } from "./CampaignService";
 import { campaignAudience, outerSubscriberId } from "./SubscriberService";
 import { IdentityService } from "./IdentityService";
@@ -22,8 +23,8 @@ const organizationService = new OrganizationService();
 export class SendCampaignService {
 
     /**
-     * Fetches every subscriber id in a campaign's audience: subscribers linked
-     * to it directly plus members of the groups linked to it, each once (see
+     * Fetches every subscriber id in a campaign's audience: the subscribers it
+     * picked individually plus members of the groups it sends to, each once (see
      * `campaignAudience`), minus anyone who has unsubscribed. Unpaginated,
      * unlike other list methods in this codebase - a send must see every
      * subscriber, not one page of them.
@@ -51,34 +52,34 @@ export class SendCampaignService {
     }
 
     /**
-     * Fetches the template to send for a campaign: the most-recently-updated
-     * template row belonging to it. Templates have no "is_final"/"is_active"
-     * flag today, so this is a stand-in for "the" template.
+     * Fetches the template a campaign sends: the one it picked with
+     * `campaign.template_id`.
      *
      * @param campaignId - id of the campaign.
      * @returns The template row, or `null` if the campaign has none.
      */
-    async getCurrentTemplateForCampaign(campaignId: string) {
-        logger.info(`Start method: ${this.constructor.name}.${this.getCurrentTemplateForCampaign.name}`);
+    async getTemplateForCampaign(campaignId: string) {
+        logger.info(`Start method: ${this.constructor.name}.${this.getTemplateForCampaign.name}`);
         logger.debug({ campaignId }, `Request:`);
 
         try {
-            const [template] = await db.select().from(templateTable)
-                .where(eq(templateTable.campaign_id, campaignId))
-                .orderBy(desc(templateTable.updated_at), desc(templateTable.created_at))
-                .limit(1);
+            // Joined through the campaign, so a missing campaign and a campaign with no template both come back empty.
+            const [row] = await db.select({ template: templateTable }).from(campaignTable)
+                .innerJoin(templateTable, eq(templateTable.id, campaignTable.template_id))
+                .where(eq(campaignTable.id, campaignId));
+            const template = row?.template;
 
             if (!template) {
-                logger.warn({ campaignId }, `${this.constructor.name}.${this.getCurrentTemplateForCampaign.name}: No template found for campaign`);
+                logger.warn({ campaignId }, `${this.constructor.name}.${this.getTemplateForCampaign.name}: No template found for campaign`);
                 return null;
             }
 
             logger.debug({ campaignId, templateId: template.id }, `Response:`);
-            logger.info(`End method: ${this.constructor.name}.${this.getCurrentTemplateForCampaign.name}`);
+            logger.info(`End method: ${this.constructor.name}.${this.getTemplateForCampaign.name}`);
 
             return template;
         } catch (error) {
-            logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getCurrentTemplateForCampaign.name}: Failed to get template for campaign`);
+            logger.error({ err: error, campaignId }, `Exception in ${this.constructor.name}.${this.getTemplateForCampaign.name}: Failed to get template for campaign`);
             throw error;
         }
     }
@@ -166,7 +167,12 @@ export class SendCampaignService {
      *
      * @param campaignId - id of the campaign being sent.
      * @param deliveryIds - ids of the `campaign_delivery` rows in this chunk.
-     * @throws If the campaign, its identity, or its template can no longer be found, or the identity is a `domain` type (not yet supported as a From address).
+     * The From address is the identity itself for an `email` identity, or
+     * `<from_local_part>@<domain>` for a `domain` one, with the campaign's
+     * `from_name` as the display name when set (see `senderEmail` in
+     * @mail-rocket/shared and `src/libs/sender.ts`).
+     *
+     * @throws If the campaign, its identity, or its template can no longer be found, or the campaign's sender settings don't fit its identity (e.g. a domain identity with no `from_local_part`).
      */
     async sendChunk(campaignId: string, deliveryIds: string[]): Promise<void> {
         logger.info(`Start method: ${this.constructor.name}.${this.sendChunk.name}`);
@@ -178,13 +184,22 @@ export class SendCampaignService {
 
         const identity = await identityService.getById(campaign.identity_id);
         if (!identity) throw new Error(`Identity ${campaign.identity_id} for campaign ${campaignId} not found`);
-        if (identity.type !== "email") throw new Error(`Identity ${identity.id} is type '${identity.type}'; only 'email' sending identities are supported`);
+
+        // Saving a campaign already checks this, but a campaign saved before
+        // these rules existed (or whose row was edited directly) is caught
+        // here, before any email goes out with a bad From address.
+        const problem = senderProblem(identity.type, campaign.from_local_part, campaign.from_name);
+        if (problem) throw new Error(`Campaign ${campaignId} can't send from identity ${identity.id}: ${problem}`);
+        // The bare address, for `{{sender_email}}`; never null once the check above passed.
+        const fromEmail = senderEmail(identity, campaign.from_local_part)!;
+        // The full From value SES gets, display name included when the campaign has one.
+        const fromAddress = formatFromAddress(fromEmail, campaign.from_name);
 
         // Resolved once per chunk - shared by every subscriber's template context below.
         // The instance's single organization profile, for `{{organization_name}}`.
         const organization = await organizationService.get();
 
-        const template = await this.getCurrentTemplateForCampaign(campaignId);
+        const template = await this.getTemplateForCampaign(campaignId);
         if (!template) throw new Error(`Campaign ${campaignId} has no template`);
 
         const rows = await db.select({
@@ -216,7 +231,7 @@ export class SendCampaignService {
                 group: row.groupNames ? { name: row.groupNames } : null,
                 campaign: { name: campaign.name, start_time: campaign.start_time },
                 organization: organization ? { name: organization.name, timezone: organization.timezone } : null,
-                sender: { email: identity.identity },
+                sender: { email: fromEmail },
             };
 
             const subject = renderTemplate(campaign.subject ?? "", context);
@@ -237,12 +252,14 @@ export class SendCampaignService {
 
             try {
                 await sesV2Client.send(new SendEmailCommand({
-                    FromEmailAddress: identity.identity,
+                    FromEmailAddress: fromAddress,
                     Destination: { ToAddresses: [row.email] },
                     Content: {
                         Simple: {
-                            Subject: { Data: subject.rendered },
-                            Body: { Html: { Data: html } },
+                            // UTF-8 on both, or SES assumes 7-bit ASCII and garbles
+                            // anything else: Gujarati or Hindi text, accents, emoji, curly quotes.
+                            Subject: { Data: subject.rendered, Charset: "UTF-8" },
+                            Body: { Html: { Data: html, Charset: "UTF-8" } },
                             // RFC 8058 one-click unsubscribe: mail clients show their own
                             // "Unsubscribe" button, which POSTs to this URL.
                             Headers: unsubscribe ? [

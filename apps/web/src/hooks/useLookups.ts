@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { senderEmail } from "@mail-rocket/shared";
+import type { Campaign } from "@/types/resources";
 import { useAbility } from "./useAbility";
 import { useGetCampaignsQuery } from "@/features/campaigns";
 import { useGetIdentitiesQuery } from "@/features/identities";
@@ -28,7 +30,20 @@ export function useCampaignNames() {
 export function useIdentityNames() {
   const { ability } = useAbility();
   const { data } = useGetIdentitiesQuery({ limit: 100 }, { skip: !ability.can("read", "Identity") });
-  return { identities: data, identityName: useNameMap(data, (row) => row.identity) };
+  const identityName = useNameMap(data, (row) => row.identity);
+  /**
+   * Who a campaign sends from, as inboxes will show it: "Mail Rocket
+   * <notifications@example.com>", or just the address without a name. Falls
+   * back to the identity's name while a domain campaign has no address yet,
+   * and to null when the campaign has no (known) identity.
+   */
+  const senderLabel = (campaign: Pick<Campaign, "identity_id" | "from_local_part" | "from_name">) => {
+    const identity = data?.find((row) => row.id === campaign.identity_id);
+    if (!identity) return null;
+    const email = senderEmail(identity, campaign.from_local_part) ?? identity.identity;
+    return campaign.from_name ? `${campaign.from_name} <${email}>` : email;
+  };
+  return { identities: data, identityName, senderLabel };
 }
 
 export function useGroupNames() {

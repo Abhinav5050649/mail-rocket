@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/feedback";
 import { Pill } from "@/components/ui/pill";
 import { Can } from "@/components/auth/Can";
 import { usePaginationParams } from "@/hooks/usePaginationParams";
-import { useCampaignNames, useGroupNames } from "@/hooks/useLookups";
+import { useGroupNames } from "@/hooks/useLookups";
 import { useGetSubscribersQuery } from "@/features/subscribers";
 import { fullName } from "@/lib/format";
 import type { Subscriber } from "@/types/resources";
@@ -17,7 +17,6 @@ export default function SubscribersPage() {
   const { limit, offset, setOffset } = usePaginationParams();
   const { data: subscribers, isLoading, error, refetch } = useGetSubscribersQuery({ limit, offset });
   const { groupNames } = useGroupNames();
-  const { campaignName } = useCampaignNames();
 
   const action = (
     <Can I="create" a="Subscriber">
@@ -29,7 +28,7 @@ export default function SubscribersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Subscribers" description="Everyone a campaign can send to, directly or through a group." actions={action} />
+      <PageHeader title="Subscribers" description="Everyone a campaign can send to, through a group or picked individually." actions={action} />
       <div>
         <DataTable<Subscriber>
           noun="subscribers"
@@ -50,8 +49,7 @@ export default function SubscribersPage() {
               className: "w-[32%]",
             },
             { header: "Name", cell: (subscriber) => fullName(subscriber) ?? <Dash /> },
-            { header: "Groups", cell: (subscriber) => groupNames(subscriber.group_ids) ?? <Dash />, className: "hidden text-muted lg:table-cell" },
-            { header: "Campaign", cell: (subscriber) => campaignName(subscriber.campaign_id) ?? <Dash />, className: "text-muted" },
+            { header: "Groups", cell: (subscriber) => groupNames(subscriber.group_ids) ?? <Dash />, className: "text-muted" },
           ]}
           mobile={{
             title: (subscriber) => subscriber.email_id,

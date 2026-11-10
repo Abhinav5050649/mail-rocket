@@ -1,6 +1,6 @@
 import { and, asc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
-import { campaignDeliveryTable, groupSubscriberTable, groupTable, subscribersTable } from "../models";
+import { campaignDeliveryTable, campaignGroupTable, campaignSubscriberTable, groupSubscriberTable, groupTable, subscribersTable } from "../models";
 
 /** Fields accepted when creating a new subscriber row. */
 export interface CreateSubscriberInput {
@@ -10,7 +10,6 @@ export interface CreateSubscriberInput {
     email_id?: string;
     /** Groups the subscriber joins; each id must exist. */
     group_ids?: string[];
-    campaign_id?: string;
     description?: string;
 }
 
@@ -20,7 +19,6 @@ export interface UpdateSubscriberInput {
     last_name?: string;
     normalized_name?: string;
     email_id?: string;
-    campaign_id?: string | null;
     /** When present, replaces the subscriber's groups with exactly these. */
     group_ids?: string[];
     description?: string;
@@ -48,22 +46,30 @@ const subscriberWithGroups = {
 };
 
 /**
- * Who a campaign sends to: subscribers linked to it directly, plus everyone
- * in a group linked to it. A subscriber matching both ways is still one row,
- * so each person is sent to once.
+ * Who a campaign sends to: the subscribers it picked individually
+ * (`campaign_subscriber`), plus everyone in the groups it sends to
+ * (`campaign_group` -> `group_subscriber`). A subscriber matching both ways,
+ * or through several groups, is still one row, so each person is sent to once.
  *
  * @param campaignId - id of the campaign.
  * @returns A `where` condition on `subscribersTable`.
  */
 export const campaignAudience = (campaignId: string): SQL =>
     or(
-        eq(subscribersTable.campaign_id, campaignId),
+        // Picked individually.
+        inArray(
+            subscribersTable.id,
+            db.select({ id: campaignSubscriberTable.subscriber_id })
+                .from(campaignSubscriberTable)
+                .where(eq(campaignSubscriberTable.campaign_id, campaignId)),
+        ),
+        // A member of one of the campaign's groups.
         inArray(
             subscribersTable.id,
             db.select({ id: groupSubscriberTable.subscriber_id })
                 .from(groupSubscriberTable)
-                .innerJoin(groupTable, eq(groupTable.id, groupSubscriberTable.group_id))
-                .where(eq(groupTable.campaign_id, campaignId)),
+                .innerJoin(campaignGroupTable, eq(campaignGroupTable.group_id, groupSubscriberTable.group_id))
+                .where(eq(campaignGroupTable.campaign_id, campaignId)),
         ),
     )!;
 

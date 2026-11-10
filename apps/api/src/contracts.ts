@@ -13,9 +13,7 @@ import type * as Wire from "@mail-rocket/shared";
 import type { toApiKeyResponse } from "./controllers/ApiKeyController";
 import type {
     IAddress,
-    ICampaign,
     IContactDetails,
-    IGroup,
     IIdentity,
     IOrganization,
     ITemplate,
@@ -24,7 +22,7 @@ import type {
     identityStatusEnum,
     identityTypeEnum,
 } from "./models";
-import type { CampaignService, Overview, SubscriberService } from "./services";
+import type { CampaignService, GroupService, Overview, SubscriberService } from "./services";
 
 /** Passes only for `true`; anything else is a compile error that names the mismatch. */
 type Expect<T extends true> = T;
@@ -40,6 +38,12 @@ type SameUnion<A, B> = [A] extends [B] ? ([B] extends [A] ? true : { missingFrom
 /** A Drizzle enum's values as a union. */
 type EnumValues<E extends { enumValues: readonly string[] }> = E["enumValues"][number];
 
+/** A campaign as the API returns it: the row plus its `group_ids` and `subscriber_ids`. */
+type ApiCampaign = NonNullable<Awaited<ReturnType<CampaignService["getById"]>>>;
+
+/** A group as the API returns it: the row plus its `subscriber_count`. */
+type ApiGroup = NonNullable<Awaited<ReturnType<GroupService["getById"]>>>;
+
 /** A subscriber as the API returns it: the row plus its `group_ids`. */
 type ApiSubscriber = NonNullable<Awaited<ReturnType<SubscriberService["getById"]>>>;
 
@@ -49,9 +53,9 @@ export type ContractChecks = [
     Expect<SameKeys<IAddress, Wire.Address>>,
     Expect<SameKeys<IContactDetails, Wire.ContactDetails>>,
     Expect<SameKeys<IIdentity, Wire.Identity>>,
-    Expect<SameKeys<ICampaign, Wire.Campaign>>,
+    Expect<SameKeys<ApiCampaign, Wire.Campaign>>,
     Expect<SameKeys<ITemplate, Wire.Template>>,
-    Expect<SameKeys<IGroup, Wire.Group>>,
+    Expect<SameKeys<ApiGroup, Wire.Group>>,
     Expect<SameKeys<ApiSubscriber, Wire.Subscriber>>,
     Expect<SameKeys<NonNullable<Awaited<ReturnType<CampaignService["getStats"]>>>, Wire.CampaignStats>>,
     Expect<SameKeys<ReturnType<typeof toApiKeyResponse>, Wire.ApiKey>>,

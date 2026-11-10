@@ -1,10 +1,9 @@
-import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
-import { campaignTable } from "./CampaignModel";
+import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 
 /**
  * Drizzle schema for `subscribers`: a person a campaign can send to. A
- * subscriber is linked to at most one campaign directly, and to any number of
- * groups through `group_subscriber`.
+ * subscriber joins any number of groups through `group_subscriber`, and any
+ * number of campaigns can pick them individually through `campaign_subscriber`.
  */
 export const subscribersTable = pgTable("subscribers", {
     /** UUID to uniquely identify subscriber. */
@@ -19,18 +18,13 @@ export const subscribersTable = pgTable("subscribers", {
     normalized_name: varchar("normalized_name"),
     /** Email ID of subscriber. */
     email_id: varchar("email_id"),
-    /** ID of campaign the subscriber is associated with. */
-    campaign_id: varchar("campaign_id").references(() => campaignTable.id),
     /** When the subscriber unsubscribed; no campaign sends to them after that. Set only by the subscriber, via an email's unsubscribe link. */
     unsubscribed_at: timestamp("unsubscribed_at"),
     created_at: timestamp("created_at").$defaultFn(() => new Date()),
     updated_at: timestamp("updated_at").$onUpdate(() => new Date()),
     /** Field to store additional metadata about record. */
     description: varchar("description"),
-}, (table) => [
-    // Backs `getByCampaign`. Group membership lives in `group_subscriber`.
-    index("subscribers_campaign_id_idx").on(table.campaign_id),
-]);
+});
 
 /** TS type for a subscriber row, inferred directly from the table schema above. */
 export type ISubscriber = typeof subscribersTable.$inferSelect;

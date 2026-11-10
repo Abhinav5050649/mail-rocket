@@ -51,10 +51,8 @@ The full schema is the OpenAPI spec: [`resources/openapi/mail-rocket-api.openapi
 | GET, POST | `/campaigns` | List, create campaigns |
 | GET, PATCH, DELETE | `/campaigns/{campaign_id}` | Get, update (incl. `start_time`), delete a campaign |
 | GET | `/campaigns/{campaign_id}/stats` | Delivery, open, click and unsubscribe counts |
-| GET, POST | `/campaigns/{campaign_id}/templates` | List, create the campaign's templates |
-| GET, POST | `/campaigns/{campaign_id}/groups` | List, create the campaign's groups |
-| GET, POST | `/campaigns/{campaign_id}/subscribers` | List, create the campaign's direct subscribers |
-| GET, POST | `/campaigns/{campaign_id}/groups/{group_id}/subscribers` | List, create subscribers in a campaign's group |
+| GET | `/campaigns/{campaign_id}/groups` | The groups the campaign sends to (set with `group_ids`) |
+| GET | `/campaigns/{campaign_id}/subscribers` | The campaign's audience: its groups' members plus individually picked subscribers, each once |
 
 ## Templates, groups, subscribers
 

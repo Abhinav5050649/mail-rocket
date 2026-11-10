@@ -78,6 +78,7 @@ export class CampaignController {
      * @param c - Hono request context; expects a JSON body with the campaign fields.
      * @returns JSON response with the created campaign.
      * @throws {ValidationError} 400 if the body sets `status` or `failure_reason`.
+     * @throws {ValidationError} 400 if `from_local_part`/`from_name` don't fit the sending identity (see `senderProblem` in @mail-rocket/shared).
      */
     post = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.post.name}`);
@@ -172,6 +173,7 @@ export class CampaignController {
      * @throws {HTTPException} 400 if the `campaign_id` param is missing.
      * @throws {HTTPException} 404 if no campaign matches the given id.
      * @throws {ValidationError} 400 if the body sets `status` or `failure_reason`.
+     * @throws {ValidationError} 400 if `from_local_part`/`from_name` don't fit the sending identity (see `senderProblem` in @mail-rocket/shared).
      */
     update = async (c: Context) => {
         logger.info(`Start method: ${this.constructor.name}.${this.update.name}`);

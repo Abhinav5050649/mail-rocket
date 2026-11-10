@@ -14,7 +14,7 @@ const PENDING_STATES = ["delayed", "waiting", "prioritized"];
  * @param campaign - The campaign to schedule. Must have `start_time` set.
  * @throws {ValidationError} If the campaign has no `identity_id` - SES needs
  * a verified From address to send from, so a campaign can't be scheduled
- * without one.
+ * without one - or no `template_id`, since there'd be nothing to send.
  */
 export const scheduleCampaignDispatch = async (campaign: ICampaign): Promise<void> => {
     logger.info("Start method: CampaignDispatch.scheduleCampaignDispatch");
@@ -22,6 +22,10 @@ export const scheduleCampaignDispatch = async (campaign: ICampaign): Promise<voi
 
     if (!campaign.identity_id) {
         throw new ValidationError("Campaign must have an identity_id (sending identity) before it can be scheduled");
+    }
+    // Checked here rather than at send time, so a campaign with nothing to send can't be queued at all.
+    if (!campaign.template_id) {
+        throw new ValidationError("Campaign must have a template before it can be scheduled");
     }
 
     const existingJob = await dispatchQueue.getJob(campaign.id);

@@ -137,12 +137,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
   const dispatch = useAppDispatch();
   const dialog = useAppSelector(selectGroupDialog);
   const { ability } = useAbility();
-  const { campaignName } = useCampaignNames();
+  const { campaigns } = useCampaignNames();
 
   const { data: group, isLoading, error, refetch } = useGetGroupQuery({ groupId });
   const [updateGroup, { isLoading: isSaving, error: updateError }] = useUpdateGroupMutation();
   const [deleteGroup, { isLoading: isDeleting, error: deleteError }] = useDeleteGroupMutation();
-  const campaign = campaignName(group?.campaign_id);
+  // Groups are shared, so any number of campaigns may send to this one.
+  const usedBy = campaigns?.filter((campaign) => campaign.group_ids.includes(groupId)) ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,16 +152,21 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
         title={group ? group.name || "Untitled group" : isLoading ? <Skeleton className="h-7 w-56" /> : "Group"}
         description={
           group &&
-          (group.campaign_id ? (
+          (usedBy.length > 0 ? (
             <>
               Sent to by{" "}
-              <Link href={`/campaigns/${group.campaign_id}/groups`} className="text-text hover:underline">
-                {campaign ?? "its campaign"}
-              </Link>
+              {usedBy.map((campaign, index) => (
+                <span key={campaign.id}>
+                  {index > 0 && ", "}
+                  <Link href={`/campaigns/${campaign.id}`} className="text-text hover:underline">
+                    {campaign.name || "Untitled campaign"}
+                  </Link>
+                </span>
+              ))}
               .
             </>
           ) : (
-            "Not linked to a campaign."
+            "No campaign sends to this group yet."
           ))
         }
       />
@@ -178,7 +184,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
             readOnly={!ability.can("update", "Group")}
             isSubmitting={isSaving}
             error={updateError}
-            onSubmit={(values) => updateGroup({ groupId, ...values, campaign_id: values.campaign_id || undefined })}
+            onSubmit={(values) => updateGroup({ groupId, ...values })}
           />
           {ability.can("read", "Subscriber") && (
             <SettingsSection
@@ -193,13 +199,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
             <DeleteSection
               noun="group"
               name={group.name || "Untitled group"}
-              consequence="Permanently removes the group. Its members are kept, just no longer in this group."
+              consequence="Permanently removes the group and takes it out of every campaign that sends to it. Its members are kept. It can't be deleted while a scheduled campaign sends to it."
               isOpen={dialog?.type === "delete"}
               onOpenChange={(open) => dispatch(open ? groupDeleteDialogOpened(groupId) : groupDialogClosed())}
               isDeleting={isDeleting}
               error={deleteError}
               onConfirm={async () => {
-                const result = await deleteGroup({ groupId, campaignId: group.campaign_id ?? undefined });
+                const result = await deleteGroup({ groupId });
                 if (!("error" in result)) {
                   dispatch(groupDialogClosed());
                   router.push("/groups");

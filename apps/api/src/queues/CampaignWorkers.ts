@@ -33,7 +33,7 @@ const processDispatch = async (job: Job<{ campaignId: string }>) => {
         return;
     }
 
-    const template = await sendCampaignService.getCurrentTemplateForCampaign(campaignId);
+    const template = await sendCampaignService.getTemplateForCampaign(campaignId);
     if (!template) {
         await sendCampaignService.markCampaignFailed(campaignId, "No template found for campaign");
         return;

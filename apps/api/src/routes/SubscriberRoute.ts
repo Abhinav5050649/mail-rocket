@@ -28,28 +28,13 @@ export const subscriberRoute = new Hono()
 
 /**
  * Routes for the `/campaigns/:campaign_id/subscribers`
- * resource: subscribers scoped to a single campaign. Requires the matching
- * `Subscriber` claim.
+ * resource: a campaign's audience, read-only. Requires the `read Subscriber`
+ * claim. Who is in it is set on the campaign (`group_ids`, `subscriber_ids`).
  *
- * - GET  / - list subscribers in the campaign.
- * - POST / - create a subscriber in the campaign.
+ * - GET / - list everyone the campaign sends to.
  */
 export const campaignSubscriberRoute = new Hono()
     .get('/', requireAbility('read', 'Subscriber'), subscriberController.getAllByCampaign)
-    .post('/', requireAbility('create', 'Subscriber'), subscriberController.postByCampaign)
-
-/**
- * Routes for the
- * `/campaigns/:campaign_id/groups/:group_id/subscribers`
- * resource: subscribers scoped to a single group. Requires the matching
- * `Subscriber` claim.
- *
- * - GET  / - list subscribers in the group.
- * - POST / - create a subscriber in the group.
- */
-export const groupSubscriberRoute = new Hono()
-    .get('/', requireAbility('read', 'Subscriber'), subscriberController.getAllByGroup)
-    .post('/', requireAbility('create', 'Subscriber'), subscriberController.postByGroup)
 
 /**
  * Routes for `/groups/:group_id/subscribers`: a group's members. Membership

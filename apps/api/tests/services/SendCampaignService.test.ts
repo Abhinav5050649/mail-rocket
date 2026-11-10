@@ -77,11 +77,11 @@ describe("SendCampaignService", () => {
         });
     });
 
-    describe("getCurrentTemplateForCampaign", () => {
-        it("returns the most-recently-updated template", async () => {
-            mockDb.select.mockImplementationOnce(() => chain([template]));
+    describe("getTemplateForCampaign", () => {
+        it("returns the template the campaign picked", async () => {
+            mockDb.select.mockImplementationOnce(() => chain([{ template }]));
 
-            const result = await service.getCurrentTemplateForCampaign("campaign-1");
+            const result = await service.getTemplateForCampaign("campaign-1");
 
             expect(result).toEqual(template);
         });
@@ -89,7 +89,7 @@ describe("SendCampaignService", () => {
         it("returns null when the campaign has no template", async () => {
             mockDb.select.mockImplementationOnce(() => chain([]));
 
-            const result = await service.getCurrentTemplateForCampaign("campaign-1");
+            const result = await service.getTemplateForCampaign("campaign-1");
 
             expect(result).toBeNull();
         });
@@ -116,7 +116,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign])) // CampaignService.getById
                 .mockImplementationOnce(() => chain([emailIdentity])) // IdentityService.getById
                 .mockImplementationOnce(() => chain([organization])) // OrganizationService.get
-                .mockImplementationOnce(() => chain([template])) // getCurrentTemplateForCampaign
+                .mockImplementationOnce(() => chain([{ template }])) // getTemplateForCampaign
                 .mockImplementationOnce(() => chain([ // campaign_delivery join rows
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                     { deliveryId: "cr-2", status: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
@@ -133,7 +133,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "sent", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -149,7 +149,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: null, firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -165,7 +165,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "bounces@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                     { deliveryId: "cr-2", status: "pending", email: "two@example.com", firstName: "Alan", lastName: "Turing", groupNames: null },
@@ -185,7 +185,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([{ ...campaign, subject: "Hi {{subscriber_first_name}}" }]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hello {{subscriber_first_name}} from {{organization_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>Hello {{subscriber_first_name}} from {{organization_name}}</p>" } }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -196,6 +196,9 @@ describe("SendCampaignService", () => {
             const command = (mockSesSend.mock.calls[0] as any)[0];
             expect(command.input.Content.Simple.Subject.Data).toBe("Hi Ada");
             expect(command.input.Content.Simple.Body.Html.Data).toBe("<p>Hello Ada from Acme Inc</p>");
+            // Declared UTF-8, so non-ASCII text (Gujarati, emoji) isn't garbled by SES's 7-bit ASCII default.
+            expect(command.input.Content.Simple.Subject.Charset).toBe("UTF-8");
+            expect(command.input.Content.Simple.Body.Html.Charset).toBe("UTF-8");
             expect(command.input.Content.Simple.Headers).toBeUndefined();
             expect(mockDb.update).toHaveBeenCalledTimes(1);
         });
@@ -207,7 +210,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([template]))
+                .mockImplementationOnce(() => chain([{ template }]))
                 .mockImplementationOnce(() => chain([
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
                 ]));
@@ -232,7 +235,7 @@ describe("SendCampaignService", () => {
                 .mockImplementationOnce(() => chain([campaign]))
                 .mockImplementationOnce(() => chain([emailIdentity]))
                 .mockImplementationOnce(() => chain([organization]))
-                .mockImplementationOnce(() => chain([{ ...template, html_body: "<p>Hi {{subscriber_first_name}}</p>" }]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>Hi {{subscriber_first_name}}</p>" } }]))
                 .mockImplementationOnce(() => chain([
                     // No first_name on record for this subscriber.
                     { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: null, lastName: "Lovelace", groupNames: null },
@@ -259,12 +262,47 @@ describe("SendCampaignService", () => {
             await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("no identity_id");
         });
 
-        it("throws when the sending identity is a domain (not yet supported as a From address)", async () => {
+        it("sends from <from_local_part>@<domain> with the display name when the identity is a domain", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([{ ...campaign, identity_id: "identity-2", from_local_part: "notifications", from_name: "Mail Rocket" }]))
+                .mockImplementationOnce(() => chain([domainIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([{ template: { ...template, html_body: "<p>From {{sender_email}}</p>" } }]))
+                .mockImplementationOnce(() => chain([
+                    { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            const command = (mockSesSend.mock.calls[0] as any)[0];
+            expect(command.input.FromEmailAddress).toBe(`"Mail Rocket" <notifications@example.com>`);
+            // {{sender_email}} is the bare address, never the domain or the display name.
+            expect(command.input.Content.Simple.Body.Html.Data).toBe("<p>From notifications@example.com</p>");
+        });
+
+        it("sends from the email identity itself when the campaign has no display name", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([campaign]))
+                .mockImplementationOnce(() => chain([emailIdentity]))
+                .mockImplementationOnce(() => chain([organization]))
+                .mockImplementationOnce(() => chain([{ template }]))
+                .mockImplementationOnce(() => chain([
+                    { deliveryId: "cr-1", status: "pending", email: "one@example.com", firstName: "Ada", lastName: "Lovelace", groupNames: null },
+                ]));
+
+            await service.sendChunk("campaign-1", ["cr-1"]);
+
+            const command = (mockSesSend.mock.calls[0] as any)[0];
+            expect(command.input.FromEmailAddress).toBe("sender@example.com");
+        });
+
+        it("throws without sending when a domain identity's campaign has no from_local_part", async () => {
+            mockDb.select
+                .mockImplementationOnce(() => chain([{ ...campaign, identity_id: "identity-2", from_local_part: null }]))
                 .mockImplementationOnce(() => chain([domainIdentity]));
 
-            await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("only 'email' sending identities are supported");
+            await expect(service.sendChunk("campaign-1", ["cr-1"])).rejects.toThrow("needs a From address");
+            expect(mockSesSend).not.toHaveBeenCalled();
         });
 
         it("throws when the campaign has no template", async () => {
@@ -282,11 +320,13 @@ describe("SendCampaignService", () => {
         // finalizeCampaign issues two selects: the subscriber status
         // counts, then (via CampaignService.update's transaction) a
         // "before" read of the campaign row that gates its own
-        // scheduling logic - queue results for both, in that order.
+        // scheduling logic - queue results for both, in that order. The
+        // status update itself returns the updated row.
         it("marks the campaign sent when at least one subscriber succeeded", async () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([{ status: "sent", count: 3 }, { status: "failed", count: 1 }]))
                 .mockImplementationOnce(() => chain([campaign]));
+            mockDb.update.mockImplementationOnce(() => chain([campaign]));
 
             await service.finalizeCampaign("campaign-1");
 
@@ -297,6 +337,7 @@ describe("SendCampaignService", () => {
             mockDb.select
                 .mockImplementationOnce(() => chain([{ status: "failed", count: 2 }]))
                 .mockImplementationOnce(() => chain([campaign]));
+            mockDb.update.mockImplementationOnce(() => chain([campaign]));
 
             await service.finalizeCampaign("campaign-1");
 

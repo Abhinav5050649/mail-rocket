@@ -136,9 +136,12 @@ Table campaign {
   normalized_name varchar
   status campaign_status [default: 'draft', note: 'System-managed: driven by start_time and the send pipeline, rejected (400) if a client sends it.']
   identity_id varchar [ref: > identity.id, note: 'Sending identity (SES From address) for this campaign.']
+  from_local_part varchar [note: 'Part before the @ of the From address; required for a domain identity (sends from <from_local_part>@<domain>), null for an email identity (sends from itself).']
+  from_name varchar [note: 'Display name inboxes show for the sender, e.g. "Mail Rocket". Null sends the bare address.']
+  template_id varchar [ref: > template.id, note: 'The template whose HTML this campaign sends; shared with any number of campaigns. ON DELETE SET NULL. Required to schedule.']
   failure_reason varchar [note: 'System-managed: why the send ended in `failed`, set by the send pipeline.']
 
-  Note: 'An email campaign.'
+  Note: 'An email campaign. It picks one template (template_id) and its audience: groups via campaign_group plus individually picked subscribers via campaign_subscriber.'
 }
 
 Table template {
@@ -146,21 +149,15 @@ Table template {
   entity varchar [default: 'mail_rocket.template']
   name varchar
   html_body varchar [note: 'HTML markup of the email body.']
-  campaign_id varchar [ref: > campaign.id]
   normalized_name varchar
   created_at timestamp
   updated_at timestamp
   description varchar
 
-  indexes {
-    campaign_id [name: 'template_campaign_id_idx']
-  }
-
   Note: '''
-    Reusable HTML content for a campaign email. Subject/name for the send
-    itself live on `campaign` - a template only carries the body markup, so
-    a campaign can hold several template rows (draft revisions, A/B
-    variants) without duplicating campaign-level metadata.
+    A reusable HTML email body in the template library. Campaigns pick one
+    with campaign.template_id, and any number can share it. Subject, sender
+    and schedule live on the campaign - a template only carries the markup.
   '''
 }
 
@@ -171,14 +168,9 @@ Table "group" {
   description varchar
   entity varchar [default: 'mail_rocket.group']
   name varchar
-  campaign_id varchar [ref: > campaign.id]
   normalized_name varchar
 
-  indexes {
-    campaign_id [name: 'group_campaign_id_idx']
-  }
-
-  Note: 'A subscriber list within a campaign.'
+  Note: 'A reusable subscriber list. Members via group_subscriber; any number of campaigns can send to it via campaign_group.'
 }
 
 Table subscribers {
@@ -188,17 +180,12 @@ Table subscribers {
   last_name varchar
   normalized_name varchar
   email_id varchar
-  campaign_id varchar [ref: > campaign.id, note: 'Linked directly; also reached through groups linked to a campaign']
   unsubscribed_at timestamp [note: 'Set by the subscriber via an email unsubscribe link; no campaign sends to them after. Read-only over the API.']
   created_at timestamp
   updated_at timestamp
   description varchar
 
-  indexes {
-    campaign_id [name: 'subscribers_campaign_id_idx']
-  }
-
-  Note: 'A person a campaign can send to. In any number of groups via group_subscriber.'
+  Note: 'A person a campaign can send to. In any number of groups via group_subscriber; picked individually by any number of campaigns via campaign_subscriber.'
 }
 
 Table group_subscriber {
@@ -216,6 +203,40 @@ Table group_subscriber {
   }
 
   Note: 'Which subscribers are in which groups (many-to-many).'
+}
+
+Table campaign_group {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.campaign_group']
+  campaign_id varchar [not null, ref: > campaign.id, note: 'ON DELETE CASCADE']
+  group_id varchar [not null, ref: > "group".id, note: 'ON DELETE CASCADE']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    (campaign_id, group_id) [unique, name: 'campaign_group_campaign_id_group_id_unique']
+    group_id [name: 'campaign_group_group_id_idx']
+  }
+
+  Note: 'Which groups a campaign sends to (many-to-many).'
+}
+
+Table campaign_subscriber {
+  id varchar [pk, note: 'UUID']
+  entity varchar [default: 'mail_rocket.campaign_subscriber']
+  campaign_id varchar [not null, ref: > campaign.id, note: 'ON DELETE CASCADE']
+  subscriber_id varchar [not null, ref: > subscribers.id, note: 'ON DELETE CASCADE']
+  created_at timestamp
+  updated_at timestamp
+  description varchar
+
+  indexes {
+    (campaign_id, subscriber_id) [unique, name: 'campaign_subscriber_campaign_id_subscriber_id_unique']
+    subscriber_id [name: 'campaign_subscriber_subscriber_id_idx']
+  }
+
+  Note: 'Subscribers a campaign sends to individually, on top of its groups (many-to-many).'
 }
 
 Table campaign_delivery {

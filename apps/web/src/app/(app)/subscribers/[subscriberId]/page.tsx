@@ -64,14 +64,14 @@ export default function SubscriberDetailPage({ params }: { params: Promise<{ sub
             readOnly={!ability.can("update", "Subscriber")}
             isSubmitting={isSaving}
             error={updateError}
-            onSubmit={(values) => updateSubscriber({ subscriberId, ...values, campaign_id: values.campaign_id || undefined })}
+            onSubmit={(values) => updateSubscriber({ subscriberId, ...values })}
           />
           {ability.can("delete", "Subscriber") && (
             <div className="mt-8 border-t border-border">
               <DeleteSection
                 noun="subscriber"
                 name={subscriber.email_id ?? "this subscriber"}
-                consequence="Permanently removes this person and their group memberships."
+                consequence="Permanently removes this person, their group memberships, and them from any campaign that picked them."
                 isOpen={dialog?.type === "delete"}
                 onOpenChange={(open) => dispatch(open ? subscriberDeleteDialogOpened(subscriberId) : subscriberDialogClosed())}
                 isDeleting={isDeleting}

@@ -10,3 +10,5 @@ export * from "./GroupModel";
 export * from "./SubscriberModel";
 export * from "./CampaignDeliveryModel";
 export * from "./GroupSubscriberModel";
+export * from "./CampaignGroupModel";
+export * from "./CampaignSubscriberModel";

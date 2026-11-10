@@ -41,34 +41,6 @@ describe("TemplateController", () => {
         });
     });
 
-    describe("getAllByCampaign", () => {
-        it("400s when the campaign_id param is missing", async () => {
-            const ctx = createMockContext({ params: {} });
-            await expectHttpException(controller.getAllByCampaign(ctx), 400, "campaignId");
-        });
-
-        it("lists templates for the campaign", async () => {
-            const ctx = createMockContext({ params: { campaign_id: "campaign-1" } });
-            const result: any = await controller.getAllByCampaign(ctx);
-            expect(templateService.getByCampaign).toHaveBeenCalledWith("campaign-1", { limit: undefined, offset: undefined });
-            expect(result.body).toEqual([template]);
-        });
-    });
-
-    describe("postByCampaign", () => {
-        it("400s when a route param is missing", async () => {
-            const ctx = createMockContext({ body: {} });
-            await expectHttpException(controller.postByCampaign(ctx), 400, "campaignId");
-        });
-
-        it("creates a template scoped to the campaign", async () => {
-            const ctx = createMockContext({ params: { campaign_id: "campaign-1" }, body: { html_body: "<p>Hi</p>" } });
-            const result: any = await controller.postByCampaign(ctx);
-            expect(templateService.create).toHaveBeenCalledWith({ html_body: "<p>Hi</p>", campaign_id: "campaign-1" });
-            expect(result.status).toBe(201);
-        });
-    });
-
     describe("get", () => {
         it("400s when the template_id param is missing", async () => {
             const ctx = createMockContext({ params: {} });

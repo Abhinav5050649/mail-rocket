@@ -8,17 +8,21 @@ interface GroupPickerProps {
   groups: Group[] | undefined;
   value: string[];
   onChange: (groupIds: string[]) => void;
-  /** Campaign names by id, shown beside each group so it's clear which sends it feeds. */
-  campaignName: (id: string | null) => string | null;
   disabled?: boolean;
   id?: string;
+  /** Summary line under the list, given how many groups are picked. Defaults to subscriber wording ("In 2 groups."). */
+  summary?: (count: number) => string;
 }
+
+/** "In no groups." / "In 2 groups." - how a subscriber's memberships read. */
+const membershipSummary = (count: number) => (count === 0 ? "In no groups." : `In ${count} group${count === 1 ? "" : "s"}.`);
 
 /**
  * Pick any number of groups: a checkbox per group in a bordered, scrollable
- * list, each with the campaign it feeds. Selected groups sort first.
+ * list, each with how many subscribers it holds. Selected groups sort first.
+ * Used for a subscriber's memberships and for a campaign's audience.
  */
-export function GroupPicker({ groups, value, onChange, campaignName, disabled, id }: GroupPickerProps) {
+export function GroupPicker({ groups, value, onChange, disabled, id, summary = membershipSummary }: GroupPickerProps) {
   if (groups && groups.length === 0) {
     return (
       <p className="text-sm text-muted">
@@ -44,7 +48,6 @@ export function GroupPicker({ groups, value, onChange, campaignName, disabled, i
           <p className="px-3 py-2.5 text-sm text-muted">Loading groups…</p>
         ) : (
           ordered.map((group) => {
-            const campaign = campaignName(group.campaign_id);
             return (
               <label
                 key={group.id}
@@ -56,14 +59,16 @@ export function GroupPicker({ groups, value, onChange, campaignName, disabled, i
                 <input type="checkbox" checked={selected.has(group.id)} onChange={() => toggle(group.id)} className="size-4 shrink-0 accent-(--accent)" />
                 <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
                   <span className="min-w-0 truncate text-sm text-text">{group.name || "Untitled group"}</span>
-                  <span className="min-w-0 truncate text-xs text-muted sm:max-w-[50%]">{campaign ? `Sent by ${campaign}` : "No campaign"}</span>
+                  <span className="tabular shrink-0 text-xs text-muted">
+                    {group.subscriber_count} subscriber{group.subscriber_count === 1 ? "" : "s"}
+                  </span>
                 </span>
               </label>
             );
           })
         )}
       </div>
-      <p className="text-xs text-muted">{value.length === 0 ? "In no groups." : `In ${value.length} group${value.length === 1 ? "" : "s"}.`}</p>
+      <p className="text-xs text-muted">{summary(value.length)}</p>
     </fieldset>
   );
 }

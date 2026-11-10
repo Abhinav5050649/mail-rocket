@@ -28,7 +28,7 @@ curl -X POST https://api.example.com/identities \
 ```
 
 - **Email identity:** SES sends a verification email to that address. Click the link in it.
-- **Domain identity:** the response includes `verification_records`: a TXT record proving ownership and three DKIM CNAME records. Add them at your DNS provider. The web app shows them on the identity's page, ready to copy.
+- **Domain identity:** the response includes `verification_records`: a TXT record proving ownership and three DKIM CNAME records. Add them at your DNS provider. The web app shows them on the identity's page, ready to copy. Once verified, a campaign can send from any address on the domain, with no mailbox needed: it sets the part before the @ (see [Sender address](./campaigns.md#sender-address)).
 
 ## Verification
 

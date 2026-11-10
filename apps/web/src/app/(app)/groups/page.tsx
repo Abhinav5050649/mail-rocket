@@ -15,7 +15,12 @@ import type { Group } from "@/types/resources";
 export default function GroupsPage() {
   const { limit, offset, setOffset } = usePaginationParams();
   const { data: groups, isLoading, error, refetch } = useGetGroupsQuery({ limit, offset });
-  const { campaignName } = useCampaignNames();
+  const { campaigns } = useCampaignNames();
+  /** "Autumn launch, Newsletter" - the campaigns that send to a group, or null when none do. */
+  const usedBy = (groupId: string) =>
+    campaigns?.filter((campaign) => campaign.group_ids.includes(groupId)).map((campaign) => campaign.name || "Untitled campaign").join(", ") || null;
+  /** "1 subscriber" / "12 subscribers". */
+  const members = (group: Group) => `${group.subscriber_count} subscriber${group.subscriber_count === 1 ? "" : "s"}`;
 
   const action = (
     <Can I="create" a="Group">
@@ -27,7 +32,7 @@ export default function GroupsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Groups" description="Lists of subscribers a campaign sends to together." actions={action} />
+      <PageHeader title="Groups" description="Reusable lists of subscribers. Any number of campaigns can send to the same group." actions={action} />
       <div>
         <DataTable<Group>
           noun="groups"
@@ -37,11 +42,12 @@ export default function GroupsPage() {
           onRetry={refetch}
           href={(group) => `/groups/${group.id}`}
           columns={[
-            { header: "Group", cell: (group) => group.name || "Untitled group", className: "w-[40%]" },
-            { header: "Campaign", cell: (group) => campaignName(group.campaign_id) ?? <Dash />, className: "text-muted" },
+            { header: "Group", cell: (group) => group.name || "Untitled group", className: "w-[34%]" },
+            { header: "Subscribers", cell: (group) => <span className="tabular">{group.subscriber_count}</span>, align: "right", className: "w-32" },
+            { header: "Used by", cell: (group) => usedBy(group.id) ?? <Dash />, className: "hidden text-muted md:table-cell" },
             { header: "Created", cell: (group) => <span className="tabular">{formatDate(group.created_at)}</span>, align: "right", className: "w-36" },
           ]}
-          mobile={{ title: (group) => group.name || "Untitled group", subtitle: (group) => campaignName(group.campaign_id) ?? "Not linked to a campaign" }}
+          mobile={{ title: (group) => group.name || "Untitled group", subtitle: (group) => [members(group), usedBy(group.id) && `Used by ${usedBy(group.id)}`].filter(Boolean).join(" · ") }}
           empty={<EmptyState title="No groups yet" action={action}>Group subscribers so a campaign can send to all of them at once.</EmptyState>}
         />
         <Pagination noun="groups" limit={limit} offset={offset} rowCount={groups?.length ?? 0} onOffsetChange={setOffset} />

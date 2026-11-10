@@ -1,11 +1,29 @@
-import { asc, eq } from "drizzle-orm";
-import { db, logger, DEFAULT_PAGE_SIZE, type PaginationOptions } from "../libs";
-import { groupTable } from "../models";
+import { and, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
+import { campaignGroupTable, campaignTable, groupSubscriberTable, groupTable } from "../models";
+
+/**
+ * `"group"."id"`, always table-qualified, so the correlated count below binds
+ * to the outer group row rather than to `group_subscriber`'s own columns.
+ */
+const outerGroupId = sql`${sql.identifier("group")}.${sql.identifier("id")}`;
+
+/**
+ * Every group column plus `subscriber_count`: how many subscribers are in the
+ * group, counted in the same query. Every group read returns this shape, so
+ * a campaign's audience picker can show each group's size.
+ */
+const groupWithCount = {
+    ...getTableColumns(groupTable),
+    subscriber_count: sql<number>`(
+        select count(*)::int from ${groupSubscriberTable}
+        where ${groupSubscriberTable.group_id} = ${outerGroupId}
+    )`.as("subscriber_count"),
+};
 
 /** Fields accepted when creating a new group row. */
 export interface CreateGroupInput {
     name?: string;
-    campaign_id?: string;
     normalized_name?: string;
     description?: string;
 }
@@ -18,7 +36,9 @@ export interface UpdateGroupInput {
 }
 
 /**
- * Data-access layer for `group` rows (subscriber lists within a campaign).
+ * Data-access layer for `group` rows (reusable subscriber lists that any
+ * number of campaigns can send to). Every read returns the group with its
+ * `subscriber_count`.
  * Wraps `groupTable` (Drizzle) and adds structured logging around every
  * operation: `info` logs marking method start/end, `debug` logs of the
  * request params and response payload, `warn` if no matching row is
@@ -31,7 +51,7 @@ export class GroupService {
      * Creates a new group row.
      *
      * @param data - Fields for the new group.
-     * @returns The created group row.
+     * @returns The created group, with a `subscriber_count` of 0.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async create(data: CreateGroupInput) {
@@ -39,12 +59,14 @@ export class GroupService {
         logger.debug({ data }, `Request:`);
 
         try {
-            const [group] = await db.insert(groupTable).values(data).returning();
+            const [inserted] = await db.insert(groupTable).values(data).returning();
+            // A brand-new group has no members yet; no need to count them.
+            const group = { ...inserted!, subscriber_count: 0 };
 
-            logger.debug({ groupId: group!.id }, `Response:`);
+            logger.debug({ groupId: group.id }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.create.name}`);
 
-            return group!;
+            return group;
         } catch (error) {
             logger.error({ err: error, data }, `Exception in ${this.constructor.name}.${this.create.name}: Failed to create group`);
             throw error;
@@ -55,7 +77,7 @@ export class GroupService {
      * Fetches a single group by id.
      *
      * @param groupId - id of the group.
-     * @returns The group row, or `null` if no match exists.
+     * @returns The group with its `subscriber_count`, or `null` if no match exists.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getById(groupId: string) {
@@ -63,7 +85,7 @@ export class GroupService {
         logger.debug({ groupId }, `Request:`);
 
         try {
-            const [group] = await db.select().from(groupTable).where(eq(groupTable.id, groupId));
+            const [group] = await db.select(groupWithCount).from(groupTable).where(eq(groupTable.id, groupId));
 
             if (!group) {
                 logger.warn({ groupId }, `${this.constructor.name}.${this.getById.name}: Group not found`);
@@ -81,7 +103,7 @@ export class GroupService {
     }
 
     /**
-     * Lists every group belonging to a given campaign, ordered by `id` ascending.
+     * Lists the groups a campaign sends to, ordered by `id` ascending.
      *
      * @param campaignId - id of the campaign.
      * @param options.limit - max number of rows to return.
@@ -94,7 +116,9 @@ export class GroupService {
         logger.debug({ campaignId, options }, `Request:`);
 
         try {
-            const groups = await db.select().from(groupTable).where(eq(groupTable.campaign_id, campaignId)).orderBy(asc(groupTable.id))
+            // Only groups linked to the campaign through `campaign_group`.
+            const linked = db.select({ id: campaignGroupTable.group_id }).from(campaignGroupTable).where(eq(campaignGroupTable.campaign_id, campaignId));
+            const groups = await db.select(groupWithCount).from(groupTable).where(inArray(groupTable.id, linked)).orderBy(asc(groupTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
@@ -113,7 +137,7 @@ export class GroupService {
      *
      * @param options.limit - max number of rows to return.
      * @param options.offset - number of rows to skip before returning results.
-     * @returns Array of matching group rows (empty if none exist).
+     * @returns Array of groups, each with its `subscriber_count` (empty if none exist).
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async getAll(options?: PaginationOptions) {
@@ -121,7 +145,7 @@ export class GroupService {
         logger.debug({ options }, `Request:`);
 
         try {
-            const groups = await db.select().from(groupTable).orderBy(asc(groupTable.id))
+            const groups = await db.select(groupWithCount).from(groupTable).orderBy(asc(groupTable.id))
                 .limit(options?.limit ?? DEFAULT_PAGE_SIZE)
                 .offset(options?.offset ?? 0);
 
@@ -140,7 +164,7 @@ export class GroupService {
      *
      * @param groupId - id of the group to update.
      * @param data - Fields to update.
-     * @returns The updated group row, or `null` if no match exists.
+     * @returns The updated group with its `subscriber_count`, or `null` if no match exists.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async update(groupId: string, data: UpdateGroupInput) {
@@ -148,12 +172,15 @@ export class GroupService {
         logger.debug({ groupId, data }, `Request:`);
 
         try {
-            const [group] = await db.update(groupTable).set(data).where(eq(groupTable.id, groupId)).returning();
+            const [updated] = await db.update(groupTable).set(data).where(eq(groupTable.id, groupId)).returning({ id: groupTable.id });
 
-            if (!group) {
+            if (!updated) {
                 logger.warn({ groupId }, `${this.constructor.name}.${this.update.name}: Group not found`);
                 return null;
             }
+
+            // Re-read so the response carries the same `subscriber_count` as every other group read.
+            const [group] = await db.select(groupWithCount).from(groupTable).where(eq(groupTable.id, groupId));
 
             logger.debug({ groupId }, `Response:`);
             logger.info(`End method: ${this.constructor.name}.${this.update.name}`);
@@ -166,10 +193,12 @@ export class GroupService {
     }
 
     /**
-     * Deletes a group row.
+     * Deletes a group. Its memberships and campaign links go with it; the
+     * subscribers themselves stay.
      *
      * @param groupId - id of the group to delete.
      * @returns The deleted group row, or `null` if no match exists.
+     * @throws {ValidationError} If a scheduled or sending campaign sends to it - deleting it would silently shrink that send.
      * @throws Re-throws any error from the underlying query, after logging it.
      */
     async delete(groupId: string) {
@@ -177,7 +206,18 @@ export class GroupService {
         logger.debug({ groupId }, `Request:`);
 
         try {
-            const [group] = await db.delete(groupTable).where(eq(groupTable.id, groupId)).returning();
+            const group = await db.transaction(async (tx) => {
+                // A campaign that's queued or mid-send would quietly lose this audience.
+                const [inUse] = await tx.select({ name: campaignTable.name }).from(campaignGroupTable)
+                    .innerJoin(campaignTable, eq(campaignTable.id, campaignGroupTable.campaign_id))
+                    .where(and(eq(campaignGroupTable.group_id, groupId), inArray(campaignTable.status, ["scheduled", "sending"])))
+                    .limit(1);
+                if (inUse) {
+                    throw new ValidationError(`"${inUse.name ?? "A campaign"}" is scheduled or sending to this group. Remove the group from that campaign first.`);
+                }
+                const [deleted] = await tx.delete(groupTable).where(eq(groupTable.id, groupId)).returning();
+                return deleted ?? null;
+            });
 
             if (!group) {
                 logger.warn({ groupId }, `${this.constructor.name}.${this.delete.name}: Group not found`);
