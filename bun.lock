@@ -7,7 +7,7 @@
     },
     "apps/api": {
       "name": "@mail-rocket/api",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@aws-sdk/client-ses": "^3.1116.0",
         "@aws-sdk/client-sesv2": "^3.1116.0",
@@ -33,7 +33,7 @@
     },
     "apps/web": {
       "name": "@mail-rocket/web",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@casl/ability": "^7.0.2",
         "@hookform/resolvers": "^5.9.1",
@@ -72,7 +72,7 @@
     },
     "packages/shared": {
       "name": "@mail-rocket/shared",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@casl/ability": "^7.0.2",
       },
