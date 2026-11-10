@@ -167,10 +167,15 @@ function MonthCalendar() {
   );
 }
 
-/** Quick picks as a row of small chips under the calendar. */
+/**
+ * Quick picks as a row of small chips under the calendar. `w-0 min-w-full`
+ * keeps the row out of the popover's width calculation: the calendar alone
+ * sets how wide the panel is, and the chips wrap to fit it instead of
+ * stretching the panel and leaving empty space beside the calendar.
+ */
 function Presets<Value>({ presets, onPick }: { presets: Preset<Value>[]; onPick: (value: Value) => void }) {
   return (
-    <div className="flex flex-wrap gap-1.5 border-t border-rule pt-3">
+    <div className="flex w-0 min-w-full flex-wrap gap-1.5 border-t border-rule pt-3">
       {presets.map((preset) => (
         <AriaButton
           key={preset.label}
