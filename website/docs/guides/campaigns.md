@@ -49,6 +49,8 @@ Templates, groups and subscribers are shared libraries: create them once, and an
 
 3. **Change it** with `PATCH /campaigns/:campaign_id`. `group_ids` and `subscriber_ids` replace the whole list when sent; `start_time` schedules, reschedules, or (as `null`) cancels. The template and audience can't change once the send has started.
 
+![A scheduled campaign: message, template with live preview, audience and sending settings](/img/screenshots/campaign-build.png)
+
 ## Sender address
 
 | Identity | `from_local_part` | Sends from |
@@ -70,6 +72,8 @@ A template or group can't be deleted while a scheduled or sending campaign uses 
 
 A subscriber can be in any number of groups. `{{group_name}}` lists all of them.
 
+![A campaign's Audience tab, listing each recipient and the group that included them](/img/screenshots/campaign-subscribers.png)
+
 ## How sending works
 
 When `start_time` arrives:
@@ -90,6 +94,8 @@ A chunk that fails is retried up to five times; retries never send twice to the 
 | `total`, `pending`, `sent`, `failed` | Delivery counts |
 | `opened`, `clicked`, `unsubscribed` | Unique subscribers (needs [tracking](./tracking-and-unsubscribe.md)) |
 | `open_rate`, `click_rate` | Fractions of `sent` |
+
+![A sent campaign's results: sent, open rate, click rate and unsubscribes](/img/screenshots/campaign-results.png)
 
 ## Time zones
 

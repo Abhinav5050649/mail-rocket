@@ -10,7 +10,14 @@ const REPO_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}`;
 const config: Config = {
   title: "Mail Rocket",
   tagline: "Self-hosted email campaigns, sent through your own AWS SES account.",
+  // SVG for browsers that take it; the PNGs in headTags below cover Safari,
+  // iOS home screens and crawlers that ignore SVG icons.
   favicon: "img/logo.svg",
+  headTags: [
+    { tagName: "link", attributes: { rel: "icon", type: "image/png", sizes: "32x32", href: `/${GITHUB_REPO}/img/favicon-32.png` } },
+    { tagName: "link", attributes: { rel: "icon", type: "image/png", sizes: "192x192", href: `/${GITHUB_REPO}/img/favicon-192.png` } },
+    { tagName: "link", attributes: { rel: "apple-touch-icon", sizes: "180x180", href: `/${GITHUB_REPO}/img/apple-touch-icon.png` } },
+  ],
 
   url: `https://${GITHUB_OWNER.toLowerCase()}.github.io`,
   baseUrl: `/${GITHUB_REPO}/`,
@@ -47,6 +54,8 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // og:image / twitter:image for link previews (Slack, X, WhatsApp...). 1200x630.
+    image: "img/social-card.png",
     colorMode: { respectPrefersColorScheme: true },
     navbar: {
       title: "Mail Rocket",

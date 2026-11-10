@@ -51,6 +51,8 @@ Store it, then sign in at [http://localhost:3001](http://localhost:3001) with it
 Mint another without restarting: `bun run --cwd apps/api key:create --name me --preset admin`.
 :::
 
+![The sign-in page, which asks for an API key](/img/screenshots/sign-in.png)
+
 ## Useful commands
 
 | Command | What it does |

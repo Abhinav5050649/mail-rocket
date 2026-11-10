@@ -16,6 +16,8 @@ With it you can:
 - **schedule campaigns** that go out at their start time, in rate-limited chunks,
 - see **per-subscriber delivery**, plus open, click and unsubscribe counts.
 
+![The overview page: campaign, identity and subscriber counts, upcoming sends, recent sends and campaigns by status](/img/screenshots/overview.png)
+
 ## How it fits together
 
 | Part | What it is |
