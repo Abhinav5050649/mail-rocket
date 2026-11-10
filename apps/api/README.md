@@ -137,8 +137,12 @@ bun run db:studio    # browse data in Drizzle Studio
 
 The API runs as a plain long-lived Bun process, packaged as a Docker image (`oven/bun` base) - no serverless infra involved. Postgres is self-hosted too: the repo-root `docker-compose.yml` runs it as its own `postgres` container (official `postgres:18-alpine` image, data persisted in a named volume), alongside `redis`, `api`, the `web` app and `caddy`. Run compose from the repo root and pass this app's env file, so the `POSTGRES_*` and domain values are read from it:
 
+The `api` and `web` services name their published images, `abhinav2911/mail-rocket-api` and `abhinav2911/mail-rocket-web` (tag from `MAIL_ROCKET_VERSION`, default `latest`), so a server pulls them and needs no checkout. `--build` builds them from source instead.
+
 ```bash
-docker compose --env-file apps/api/.env up --build -d   # build and start postgres, redis, api, web, caddy (`bun run stack` at the root)
+docker compose --env-file apps/api/.env pull            # fetch the published images
+docker compose --env-file apps/api/.env up -d           # start postgres, redis, api, web, caddy
+docker compose --env-file apps/api/.env up --build -d   # or: build from this checkout (`bun run stack` at the root)
 docker compose logs -f api                               # follow logs
 docker compose down                                      # stop everything (add -v to also wipe the postgres volume)
 ```
@@ -149,7 +153,7 @@ The repo-root `docker-compose.yml` reads secrets from this app's `.env` file (`a
 
 Migrations run automatically: on every start the API applies any files under `drizzle/` the database hasn't had yet (`runMigrations` in `src/libs/db.ts`), before `bootstrap()`. The image ships the `drizzle/` folder for this. Progress is tracked in the same `drizzle.__drizzle_migrations` table `drizzle-kit migrate` uses, so `bun run db:migrate` still works by hand and the two never re-apply each other's work.
 
-To deploy a change: SSH into the instance, `git pull`, then run the `docker compose --env-file apps/api/.env up --build -d` line above again from the repo root.
+To release: push a `vX.Y.Z` tag; `.github/workflows/publish-images.yml` builds both images for amd64 and arm64 and pushes `X.Y.Z`, `X.Y` and `latest` to Docker Hub. To deploy it: SSH into the instance, set `MAIL_ROCKET_VERSION` in `.env` (or leave it on `latest`), then `pull` and `up -d` as above.
 
 ### HTTPS (caddy)
 

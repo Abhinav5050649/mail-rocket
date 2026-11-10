@@ -39,10 +39,21 @@ On first start the API prints an admin API key. Sign in to the web app with it a
 
 ## Run the whole stack in Docker
 
+The API and web app are published on Docker Hub as [`abhinav2911/mail-rocket-api`](https://hub.docker.com/r/abhinav2911/mail-rocket-api) and [`abhinav2911/mail-rocket-web`](https://hub.docker.com/r/abhinav2911/mail-rocket-web) (amd64 and arm64). Without `--build`, compose pulls them, so a server needs only `docker-compose.yml`, `Caddyfile` and `apps/api/.env`:
+
+```bash
+docker compose --env-file apps/api/.env pull
+docker compose --env-file apps/api/.env up -d
+```
+
+`MAIL_ROCKET_VERSION` in the env file pins a release (empty means `latest`). From a clone, build from source instead:
+
 ```bash
 bun run stack          # docker compose --env-file apps/api/.env up --build -d
 bun run stack:down
 ```
+
+Pushing a `vX.Y.Z` tag publishes new images (`.github/workflows/publish-images.yml`).
 
 Compose is run with `--env-file apps/api/.env` so the `POSTGRES_*` and domain values come from the API's env file. Without it, compose silently uses the defaults.
 
