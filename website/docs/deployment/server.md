@@ -57,12 +57,7 @@ docker compose --env-file apps/api/.env up --build -d
 docker compose logs -f caddy          # watch Caddy get the certificates
 ```
 
-Migrations aren't run automatically. Postgres listens on `127.0.0.1:5432` on the host, so run them from the server:
-
-```bash
-bun install
-DB_URL=postgres://<user>:<password>@localhost:5432/<db> bun run db:migrate
-```
+The API applies database migrations itself each time it starts, so there's nothing to run by hand.
 
 Get the admin key and sign in at `https://app.example.com`:
 
@@ -80,8 +75,7 @@ HTTPS isn't optional: in production the web app's session cookie is `secure`, so
 
 ```bash
 git pull
-docker compose --env-file apps/api/.env up --build -d
-DB_URL=... bun run db:migrate        # if the update added migrations
+docker compose --env-file apps/api/.env up --build -d   # the API applies any new migrations as it starts
 ```
 
 ## Operations

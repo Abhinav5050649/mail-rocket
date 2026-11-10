@@ -15,6 +15,8 @@ A template is the HTML body of a campaign's email. The body and the campaign's *
 
 In the web app, the template editor's **Insert variable** menu lists every variable.
 
+![The template editor: HTML source on the left, the rendered email with sample values on the right](/img/screenshots/template-editor.png)
+
 ## Variables
 
 | Variable | Resolves to |

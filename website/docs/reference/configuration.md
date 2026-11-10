@@ -24,6 +24,7 @@ Start from `apps/api/example.env`. Docker Compose reads this file too (`--env-fi
 | `TRACKING_SECRET` | with `PUBLIC_API_URL` | | Signs click links. Generate with `openssl rand -hex 32`; never change it. |
 | `APP_DOMAIN` | | `app.localhost` | Domain Caddy serves the web app on |
 | `API_DOMAIN` | | `api.localhost` | Domain Caddy serves the API on |
+| `MAIL_ROCKET_VERSION` | | `latest` | Docker Hub release Compose pulls for `api` and `web`, e.g. `0.1.0`. Ignored when building from source with `--build`. |
 
 ## Web app (`apps/web/.env.local`)
 

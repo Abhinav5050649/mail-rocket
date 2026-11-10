@@ -30,6 +30,9 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared packages/shared
 RUN bun install --frozen-lockfile --production --filter @mail-rocket/api
 COPY --from=build /app/apps/api/dist/index.js apps/api/index.js
+# The SQL migrations, applied by the API itself at startup (runMigrations in
+# src/libs/db.ts), so a pulled image needs no repo checkout to set up its database.
+COPY apps/api/drizzle apps/api/drizzle
 # logs/ resolves against this directory (see src/libs/logger.ts).
 WORKDIR /app/apps/api
 EXPOSE 3000

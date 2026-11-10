@@ -1,9 +1,11 @@
 import "dotenv/config";
 import { Hono } from "hono";
 import { config } from "./config";
-import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB, bootstrap, startCampaignWorkers, startIdentityVerificationWorker } from "./src";
+import { appRoute, requestLogger, errorHandler, jsonOnly, notFound, connectDB, runMigrations, bootstrap, startCampaignWorkers, startIdentityVerificationWorker } from "./src";
 
 await connectDB();
+// Before bootstrap: it reads and writes tables a fresh database doesn't have yet.
+await runMigrations();
 await bootstrap();
 startCampaignWorkers();
 startIdentityVerificationWorker();

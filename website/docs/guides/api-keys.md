@@ -32,6 +32,8 @@ Authorization: Bearer mr_...
 
 `GET /me` returns the calling key and its claims.
 
+![The API keys page: preset descriptions and the list of keys](/img/screenshots/api-keys.png)
+
 ## Claims
 
 What a key may do is a list of `{ action, subject }` grants:

@@ -39,3 +39,5 @@ Verification is asynchronous: DNS can take minutes or days. Each identity gets i
 :::note SES sandbox
 A new SES account is in the **sandbox**: it can only send to verified addresses. To send to anyone, request production access in the SES console. See [AWS SES setup](../deployment/aws-ses.md).
 :::
+
+![A domain identity awaiting verification, with its DKIM records ready to copy](/img/screenshots/identity-pending.png)

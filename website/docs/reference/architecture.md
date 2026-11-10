@@ -43,6 +43,7 @@ flowchart LR
 **Notes**
 
 - `connectDB()` runs `select 1` before `Bun.serve()` starts — an unreachable database stops the process instead of surfacing as request-time errors.
+- `runMigrations()` then applies any pending migrations from `drizzle/` (the same tracking table as `drizzle-kit migrate`), so a fresh database is ready before `bootstrap()` touches it. A failed migration stops the process.
 - `startCampaignWorkers()` / `startIdentityVerificationWorker()` are called directly from the root `index.ts`, reusing the same pg pool and Redis connection as the HTTP layer rather than a separate deployable.
 - The pooled TCP client is a deliberate fit for a long-lived process — the pool is created once at boot and shared across every request instead of being opened per call.
 - In the Docker stack, `caddy` (repo-root `Caddyfile`) is the only public entry point: it terminates TLS for `API_DOMAIN` (and the web app's `APP_DOMAIN`) and proxies to the API, which listens on localhost only.

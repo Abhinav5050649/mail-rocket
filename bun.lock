@@ -7,6 +7,7 @@
     },
     "apps/api": {
       "name": "@mail-rocket/api",
+      "version": "0.1.0",
       "dependencies": {
         "@aws-sdk/client-ses": "^3.1116.0",
         "@aws-sdk/client-sesv2": "^3.1116.0",
@@ -71,6 +72,7 @@
     },
     "packages/shared": {
       "name": "@mail-rocket/shared",
+      "version": "0.1.0",
       "dependencies": {
         "@casl/ability": "^7.0.2",
       },
