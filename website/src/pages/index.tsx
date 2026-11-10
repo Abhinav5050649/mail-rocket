@@ -33,16 +33,16 @@ const FEATURES: { title: string; body: string; to: string }[] = [
   },
   {
     title: "One docker compose up",
-    body: "Postgres, Redis, the API, the web app and Caddy for automatic HTTPS. One small server is enough.",
+    body: "Postgres, Redis, the published API and web images, and Caddy for automatic HTTPS. One small server is enough.",
     to: "/docs/deployment/server",
   },
 ];
 
-const QUICKSTART = `git clone https://github.com/Abhinav5050649/mail-rocket.git && cd mail-rocket
-cp apps/api/example.env apps/api/.env      # add your AWS SES credentials
-bun install
-bun run stack && bun run db:migrate
-docker compose logs api | grep "admin API key"  # sign in with it`;
+const QUICKSTART = `RAW=https://raw.githubusercontent.com/Abhinav5050649/mail-rocket/main
+curl -fsSL -O $RAW/docker-compose.yml -O $RAW/Caddyfile
+mkdir -p apps/api && curl -fsSL $RAW/apps/api/example.env -o apps/api/.env   # add your AWS SES credentials
+docker compose --env-file apps/api/.env up -d     # pulls the images from Docker Hub
+docker compose logs api | grep "admin API key"    # sign in with it`;
 
 function Hero(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
@@ -91,8 +91,8 @@ export default function Home(): ReactNode {
             <div>
               <h2>Running in five commands</h2>
               <p>
-                You need Bun, Docker and an AWS account with SES. The API prints an admin key on first boot; sign in to
-                the web app with it.
+                You need Docker and an AWS account with SES. The images come from Docker Hub, and the API sets up its database and
+                prints an admin key on first boot; sign in to the web app with it.
               </p>
               <Link to="/docs/getting-started/docker">Full walkthrough →</Link>
             </div>
