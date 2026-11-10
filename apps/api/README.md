@@ -86,9 +86,9 @@ models/        Drizzle table schemas (source of truth for the DB shape) plus the
 
 A request flows top-to-bottom through these layers and never skips one: `routes/CampaignRoute.ts` → `controllers/CampaignController.ts` → `services/CampaignService.ts` → `models/CampaignModel.ts`. Each layer directory has a barrel `index.ts` that re-exports everything in it, so callers import from `../services`, `../models`, etc. rather than reaching into individual files. Services are plain classes with no framework dependency, instantiated once per process and shared across requests (routes construct one `XService`/`XController` pair at module load and bind it into the route table - see the top of any `*Route.ts` file).
 
-`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client and `connectDB()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), CASL claims, presets and ability construction (`abilities.ts`), API-key generation/hashing and the `/keys` request schemas (`apiKeys.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
+`libs/` holds the shared, stateless building blocks every layer above pulls from: the Drizzle `db` client, `connectDB()` and `runMigrations()` (`db.ts`), the pino `logger` (`logger.ts`), the shared `redisConnection` for BullMQ (`redis.ts`), the SES `sesClient` (`ses.ts`), CASL claims, presets and ability construction (`abilities.ts`), API-key generation/hashing and the `/keys` request schemas (`apiKeys.ts`), the `ValidationError` class (`errors.ts`), pagination defaults (`pagination.ts`), and a small array-chunking helper (`chunk.ts`).
 
-`src/bootstrap.ts` runs once at boot, after `connectDB()`. It seeds the single `organization` row and mints the first admin key (see "Access: API keys" above). `src/cli/createKey.ts` backs `bun run key:create`.
+`src/bootstrap.ts` runs once at boot, after `connectDB()` and `runMigrations()`. It seeds the single `organization` row and mints the first admin key (see "Access: API keys" above). `src/cli/createKey.ts` backs `bun run key:create`.
 
 ### Request lifecycle
 
@@ -129,7 +129,7 @@ Schema is defined with [Drizzle ORM](https://orm.drizzle.team) in `src/models/*.
 
 ```bash
 bun run db:generate  # after changing a schema file, generate a new migration
-bun run db:migrate   # apply pending migrations to DB_URL
+bun run db:migrate   # apply pending migrations to DB_URL by hand (the API also does this itself at startup)
 bun run db:studio    # browse data in Drizzle Studio
 ```
 
@@ -147,7 +147,7 @@ See [requirements.md](requirements.md) before provisioning AWS credentials for t
 
 The repo-root `docker-compose.yml` reads secrets from this app's `.env` file (`apps/api/.env`, see `example.env`) via `env_file` - it is not committed and must exist on the EC2 instance before starting the containers. The `postgres` container is configured from the `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` vars in that same `.env`; the `api` service's `DB_URL` is derived from those same vars to point at the `postgres` container over the Docker network (overriding whatever `DB_URL` is set to for local dev).
 
-Migrations aren't run automatically. The `postgres` container publishes its port to `127.0.0.1:5432` on the host only (not public), so after the containers are up, run `bun run db:migrate` directly on the EC2 instance with `DB_URL=postgres://<user>:<password>@localhost:5432/<db>` (matching the `POSTGRES_*` values in `.env`).
+Migrations run automatically: on every start the API applies any files under `drizzle/` the database hasn't had yet (`runMigrations` in `src/libs/db.ts`), before `bootstrap()`. The image ships the `drizzle/` folder for this. Progress is tracked in the same `drizzle.__drizzle_migrations` table `drizzle-kit migrate` uses, so `bun run db:migrate` still works by hand and the two never re-apply each other's work.
 
 To deploy a change: SSH into the instance, `git pull`, then run the `docker compose --env-file apps/api/.env up --build -d` line above again from the repo root.
 

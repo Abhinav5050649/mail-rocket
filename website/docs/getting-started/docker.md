@@ -14,8 +14,9 @@ We'll soon publish Mail Rocket's images to Docker Hub. You'll then be able to ru
 ```bash
 cp apps/api/example.env apps/api/.env   # fill in AWS credentials
 bun run stack          # docker compose --env-file apps/api/.env up --build -d
-bun run db:migrate     # migrations aren't applied automatically
 ```
+
+The API applies database migrations itself when it starts, so there's no separate migrate step.
 
 Then read the admin key from the API's output:
 

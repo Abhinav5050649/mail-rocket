@@ -32,7 +32,6 @@ cp apps/web/.env.example apps/web/.env.local
 bun install
 
 docker compose --env-file apps/api/.env up -d postgres redis
-bun run db:migrate
 bun run dev        # API on :3000, web app on :3001
 ```
 
@@ -42,7 +41,6 @@ On first start the API prints an admin API key. Sign in to the web app with it a
 
 ```bash
 bun run stack          # docker compose --env-file apps/api/.env up --build -d
-bun run db:migrate     # migrations aren't applied automatically
 bun run stack:down
 ```
 

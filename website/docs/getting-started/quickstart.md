@@ -31,9 +31,10 @@ In `apps/api/.env`, set at least `AWS_REGION`, `AWS_ACCESS_KEY_ID` and `AWS_SECR
 bun install                                       # one install for the whole workspace
 
 docker compose --env-file apps/api/.env up -d postgres redis
-bun run db:migrate
 bun run dev                                       # API on :3000, web app on :3001
 ```
+
+The API applies any pending database migrations each time it starts, so a fresh database needs no separate step.
 
 ## 3. Sign in
 
