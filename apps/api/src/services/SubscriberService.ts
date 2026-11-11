@@ -1,5 +1,5 @@
 import { and, asc, eq, getTableColumns, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
-import { db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
+import { chunkArray, db, logger, DEFAULT_PAGE_SIZE, ValidationError, type PaginationOptions } from "../libs";
 import { campaignDeliveryTable, campaignGroupTable, campaignSubscriberTable, groupSubscriberTable, groupTable, subscribersTable } from "../models";
 
 /** Fields accepted when creating a new subscriber row. */
@@ -23,6 +23,58 @@ export interface UpdateSubscriberInput {
     group_ids?: string[];
     description?: string;
 }
+
+/** One row of a bulk import: a person to add, matched to existing subscribers by email. */
+export interface ImportSubscriberRow {
+    email_id?: string;
+    first_name?: string;
+    last_name?: string;
+}
+
+/** One import row that wasn't imported: its 1-based position, the email it carried, and why. */
+export interface ImportSkip {
+    row: number;
+    email_id: string;
+    reason: string;
+}
+
+/** What a bulk import did. Mirrors `SubscriberImportResult` in `@mail-rocket/shared`. */
+export interface ImportResult {
+    /** New subscribers created. */
+    created: number;
+    /** Rows matched to a subscriber that already existed (reused, not changed). */
+    existing: number;
+    /** Groups every imported subscriber is now in. */
+    group_ids: string[];
+    /** Rows that weren't imported. */
+    skipped: ImportSkip[];
+}
+
+/** What a bulk delete did. Mirrors `SubscriberBulkDeleteResult` in `@mail-rocket/shared`. */
+export interface BulkDeleteResult {
+    /** Subscribers deleted. */
+    deleted_ids: string[];
+    /** Subscribers kept because they have send history (`campaign_delivery` rows). */
+    blocked_ids: string[];
+}
+
+/** Who a bulk group removal took out. Mirrors `GroupMembersRemoveResult` in `@mail-rocket/shared`. */
+export interface BulkRemoveResult {
+    /** Subscribers no longer in the group. */
+    removed_ids: string[];
+}
+
+/** A pragmatic email shape check (something@something.tld, no spaces), not full RFC 5322. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Rows per statement during an import. Keeps every query well under
+ * Postgres's 65,535 bind-parameter limit, whatever the import's size.
+ */
+const IMPORT_CHUNK_SIZE = 500;
+
+/** `lower("subscribers"."email_id")`: emails are matched case-insensitively. */
+const lowerEmail = sql<string>`lower(${subscribersTable.email_id})`;
 
 /**
  * `"subscribers"."id"`, always table-qualified. Drizzle renders a column
@@ -140,6 +192,102 @@ export class SubscriberService {
             return subscriber;
         } catch (error) {
             logger.error({ err: error, data }, `Exception in ${this.constructor.name}.${this.create.name}: Failed to create subscriber`);
+            throw error;
+        }
+    }
+
+    /**
+     * Imports many subscribers at once (e.g. from a CSV) and puts every one
+     * of them in `groupIds`. Rows are matched to existing subscribers by email,
+     * case-insensitively: a match is reused as-is (its name isn't overwritten)
+     * and only gains the groups, so re-importing the same list never creates
+     * duplicates. Rows without a valid email, and repeats of an email seen
+     * earlier in the same import, are skipped and reported rather than failing
+     * the whole import. Everything else happens in one transaction: either all
+     * the subscribers and memberships are written, or none are.
+     *
+     * @param rows - The people to import, in their original order.
+     * @param groupIds - Groups every imported subscriber joins; each must exist.
+     * @returns Counts of created/reused subscribers, the groups, and the skipped rows.
+     * @throws {ValidationError} If a group id doesn't exist.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async importMany(rows: ImportSubscriberRow[], groupIds: string[]): Promise<ImportResult> {
+        logger.info(`Start method: ${this.constructor.name}.${this.importMany.name}`);
+        // Only counts: an import can carry thousands of rows.
+        logger.debug({ rowCount: rows.length, groupIds }, `Request:`);
+
+        try {
+            const skipped: ImportSkip[] = [];
+            // Valid rows keyed by lowercased email, so a repeat is caught and existing rows can be matched.
+            const valid = new Map<string, { email_id: string; first_name?: string; last_name?: string }>();
+
+            rows.forEach((row, index) => {
+                const email = (row.email_id ?? "").trim();
+                const key = email.toLowerCase();
+                // Rows are reported 1-based, as a person counts them.
+                const position = index + 1;
+
+                if (!email) {
+                    skipped.push({ row: position, email_id: email, reason: "Missing email" });
+                } else if (!EMAIL_PATTERN.test(email)) {
+                    skipped.push({ row: position, email_id: email, reason: "Invalid email" });
+                } else if (valid.has(key)) {
+                    skipped.push({ row: position, email_id: email, reason: "Duplicate of an earlier row" });
+                } else {
+                    // Blank names are stored as null (left out), not as empty strings.
+                    valid.set(key, {
+                        email_id: email,
+                        first_name: row.first_name?.trim() || undefined,
+                        last_name: row.last_name?.trim() || undefined,
+                    });
+                }
+            });
+
+            const uniqueGroupIds = [...new Set(groupIds)];
+
+            const counts = await db.transaction(async (tx) => {
+                // Checked first, so an unknown group fails before anything is written.
+                await this.assertGroupsExist(tx, uniqueGroupIds);
+
+                // Existing subscribers for the imported emails, lowercased email -> id.
+                const existingIds = new Map<string, string>();
+                for (const emails of chunkArray([...valid.keys()], IMPORT_CHUNK_SIZE)) {
+                    const found = await tx.select({ id: subscribersTable.id, email: lowerEmail }).from(subscribersTable)
+                        .where(inArray(lowerEmail, emails))
+                        .orderBy(asc(subscribersTable.id));
+                    // If the email was already on several subscribers, reuse just one of them.
+                    for (const match of found) {
+                        if (!existingIds.has(match.email)) existingIds.set(match.email, match.id);
+                    }
+                }
+
+                // Everyone not already a subscriber is created, in chunks.
+                const toCreate = [...valid].filter(([key]) => !existingIds.has(key)).map(([, fields]) => fields);
+                const createdIds: string[] = [];
+                for (const batch of chunkArray(toCreate, IMPORT_CHUNK_SIZE)) {
+                    const inserted = await tx.insert(subscribersTable).values(batch).returning({ id: subscribersTable.id });
+                    createdIds.push(...inserted.map((row) => row.id));
+                }
+
+                // Every imported subscriber, new or existing, joins every group; existing memberships are left alone.
+                const subscriberIds = [...existingIds.values(), ...createdIds];
+                const memberships = subscriberIds.flatMap((subscriber_id) => uniqueGroupIds.map((group_id) => ({ group_id, subscriber_id })));
+                for (const batch of chunkArray(memberships, IMPORT_CHUNK_SIZE)) {
+                    await tx.insert(groupSubscriberTable).values(batch).onConflictDoNothing();
+                }
+
+                return { created: createdIds.length, existing: existingIds.size };
+            });
+
+            const result: ImportResult = { ...counts, group_ids: uniqueGroupIds, skipped };
+
+            logger.debug({ created: result.created, existing: result.existing, skipped: skipped.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.importMany.name}`);
+
+            return result;
+        } catch (error) {
+            logger.error({ err: error, rowCount: rows.length, groupIds }, `Exception in ${this.constructor.name}.${this.importMany.name}: Failed to import subscribers`);
             throw error;
         }
     }
@@ -451,6 +599,81 @@ export class SubscriberService {
             return subscriber;
         } catch (error) {
             logger.error({ err: error, groupId, subscriberId }, `Exception in ${this.constructor.name}.${this.removeFromGroup.name}: Failed to remove subscriber from group`);
+            throw error;
+        }
+    }
+
+    /**
+     * Removes many subscribers from one group at once. The subscribers
+     * themselves are kept, and ids that weren't members are ignored.
+     *
+     * @param groupId - id of the group.
+     * @param subscriberIds - ids of the subscribers to take out of it.
+     * @returns The ids actually removed (empty when none were members).
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async removeManyFromGroup(groupId: string, subscriberIds: string[]): Promise<BulkRemoveResult> {
+        logger.info(`Start method: ${this.constructor.name}.${this.removeManyFromGroup.name}`);
+        logger.debug({ groupId, count: subscriberIds.length }, `Request:`);
+
+        try {
+            // One statement: deleting only this group's rows for these subscribers.
+            const removed = await db.delete(groupSubscriberTable)
+                .where(and(eq(groupSubscriberTable.group_id, groupId), inArray(groupSubscriberTable.subscriber_id, [...new Set(subscriberIds)])))
+                .returning({ subscriber_id: groupSubscriberTable.subscriber_id });
+
+            const result: BulkRemoveResult = { removed_ids: removed.map((row) => row.subscriber_id) };
+
+            logger.debug({ groupId, removed: result.removed_ids.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.removeManyFromGroup.name}`);
+
+            return result;
+        } catch (error) {
+            logger.error({ err: error, groupId, count: subscriberIds.length }, `Exception in ${this.constructor.name}.${this.removeManyFromGroup.name}: Failed to remove subscribers from group`);
+            throw error;
+        }
+    }
+
+    /**
+     * Deletes many subscribers at once; their group and campaign memberships
+     * go with them (cascade). A subscriber a campaign has already been sent
+     * to is kept and reported in `blocked_ids`: their `campaign_delivery`
+     * rows are the campaign's send history and reference them. Ids that
+     * don't exist are ignored. Runs in one transaction.
+     *
+     * @param subscriberIds - ids of the subscribers to delete.
+     * @returns The ids deleted and the ids kept for their send history.
+     * @throws Re-throws any error from the underlying query, after logging it.
+     */
+    async deleteMany(subscriberIds: string[]): Promise<BulkDeleteResult> {
+        logger.info(`Start method: ${this.constructor.name}.${this.deleteMany.name}`);
+        logger.debug({ count: subscriberIds.length }, `Request:`);
+
+        try {
+            const unique = [...new Set(subscriberIds)];
+
+            const result = await db.transaction(async (tx) => {
+                // Who has send history: deleting them would break their deliveries' foreign key.
+                const sentTo = await tx.select({ id: campaignDeliveryTable.subscriber_id }).from(campaignDeliveryTable)
+                    .where(inArray(campaignDeliveryTable.subscriber_id, unique));
+                const blocked = new Set(sentTo.map((row) => row.id));
+                const deletable = unique.filter((id) => !blocked.has(id));
+
+                // Drizzle can't render an empty `in ()`, so skip the delete when nothing qualifies.
+                const deleted = deletable.length > 0
+                    ? await tx.delete(subscribersTable).where(inArray(subscribersTable.id, deletable)).returning({ id: subscribersTable.id })
+                    : [];
+
+                // Report only ids that exist: a blocked id has deliveries, so it's a real subscriber.
+                return { deleted_ids: deleted.map((row) => row.id), blocked_ids: unique.filter((id) => blocked.has(id)) };
+            });
+
+            logger.debug({ deleted: result.deleted_ids.length, blocked: result.blocked_ids.length }, `Response:`);
+            logger.info(`End method: ${this.constructor.name}.${this.deleteMany.name}`);
+
+            return result;
+        } catch (error) {
+            logger.error({ err: error, count: subscriberIds.length }, `Exception in ${this.constructor.name}.${this.deleteMany.name}: Failed to delete subscribers`);
             throw error;
         }
     }

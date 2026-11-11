@@ -1,6 +1,6 @@
 {
   "name": "mail-rocket",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Self-hosted email campaigns over AWS SES: the API (apps/api) and the web app (apps/web).",
   "workspaces": [

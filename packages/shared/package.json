@@ -1,6 +1,6 @@
 {
   "name": "@mail-rocket/shared",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Code both apps use: the permission model, the API's wire types, template variables and time zone helpers.",

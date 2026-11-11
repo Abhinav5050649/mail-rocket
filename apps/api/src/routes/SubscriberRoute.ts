@@ -15,6 +15,8 @@ const subscriberController = new SubscriberController(subscriberService);
  *
  * - GET    /              - list all subscribers.
  * - POST   /              - create a subscriber.
+ * - POST   /import        - create many subscribers (reusing existing emails) and add them to groups.
+ * - POST   /bulk-delete   - delete many subscribers (`{ subscriber_ids }`), keeping any with send history.
  * - GET    /:subscriber_id - fetch a single subscriber.
  * - PATCH  /:subscriber_id - partially update a subscriber.
  * - DELETE /:subscriber_id - delete a subscriber.
@@ -22,6 +24,9 @@ const subscriberController = new SubscriberController(subscriberService);
 export const subscriberRoute = new Hono()
     .get('/', requireAbility('read', 'Subscriber'), subscriberController.getAll)
     .post('/', requireAbility('create', 'Subscriber'), subscriberController.post)
+    // Same claim as creating one subscriber, which may also set its groups.
+    .post('/import', requireAbility('create', 'Subscriber'), subscriberController.importMany)
+    .post('/bulk-delete', requireAbility('delete', 'Subscriber'), subscriberController.deleteMany)
     .get('/:subscriber_id', requireAbility('read', 'Subscriber'), subscriberController.get)
     .patch('/:subscriber_id', requireAbility('update', 'Subscriber'), subscriberController.update)
     .delete('/:subscriber_id', requireAbility('delete', 'Subscriber'), subscriberController.delete)
@@ -44,9 +49,11 @@ export const campaignSubscriberRoute = new Hono()
  *
  * - GET    /              - list the group's members.
  * - POST   /              - add an existing subscriber (`{ subscriber_id }`).
+ * - POST   /bulk-remove   - remove many subscribers from the group (`{ subscriber_ids }`).
  * - DELETE /:subscriber_id - remove a subscriber from the group.
  */
 export const groupMembershipRoute = new Hono()
     .get('/', requireAbility('read', 'Subscriber'), subscriberController.getAllByGroup)
     .post('/', requireAbility('update', 'Group'), subscriberController.addToGroup)
+    .post('/bulk-remove', requireAbility('update', 'Group'), subscriberController.removeManyFromGroup)
     .delete('/:subscriber_id', requireAbility('update', 'Group'), subscriberController.removeFromGroup)

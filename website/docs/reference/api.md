@@ -63,8 +63,11 @@ The full schema is the OpenAPI spec: [`resources/openapi/mail-rocket-api.openapi
 | GET, POST | `/groups` | List, create groups |
 | GET, PATCH, DELETE | `/groups/{group_id}` | Get, update, delete a group |
 | GET, POST | `/groups/{group_id}/subscribers` | List members, add a subscriber |
+| POST | `/groups/{group_id}/subscribers/bulk-remove` | Remove many subscribers from a group (`subscriber_ids`); they stay subscribers |
 | DELETE | `/groups/{group_id}/subscribers/{subscriber_id}` | Remove a subscriber from a group |
 | GET, POST | `/subscribers` | List, create subscribers |
+| POST | `/subscribers/import` | Create many subscribers (at most 5000 rows) and add them all to `group_ids`; existing emails are reused, bad rows are reported in `skipped` |
+| POST | `/subscribers/bulk-delete` | Delete many subscribers (at most 1000 `subscriber_ids`); anyone a campaign was already sent to is kept and returned in `blocked_ids` |
 | GET, PATCH, DELETE | `/subscribers/{subscriber_id}` | Get, update, delete a subscriber |
 
 ## Public (reached from emails, no key)

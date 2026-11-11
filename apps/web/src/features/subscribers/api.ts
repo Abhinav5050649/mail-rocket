@@ -1,7 +1,7 @@
 import { apiSlice } from "@/lib/redux/api/apiSlice";
 import { listTags, itemTag } from "@/lib/redux/api/tagHelpers";
 import type { PageArgs } from "@/types/resources";
-import type { Subscriber, SubscriberInput } from "./model";
+import type { GroupMembersRemoveResult, Subscriber, SubscriberBulkDeleteResult, SubscriberImportInput, SubscriberImportResult, SubscriberInput } from "./model";
 
 /**
  * Every subscriber list (all, a campaign's audience, a group's members)
@@ -40,6 +40,12 @@ export const subscribersApi = apiSlice.injectEndpoints({
       query: (body) => ({ url: `/subscribers`, method: "POST", body }),
       invalidatesTags: [ALL_LISTS, GROUP_COUNTS],
     }),
+    /** Creates many subscribers (reusing ones whose email already exists) and adds them all to the given groups. */
+    importSubscribers: builder.mutation<SubscriberImportResult, SubscriberImportInput>({
+      query: (body) => ({ url: `/subscribers/import`, method: "POST", body }),
+      // Existing subscribers can gain groups too, so every subscriber query (lists and single rows) and group count may have moved.
+      invalidatesTags: ["Subscriber", GROUP_COUNTS],
+    }),
     updateSubscriber: builder.mutation<Subscriber, { subscriberId: string } & Partial<SubscriberInput>>({
       query: ({ subscriberId, ...body }) => ({ url: `/subscribers/${subscriberId}`, method: "PATCH", body }),
       invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
@@ -47,6 +53,18 @@ export const subscribersApi = apiSlice.injectEndpoints({
     deleteSubscriber: builder.mutation<void, { subscriberId: string }>({
       query: ({ subscriberId }) => ({ url: `/subscribers/${subscriberId}`, method: "DELETE" }),
       invalidatesTags: (_r, _e, { subscriberId }) => [...itemTag("Subscriber", subscriberId), ALL_LISTS, GROUP_COUNTS],
+    }),
+    /** Deletes many subscribers; ones a campaign was already sent to are kept and returned in `blocked_ids`. */
+    deleteSubscribers: builder.mutation<SubscriberBulkDeleteResult, { subscriberIds: string[] }>({
+      query: ({ subscriberIds }) => ({ url: `/subscribers/bulk-delete`, method: "POST", body: { subscriber_ids: subscriberIds } }),
+      // Deleted rows leave every list, campaign audience and group count; their own pages go too.
+      invalidatesTags: ["Subscriber", GROUP_COUNTS],
+    }),
+    /** Removes many subscribers from one group; they stay subscribers and keep their other groups. */
+    removeSubscribersFromGroup: builder.mutation<GroupMembersRemoveResult, { groupId: string; subscriberIds: string[] }>({
+      query: ({ groupId, subscriberIds }) => ({ url: `/groups/${groupId}/subscribers/bulk-remove`, method: "POST", body: { subscriber_ids: subscriberIds } }),
+      // Each removed subscriber's `group_ids` changes, as do the lists and the group's count.
+      invalidatesTags: ["Subscriber", GROUP_COUNTS],
     }),
     /** Adds an existing subscriber to a group; they keep their other groups. */
     addSubscriberToGroup: builder.mutation<Subscriber, { groupId: string; subscriberId: string }>({
@@ -67,8 +85,11 @@ export const {
   useGetGroupSubscribersQuery,
   useGetSubscriberQuery,
   useCreateSubscriberMutation,
+  useImportSubscribersMutation,
   useUpdateSubscriberMutation,
   useDeleteSubscriberMutation,
   useAddSubscriberToGroupMutation,
   useRemoveSubscriberFromGroupMutation,
+  useDeleteSubscribersMutation,
+  useRemoveSubscribersFromGroupMutation,
 } = subscribersApi;

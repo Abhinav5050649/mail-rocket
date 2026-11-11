@@ -26,7 +26,7 @@ stateDiagram-v2
 
 Templates, groups and subscribers are shared libraries: create them once, and any number of campaigns can use them. A campaign is then set up in one go, on one page in the web app or in one request through the API.
 
-1. **Fill the libraries** (once, reused afterwards): templates with `POST /templates` (see [Templates and variables](./templates.md)), subscribers with `POST /subscribers`, and groups with `POST /groups`. Add people to a group with `POST /groups/:group_id/subscribers`, or by sending `group_ids` on the subscriber.
+1. **Fill the libraries** (once, reused afterwards): templates with `POST /templates` (see [Templates and variables](./templates.md)), subscribers with `POST /subscribers` (or many at once with `POST /subscribers/import`; the web app imports a CSV), and groups with `POST /groups`. Add people to a group with `POST /groups/:group_id/subscribers`, or by sending `group_ids` on the subscriber or on the import.
 2. **Create the campaign** with everything it needs:
 
    ```bash
