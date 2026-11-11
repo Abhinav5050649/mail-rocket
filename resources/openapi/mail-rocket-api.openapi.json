@@ -2075,6 +2075,132 @@
         "operationId": "subscribersPost"
       }
     },
+    "/subscribers/import": {
+      "post": {
+        "summary": "Import Subscribers",
+        "deprecated": false,
+        "description": "Creates many subscribers at once (e.g. from a CSV the client has parsed) and adds every one of them to `group_ids`. Rows are matched to existing subscribers by email, case-insensitively: a match is reused unchanged and only gains the groups, so re-importing a list never creates duplicates. Rows with a missing or invalid email, or repeating an earlier row's email, are skipped and listed in `skipped` instead of failing the import. Everything else is written in one transaction. At most 5000 rows per request. Requires the `create Subscriber` claim.",
+        "tags": [
+          "Subscribers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriberImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What happened to every row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriberImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`subscribers` is missing, empty, over 5000 rows or malformed, `group_ids` is malformed, or a group id doesn't exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `create Subscriber`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "subscribersImport"
+      }
+    },
+    "/subscribers/bulk-delete": {
+      "post": {
+        "summary": "Bulk Delete Subscribers",
+        "deprecated": false,
+        "description": "Deletes many subscribers in one transaction; their group and campaign memberships go with them. A subscriber a campaign has already been sent to is kept, because its send history (`campaign_delivery`) references it, and is returned in `blocked_ids`. Ids that don't exist are ignored. At most 1000 ids per request. Requires the `delete Subscriber` claim.",
+        "tags": [
+          "Subscribers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriberIds"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Which subscribers were deleted and which were kept.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriberBulkDeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`subscriber_ids` is missing, empty, not all strings, or over 1000 ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `delete Subscriber`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "subscribersBulkDelete"
+      }
+    },
     "/subscribers/{subscriber_id}": {
       "get": {
         "summary": "Get Subscriber",
@@ -3719,6 +3845,80 @@
         }
       }
     },
+    "/groups/{group_id}/subscribers/bulk-remove": {
+      "post": {
+        "summary": "Bulk Remove Subscribers From Group",
+        "deprecated": false,
+        "description": "Removes many subscribers from the group in one request. The subscribers are kept, with their other groups. Ids that aren't members are ignored. At most 1000 ids per request. Requires the `update Group` claim.",
+        "tags": [
+          "Groups"
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID of the group.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriberIds"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The subscribers removed from the group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMembersRemoveResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`subscriber_ids` is missing, empty, not all strings, or over 1000 ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown or expired API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The key's claims don't include `update Group`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "groupSubscribersBulkRemove"
+      }
+    },
     "/groups/{group_id}/subscribers/{subscriber_id}": {
       "delete": {
         "summary": "Remove Subscriber from Group",
@@ -3794,6 +3994,148 @@
   },
   "components": {
     "schemas": {
+      "SubscriberIds": {
+        "type": "object",
+        "required": [
+          "subscriber_ids"
+        ],
+        "properties": {
+          "subscriber_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "string"
+            },
+            "description": "Ids of the subscribers to act on."
+          }
+        }
+      },
+      "SubscriberBulkDeleteResult": {
+        "type": "object",
+        "required": [
+          "deleted_ids",
+          "blocked_ids"
+        ],
+        "properties": {
+          "deleted_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Subscribers deleted."
+          },
+          "blocked_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Subscribers kept because a campaign has already been sent to them."
+          }
+        }
+      },
+      "GroupMembersRemoveResult": {
+        "type": "object",
+        "required": [
+          "removed_ids"
+        ],
+        "properties": {
+          "removed_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Subscribers removed from the group (still subscribers)."
+          }
+        }
+      },
+      "SubscriberImport": {
+        "type": "object",
+        "required": [
+          "subscribers"
+        ],
+        "properties": {
+          "subscribers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5000,
+            "description": "The people to import, in order. Other fields on a row are ignored.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "email_id": {
+                  "type": "string",
+                  "description": "Email; rows without a valid one are skipped."
+                },
+                "first_name": {
+                  "type": "string"
+                },
+                "last_name": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Groups every imported subscriber (new or existing) joins. Each must exist."
+          }
+        }
+      },
+      "SubscriberImportResult": {
+        "type": "object",
+        "required": [
+          "created",
+          "existing",
+          "group_ids",
+          "skipped"
+        ],
+        "properties": {
+          "created": {
+            "type": "integer",
+            "description": "New subscribers created."
+          },
+          "existing": {
+            "type": "integer",
+            "description": "Rows matched to an existing subscriber, which was reused unchanged and only linked to the groups."
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Groups every imported subscriber is now in."
+          },
+          "skipped": {
+            "type": "array",
+            "description": "Rows that weren't imported.",
+            "items": {
+              "type": "object",
+              "required": [
+                "row",
+                "email_id",
+                "reason"
+              ],
+              "properties": {
+                "row": {
+                  "type": "integer",
+                  "description": "1-based position in `subscribers`."
+                },
+                "email_id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string",
+                  "description": "`Missing email`, `Invalid email` or `Duplicate of an earlier row`."
+                }
+              }
+            }
+          }
+        }
+      },
       "Error": {
         "type": "object",
         "properties": {

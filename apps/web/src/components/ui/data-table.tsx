@@ -36,6 +36,30 @@ interface DataTableProps<Row extends { id: string }> {
   /** Shown in place of the table when there are no rows. */
   empty: React.ReactNode;
   skeletonRows?: number;
+  /** Adds a checkbox to every row, and a select-all for the rows shown to the header. Omit for a table without bulk actions. */
+  selection?: {
+    selected: ReadonlySet<string>;
+    onChange: (ids: Set<string>) => void;
+    /** Accessible name for a row's checkbox, e.g. "Select ada@example.com". */
+    rowLabel: (row: Row) => string;
+  };
+}
+
+/** A row or select-all checkbox: native, so keyboard and screen readers work as-is. */
+function SelectBox({ label, checked, indeterminate, onChange }: { label: string; checked: boolean; indeterminate?: boolean; onChange: () => void }) {
+  return (
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={checked}
+      onChange={onChange}
+      // `indeterminate` exists only as a DOM property, not an attribute.
+      ref={(element) => {
+        if (element) element.indeterminate = !!indeterminate;
+      }}
+      className="size-4 shrink-0 cursor-pointer accent-(--accent)"
+    />
+  );
 }
 
 /**
@@ -55,6 +79,7 @@ export function DataTable<Row extends { id: string }>({
   mobile,
   empty,
   skeletonRows = 5,
+  selection,
 }: DataTableProps<Row>) {
   const router = useRouter();
 
@@ -62,6 +87,21 @@ export function DataTable<Row extends { id: string }>({
   if (!isLoading && (!rows || rows.length === 0)) return <>{empty}</>;
 
   const alignClass = (column: Column<Row>) => (column.align === "right" ? "text-right" : "text-left");
+
+  // Select-all covers only the rows shown; it's checked when all are, and half-checked when some are.
+  const visibleIds = rows?.map((row) => row.id) ?? [];
+  const selectedCount = selection ? visibleIds.filter((id) => selection.selected.has(id)).length : 0;
+  const allSelected = visibleIds.length > 0 && selectedCount === visibleIds.length;
+  /** Ticks or unticks one row. */
+  const toggleRow = (id: string) => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selection.onChange(next);
+  };
+  /** Ticks every row shown, or unticks them all when they already are. */
+  const toggleAll = () => selection?.onChange(allSelected ? new Set() : new Set(visibleIds));
 
   return (
     <>
@@ -86,13 +126,17 @@ export function DataTable<Row extends { id: string }>({
                 </>
               );
               return (
-                <li key={row.id} className="border-b border-rule">
+                <li key={row.id} className="flex items-center gap-3 border-b border-rule">
+                  {/* Beside the link, not inside it, so ticking a row doesn't open it. */}
+                  {selection && (
+                    <SelectBox label={selection.rowLabel(row)} checked={selection.selected.has(row.id)} onChange={() => toggleRow(row.id)} />
+                  )}
                   {href ? (
-                    <Link href={href(row)} className="flex min-h-14 items-center gap-3 py-2.5 active:bg-raised">
+                    <Link href={href(row)} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2.5 active:bg-raised">
                       {content}
                     </Link>
                   ) : (
-                    <div className="flex min-h-14 items-center gap-3 py-2.5">{content}</div>
+                    <div className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2.5">{content}</div>
                   )}
                 </li>
               );
@@ -105,6 +149,16 @@ export function DataTable<Row extends { id: string }>({
           <caption className="sr-only">{noun}</caption>
           <thead>
             <tr className="border-b border-border">
+              {selection && (
+                <th scope="col" className="h-9 w-9 pr-3 pl-0 text-left">
+                  <SelectBox
+                    label={allSelected ? `Deselect all ${noun} shown` : `Select all ${noun} shown`}
+                    checked={allSelected}
+                    indeterminate={selectedCount > 0 && !allSelected}
+                    onChange={toggleAll}
+                  />
+                </th>
+              )}
               {columns.map((column) => (
                 <th
                   key={column.header}
@@ -120,6 +174,7 @@ export function DataTable<Row extends { id: string }>({
             {isLoading
               ? Array.from({ length: skeletonRows }, (_, index) => (
                   <tr key={index} className="h-12 border-b border-rule">
+                    {selection && <td className="w-9 pr-3 pl-0" />}
                     {columns.map((column) => (
                       <td key={column.header} className={cx("px-3 first:pl-0 last:pr-0", column.className)}>
                         <Skeleton className={cx("h-3.5", column.align === "right" ? "ml-auto w-16" : "w-3/5")} />
@@ -135,8 +190,17 @@ export function DataTable<Row extends { id: string }>({
                       if ((event.target as HTMLElement).closest("a,button,select,input")) return;
                       router.push(href(row));
                     } : undefined}
-                    className={cx("h-12 border-b border-rule transition-colors duration-100", href && "cursor-pointer hover:bg-raised")}
+                    className={cx(
+                      "h-12 border-b border-rule transition-colors duration-100",
+                      href && "cursor-pointer hover:bg-raised",
+                      selection?.selected.has(row.id) && "bg-raised",
+                    )}
                   >
+                    {selection && (
+                      <td className="w-9 pr-3 pl-0">
+                        <SelectBox label={selection.rowLabel(row)} checked={selection.selected.has(row.id)} onChange={() => toggleRow(row.id)} />
+                      </td>
+                    )}
                     {columns.map((column, index) => (
                       <td
                         key={column.header}
@@ -157,6 +221,45 @@ export function DataTable<Row extends { id: string }>({
         </table>
       </div>
     </>
+  );
+}
+
+/**
+ * The bar above a table while rows are ticked: how many, a shortcut to
+ * tick every row shown, Clear, and the page's bulk actions (`children`).
+ * Renders nothing when no row is ticked.
+ */
+export function SelectionBar({
+  count,
+  visibleCount,
+  onSelectAll,
+  onClear,
+  children,
+}: {
+  count: number;
+  /** Rows on screen, for "Select all 25". */
+  visibleCount: number;
+  onSelectAll: () => void;
+  onClear: () => void;
+  children: React.ReactNode;
+}) {
+  if (count === 0) return null;
+
+  return (
+    <div role="toolbar" aria-label="Selected rows" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-raised px-3.5 py-2">
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <span className="tabular font-medium text-text">{count} selected</span>
+        {count < visibleCount && (
+          <button type="button" onClick={onSelectAll} className="text-text underline-offset-3 hover:underline">
+            Select all {visibleCount}
+          </button>
+        )}
+        <button type="button" onClick={onClear} className="text-muted underline-offset-3 hover:text-text hover:underline">
+          Clear
+        </button>
+      </p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
   );
 }
 

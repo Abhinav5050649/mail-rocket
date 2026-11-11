@@ -1,7 +1,8 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { assertNoSystemFields, logger, ValidationError } from "../libs";
-import { SubscriberService } from "../services";
+import { SUBSCRIBER_BULK_MAX_IDS, SUBSCRIBER_IMPORT_MAX_ROWS } from "@mail-rocket/shared";
+import { SubscriberService, type ImportSubscriberRow } from "../services";
 
 /**
  * Checks a subscriber body. `unsubscribed_at` is only ever set by the
@@ -21,6 +22,71 @@ const assertSubscriberBody = (body: Record<string, unknown>): void => {
     if ("group_ids" in body && (!Array.isArray(body.group_ids) || !body.group_ids.every((id) => typeof id === "string" && id.length > 0))) {
         throw new ValidationError("group_ids must be an array of group id strings");
     }
+};
+
+/** Row fields an import accepts; anything else on a row is ignored. */
+const IMPORT_ROW_FIELDS = ["email_id", "first_name", "last_name"] as const;
+
+/**
+ * Checks an import body: `subscribers` must be a non-empty array of at most
+ * `SUBSCRIBER_IMPORT_MAX_ROWS` objects whose `email_id`/`first_name`/`last_name`,
+ * when present, are strings; `group_ids`, when present, must be an array of
+ * id strings. Whether each email is valid is the service's call, per row, so
+ * one bad row is reported instead of failing the whole import.
+ *
+ * @param body - The parsed JSON request body.
+ * @returns The rows (only the accepted fields) and the group ids (empty when omitted).
+ * @throws {ValidationError} (-> 400) on a malformed body.
+ */
+const parseImportBody = (body: Record<string, unknown>): { rows: ImportSubscriberRow[]; groupIds: string[] } => {
+    const { subscribers, group_ids } = body ?? {};
+
+    if (!Array.isArray(subscribers) || subscribers.length === 0) {
+        throw new ValidationError("subscribers must be a non-empty array of { email_id, first_name?, last_name? }");
+    }
+    if (subscribers.length > SUBSCRIBER_IMPORT_MAX_ROWS) {
+        throw new ValidationError(`An import takes at most ${SUBSCRIBER_IMPORT_MAX_ROWS} subscribers; split the list into several imports.`);
+    }
+    if (group_ids !== undefined && (!Array.isArray(group_ids) || !group_ids.every((id) => typeof id === "string" && id.length > 0))) {
+        throw new ValidationError("group_ids must be an array of group id strings");
+    }
+
+    const rows = subscribers.map((row, index) => {
+        // A malformed row is a broken request (not bad data), so it fails the whole import, named by its array index.
+        if (typeof row !== "object" || row === null || Array.isArray(row)) {
+            throw new ValidationError(`subscribers[${index}] must be an object`);
+        }
+        // Copy only the known fields, so stray columns can't reach the insert.
+        const picked: ImportSubscriberRow = {};
+        for (const field of IMPORT_ROW_FIELDS) {
+            const value = (row as Record<string, unknown>)[field];
+            if (value === undefined || value === null) continue;
+            if (typeof value !== "string") throw new ValidationError(`subscribers[${index}].${field} must be a string`);
+            picked[field] = value;
+        }
+        return picked;
+    });
+
+    return { rows, groupIds: (group_ids as string[] | undefined) ?? [] };
+};
+
+/**
+ * Checks a bulk body's `subscriber_ids`: a non-empty array of at most
+ * `SUBSCRIBER_BULK_MAX_IDS` id strings.
+ *
+ * @param body - The parsed JSON request body.
+ * @returns The ids, as sent.
+ * @throws {ValidationError} (-> 400) when `subscriber_ids` is missing, empty, too long or not all strings.
+ */
+const parseSubscriberIds = (body: Record<string, unknown>): string[] => {
+    const ids = body?.subscriber_ids;
+    if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => typeof id === "string" && id.length > 0)) {
+        throw new ValidationError("subscriber_ids must be a non-empty array of subscriber id strings");
+    }
+    if (ids.length > SUBSCRIBER_BULK_MAX_IDS) {
+        throw new ValidationError(`At most ${SUBSCRIBER_BULK_MAX_IDS} subscriber_ids per request`);
+    }
+    return ids as string[];
 };
 
 /**
@@ -84,6 +150,91 @@ export class SubscriberController {
         logger.info(`End method: ${this.constructor.name}.${this.post.name}`);
 
         return c.json(subscriber, 201);
+    }
+
+    /**
+     * POST /subscribers/import
+     * Imports many subscribers at once (the web app sends a parsed CSV) and
+     * adds every one of them to the given groups. Existing subscribers are
+     * matched by email and reused; invalid or repeated rows are skipped and
+     * listed in the response rather than failing the import.
+     *
+     * @param c - Hono request context; expects a JSON body
+     * `{ subscribers: [{ email_id, first_name?, last_name? }], group_ids?: string[] }`.
+     * @returns JSON `{ created, existing, group_ids, skipped }`.
+     * @throws {ValidationError} 400 on a malformed body, too many rows, or an unknown group id.
+     */
+    importMany = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.importMany.name}`);
+
+        const { rows, groupIds } = parseImportBody(await c.req.json());
+
+        // Only counts: an import can carry thousands of rows.
+        logger.debug({ rowCount: rows.length, groupIds }, `Request:`);
+
+        const result = await this.subscriberService.importMany(rows, groupIds);
+
+        logger.debug({ created: result.created, existing: result.existing, skipped: result.skipped.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.importMany.name}`);
+
+        return c.json(result);
+    }
+
+    /**
+     * POST /subscribers/bulk-delete
+     * Deletes many subscribers at once. Subscribers a campaign has already
+     * been sent to are kept (their send history references them) and listed
+     * in `blocked_ids`; unknown ids are ignored.
+     *
+     * @param c - Hono request context; expects a JSON body `{ subscriber_ids: string[] }`.
+     * @returns JSON `{ deleted_ids, blocked_ids }`.
+     * @throws {ValidationError} 400 if `subscriber_ids` is missing, empty, malformed or too long.
+     */
+    deleteMany = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.deleteMany.name}`);
+
+        const subscriberIds = parseSubscriberIds(await c.req.json());
+
+        logger.debug({ count: subscriberIds.length }, `Request:`);
+
+        const result = await this.subscriberService.deleteMany(subscriberIds);
+
+        logger.debug({ deleted: result.deleted_ids.length, blocked: result.blocked_ids.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.deleteMany.name}`);
+
+        return c.json(result);
+    }
+
+    /**
+     * POST /groups/:group_id/subscribers/bulk-remove
+     * Removes many subscribers from a group at once; the subscribers are
+     * kept. Ids that aren't members are ignored.
+     *
+     * @param c - Hono request context; expects a `group_id` route param and a
+     * JSON body `{ subscriber_ids: string[] }`.
+     * @returns JSON `{ removed_ids }`.
+     * @throws {HTTPException} 400 if the `group_id` param is missing.
+     * @throws {ValidationError} 400 if `subscriber_ids` is missing, empty, malformed or too long.
+     */
+    removeManyFromGroup = async (c: Context) => {
+        logger.info(`Start method: ${this.constructor.name}.${this.removeManyFromGroup.name}`);
+
+        const groupId = c.req.param('group_id');
+
+        if (!groupId) {
+            throw new HTTPException(400, { message: "Missing Parameters: groupId" });
+        }
+
+        const subscriberIds = parseSubscriberIds(await c.req.json());
+
+        logger.debug({ groupId, count: subscriberIds.length }, `Request:`);
+
+        const result = await this.subscriberService.removeManyFromGroup(groupId, subscriberIds);
+
+        logger.debug({ groupId, removed: result.removed_ids.length }, `Response:`);
+        logger.info(`End method: ${this.constructor.name}.${this.removeManyFromGroup.name}`);
+
+        return c.json(result);
     }
 
     /**

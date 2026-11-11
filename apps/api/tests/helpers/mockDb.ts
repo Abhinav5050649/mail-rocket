@@ -11,7 +11,7 @@ import { mock } from "bun:test";
  * awaited once at the end.
  */
 export function chain(result: unknown) {
-    const methods = ["from", "where", "orderBy", "limit", "offset", "set", "values", "returning", "innerJoin", "leftJoin", "groupBy"];
+    const methods = ["from", "where", "orderBy", "limit", "offset", "set", "values", "returning", "innerJoin", "leftJoin", "groupBy", "onConflictDoNothing"];
     const node: any = {
         then: (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) => Promise.resolve(result).then(resolve, reject),
         catch: (reject: (reason?: unknown) => void) => Promise.resolve(result).catch(reject),

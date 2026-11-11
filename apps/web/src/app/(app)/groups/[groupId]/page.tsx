@@ -3,20 +3,21 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "@untitledui/icons";
+import { Plus, Upload01, UserMinus01 } from "@untitledui/icons";
 import { GroupForm } from "@/components/groups/GroupForm";
 import { DeleteSection } from "@/components/resources/DeleteSection";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, SelectionBar } from "@/components/ui/data-table";
 import { Dash, PageHeader, SettingsSection } from "@/components/ui/page";
 import { EmptyState, ErrorNotice, FormError, Skeleton } from "@/components/ui/feedback";
 import { Select } from "@/components/ui/field";
 import { Can } from "@/components/auth/Can";
 import { useAbility } from "@/hooks/useAbility";
 import { useCampaignNames } from "@/hooks/useLookups";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fullName } from "@/lib/format";
-import { useAddSubscriberToGroupMutation, useGetGroupSubscribersQuery, useGetSubscribersQuery, useRemoveSubscriberFromGroupMutation } from "@/features/subscribers";
+import { useAddSubscriberToGroupMutation, useGetGroupSubscribersQuery, useGetSubscribersQuery, useRemoveSubscriberFromGroupMutation, useRemoveSubscribersFromGroupMutation } from "@/features/subscribers";
 import {
   useGetGroupQuery,
   useUpdateGroupMutation,
@@ -73,19 +74,44 @@ function GroupSubscribers({ groupId }: { groupId: string }) {
   const canEdit = ability.can("update", "Group");
   const { data: subscribers, isLoading, error, refetch } = useGetGroupSubscribersQuery({ groupId, limit: 100 });
   const [removeSubscriber, { isLoading: isRemoving, originalArgs }] = useRemoveSubscriberFromGroupMutation();
+  const [removeSubscribers, { isLoading: isRemovingMany, error: removeManyError }] = useRemoveSubscribersFromGroupMutation();
   const memberIds = new Set((subscribers ?? []).map((subscriber) => subscriber.id));
+  const selection = useRowSelection(subscribers);
+  const selectedCount = selection.selected.size;
+
+  /** Takes every ticked member out of the group (they stay subscribers), then clears the selection. */
+  const removeSelected = async () => {
+    const result = await removeSubscribers({ groupId, subscriberIds: [...selection.selected] });
+    if (result.data) selection.clear();
+  };
 
   const create = (
     <Can I="create" a="Subscriber">
-      <Button href={`/subscribers/new?groupId=${groupId}`} size="sm" icon={Plus} variant="ghost">
-        New subscriber
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button href={`/subscribers/new?groupId=${groupId}`} size="sm" icon={Plus} variant="ghost">
+          New subscriber
+        </Button>
+        <Button href={`/subscribers/import?groupId=${groupId}`} size="sm" icon={Upload01} variant="ghost">
+          Import CSV
+        </Button>
+      </div>
     </Can>
   );
 
   return (
     <div className="flex flex-col gap-4">
       {canEdit && <AddExistingSubscriber groupId={groupId} memberIds={memberIds} />}
+      {canEdit && (
+        <div>
+          <SelectionBar count={selectedCount} visibleCount={selection.visibleCount} onSelectAll={selection.selectAll} onClear={selection.clear}>
+            {/* No confirmation: like the per-row Remove, it only changes membership and is undone by adding them back. */}
+            <Button size="sm" variant="secondary" icon={UserMinus01} isLoading={isRemovingMany} onClick={removeSelected}>
+              Remove {selectedCount} from group
+            </Button>
+          </SelectionBar>
+          <FormError error={removeManyError} />
+        </div>
+      )}
       <DataTable<Subscriber>
         noun="members"
         rows={subscribers}
@@ -94,6 +120,9 @@ function GroupSubscribers({ groupId }: { groupId: string }) {
         onRetry={refetch}
         skeletonRows={3}
         href={(subscriber) => `/subscribers/${subscriber.id}`}
+        selection={
+          canEdit ? { selected: selection.selected, onChange: selection.setSelected, rowLabel: (subscriber) => `Select ${subscriber.email_id ?? "member"}` } : undefined
+        }
         columns={[
           { header: "Email", cell: (subscriber) => subscriber.email_id, className: "w-[45%]" },
           { header: "Name", cell: (subscriber) => fullName(subscriber) ?? <Dash /> },

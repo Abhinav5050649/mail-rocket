@@ -146,6 +146,48 @@ export interface Subscriber extends BaseFields {
     unsubscribed_at: string | null;
 }
 
+/** Most ids one bulk delete (POST /subscribers/bulk-delete) or bulk remove (POST /groups/:group_id/subscribers/bulk-remove) accepts. */
+export const SUBSCRIBER_BULK_MAX_IDS = 1000;
+
+/** POST /subscribers/bulk-delete: which subscribers were deleted and which were kept. Ids that didn't exist are in neither. */
+export interface SubscriberBulkDeleteResult {
+    /** Subscribers deleted, with their group memberships. */
+    deleted_ids: string[];
+    /** Subscribers kept because a campaign has already been sent to them; their send history must stay. */
+    blocked_ids: string[];
+}
+
+/** POST /groups/:group_id/subscribers/bulk-remove: who left the group. Ids that weren't members are left out. */
+export interface GroupMembersRemoveResult {
+    /** Subscribers removed from the group (they're still subscribers). */
+    removed_ids: string[];
+}
+
+/** Most rows one POST /subscribers/import accepts; split larger lists into several imports. */
+export const SUBSCRIBER_IMPORT_MAX_ROWS = 5000;
+
+/** One row of a POST /subscribers/import that wasn't imported, and why. */
+export interface SubscriberImportSkip {
+    /** 1-based position of the row in the request's `subscribers` array. */
+    row: number;
+    /** The email the row carried, as sent (may be empty). */
+    email_id: string;
+    /** Why the row was skipped: a missing/invalid email, or a repeat of an earlier row. */
+    reason: string;
+}
+
+/** POST /subscribers/import: what happened to every row. */
+export interface SubscriberImportResult {
+    /** New subscribers created. */
+    created: number;
+    /** Rows whose email already belonged to a subscriber; that subscriber was reused (not changed), only linked to the groups. */
+    existing: number;
+    /** Groups every imported subscriber (new or existing) is now in. */
+    group_ids: string[];
+    /** Rows that weren't imported. */
+    skipped: SubscriberImportSkip[];
+}
+
 /**
  * GET /campaigns/:campaign_id/stats. Counts are emails (one per subscriber);
  * `opened`/`clicked`/`unsubscribed` count each subscriber once. Rates are
